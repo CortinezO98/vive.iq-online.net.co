@@ -31,7 +31,8 @@
 
     //Puerto y url del sitio
     define('PORT', '8012');
-    define('URL', IS_LOCAL ? 'http://localhost'.BASEPATH : 'https://vive.iq-online.net.co/');
+    define('URL', IS_LOCAL ? 'http://localhost:8012'.BASEPATH : 'https://vive.iq-online.net.co/');
+
 
     //Rutas de directorios y archivos
     define('DS', DIRECTORY_SEPARATOR);
@@ -79,6 +80,7 @@
         //Credenciales BBDD local o desarrollo
         define('DB_ENGINE', 'mysql');
         define('DB_HOST', 'localhost');
+        define('DB_PORT', 3307);
         define('DB_NAME', 'iq-vive');
         define('DB_NAME_AUX', 'framework');
         define('DB_USER', 'root');

@@ -260,6 +260,68 @@
 
 
                 </ul>
+                <?php
+                // Control de visibilidad (ajústalo a tu lógica real de permisos)
+                $puedeVerComunicaciones = true; // o valida perfil/modulos
+                ?>
+
+                <?php if($puedeVerComunicaciones): ?>
+                <li class="nav-item">
+                    <a class="nav-link has-arrow" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navComunicaciones"
+                    aria-expanded="false" aria-controls="navComunicaciones">
+                    <i class="fa-solid fa-bullhorn nav-icon me-2 icon-xxs"></i>
+                    Comunicaciones
+                    </a>
+
+                    <div id="navComunicaciones" class="collapse" data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/inicio">Inicio</a>
+                        </li>
+
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/identidad-corporativa">Identidad corporativa</a>
+                        </li>
+
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/contacto">Contacto</a>
+                        </li>
+
+                        <li class="nav-item mt-2">
+                        <div class="navbar-heading">Sobre iQ</div>
+                        </li>
+
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/compania">Compañía</a>
+                        </li>
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/cultura-iq">Cultura iQ</a>
+                        </li>
+
+                        <li class="nav-item mt-2">
+                        <div class="navbar-heading">Lo que necesitas</div>
+                        </li>
+
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/bienestar-formacion">Bienestar y formación</a>
+                        </li>
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/atraccion-personal">Atracción de personal</a>
+                        </li>
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/sst">SST</a>
+                        </li>
+                        <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>comunicaciones/ver/compensacion-beneficios">Compensación y beneficios</a>
+                        </li>
+
+                    </ul>
+                    </div>
+                </li>
+                <?php endif; ?>
+
             </div>
         </li>
          </ul>
