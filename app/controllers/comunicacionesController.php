@@ -14,20 +14,18 @@ class comunicacionesController extends Controller {
     }
 
     private function requireAdminComunicaciones(): void {
-        // Ajusta esto a tu lógica real:
-        // - si manejas $_SESSION[APP_SESSION.'usu_modulos']['Administrador'] o perfiles.
         $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
         if (!in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'])) {
-            // si tu app usa un controlador de error:
             Redirect::to('error');
         }
     }
 
     // =========================
-    // Público / interno (usuarios logueados)
+    // PÚBLICO (logueados)
     // =========================
     function index() {
-        $this->ver('inicio');
+        $this->requireLogin();
+        Redirect::to('comunicaciones/ver/inicio');
     }
 
     function ver($slug = 'inicio') {
@@ -37,26 +35,26 @@ class comunicacionesController extends Controller {
         if ($slug === '') $slug = 'inicio';
 
         $pagina = $this->model->obtenerPaginaPorSlug($slug);
-        if (!$pagina) {
-            Redirect::to('error');
-        }
+        if (!$pagina) Redirect::to('error');
 
         $secciones = $this->model->obtenerSeccionesPagina((int)$pagina->pag_id);
-        $mapItems = [];
+
+        $itemsBySeccion = [];
         foreach ($secciones as $sec) {
-            $mapItems[$sec->sec_id] = $this->model->obtenerItemsSeccion((int)$sec->sec_id);
+            $itemsBySeccion[$sec->sec_id] = $this->model->obtenerItemsSeccion((int)$sec->sec_id);
         }
 
-        View::render('ver', [
+        // Deben existir: templates/comunicaciones/<slug>.php
+        View::render($slug, [
             'pagina' => $pagina,
             'secciones' => $secciones,
-            'itemsPorSeccion' => $mapItems,
+            'itemsBySeccion' => $itemsBySeccion,
             'slug' => $slug,
         ]);
     }
 
     // =========================
-    // Admin CMS
+    // ADMIN CMS
     // =========================
     function admin_paginas() {
         $this->requireLogin();
@@ -86,12 +84,15 @@ class comunicacionesController extends Controller {
             'pag_id' => $_POST['pag_id'] ?? '',
             'pag_slug' => trim($_POST['pag_slug'] ?? ''),
             'pag_titulo' => trim($_POST['pag_titulo'] ?? ''),
+            'pag_subtitulo' => trim($_POST['pag_subtitulo'] ?? ''),
+            'pag_hero_bg' => trim($_POST['pag_hero_bg'] ?? ''),
+            'pag_hero_overlay' => (int)($_POST['pag_hero_overlay'] ?? 1),
+            'pag_hero_alineacion' => $_POST['pag_hero_alineacion'] ?? 'center',
             'pag_descripcion' => trim($_POST['pag_descripcion'] ?? ''),
             'pag_estado' => $_POST['pag_estado'] ?? 'ACTIVO',
-            'pag_orden' => $_POST['pag_orden'] ?? 0,
+            'pag_orden' => (int)($_POST['pag_orden'] ?? 0),
         ];
 
-        // Validación mínima
         if ($d['pag_slug'] === '' || $d['pag_titulo'] === '') {
             Redirect::to('comunicaciones/admin_pagina_form/'.($d['pag_id'] ?: 0));
         }
@@ -140,16 +141,27 @@ class comunicacionesController extends Controller {
         $d = [
             'sec_id' => $_POST['sec_id'] ?? '',
             'pag_id' => (int)($_POST['pag_id'] ?? 0),
+
+            'sec_slug' => trim($_POST['sec_slug'] ?? ''),
             'sec_tipo' => $_POST['sec_tipo'] ?? 'CAROUSEL',
             'sec_titulo' => trim($_POST['sec_titulo'] ?? ''),
             'sec_descripcion' => trim($_POST['sec_descripcion'] ?? ''),
+
+            'sec_layout' => $_POST['sec_layout'] ?? 'CONTAINER',
+            'sec_cols' => (int)($_POST['sec_cols'] ?? 3),
+
+            'sec_iframe_src' => trim($_POST['sec_iframe_src'] ?? ''),
+            'sec_video_url' => trim($_POST['sec_video_url'] ?? ''),
+
+            'sec_boton_texto' => trim($_POST['sec_boton_texto'] ?? ''),
+            'sec_boton_url' => trim($_POST['sec_boton_url'] ?? ''),
+
             'sec_estado' => $_POST['sec_estado'] ?? 'ACTIVO',
-            'sec_orden' => $_POST['sec_orden'] ?? 0,
-            // JSON simple editable (opcional)
+            'sec_orden' => (int)($_POST['sec_orden'] ?? 0),
+
             'sec_config_json' => null,
         ];
 
-        // Si envías un textarea JSON:
         $cfgRaw = trim($_POST['sec_config_json_raw'] ?? '');
         if ($cfgRaw !== '') {
             $decoded = json_decode($cfgRaw, true);
@@ -213,7 +225,6 @@ class comunicacionesController extends Controller {
         $dest = $dir.$name;
 
         if (move_uploaded_file($file['tmp_name'], $dest)) {
-            // En DB guardamos ruta relativa dentro de assets/uploads
             return 'comunicaciones/'.$name;
         }
         return null;
@@ -238,9 +249,11 @@ class comunicacionesController extends Controller {
             'itm_descripcion' => trim($_POST['itm_descripcion'] ?? ''),
             'itm_imagen' => $img ?: ($imgExistente ?: null),
             'itm_url' => trim($_POST['itm_url'] ?? ''),
+            'itm_target' => $_POST['itm_target'] ?? '_blank',
+            'itm_badge' => trim($_POST['itm_badge'] ?? ''),
             'itm_embed' => trim($_POST['itm_embed'] ?? ''),
             'itm_estado' => $_POST['itm_estado'] ?? 'ACTIVO',
-            'itm_orden' => $_POST['itm_orden'] ?? 0,
+            'itm_orden' => (int)($_POST['itm_orden'] ?? 0),
             'itm_extra_json' => null,
         ];
 
