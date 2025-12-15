@@ -29,6 +29,7 @@
                             <div class="border-bottom px-3 pt-2 pb-3 d-flex justify-content-between align-items-center">
                                 <p class="mb-0 text-dark fw-medium fs-4">Notificaciones</p>
                             </div>
+                            
                             <div data-simplebar style="height: 250px;">
                                 <ul class="list-group list-group-flush notification-list-scroll"></ul>
                             </div>
@@ -110,33 +111,71 @@
             </li>
 
             <?php
-              // Ajusta a tu lógica real:
-              $puedeVerComunicaciones = isset($_SESSION[APP_SESSION.'usu_id']);
+            // Ver Comunicaciones: cualquier usuario logueado
+            $puedeVerComunicaciones = isset($_SESSION[APP_SESSION.'usu_id']);
+
+            // Admin Comunicaciones: solo perfiles autorizados
+            $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
+            $puedeAdminComunicaciones = in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true);
             ?>
 
-           <?php if($puedeVerComunicaciones): ?>
+            <?php if($puedeVerComunicaciones): ?>
             <li class="nav-item mt-2">
-            <a class="nav-link has-arrow" href="#!"
+                <a class="nav-link has-arrow" href="#!"
                 data-bs-toggle="collapse" data-bs-target="#navComunicaciones"
                 aria-expanded="false" aria-controls="navComunicaciones">
                 <i class="fa-solid fa-bullhorn nav-icon me-2 icon-xxs"></i> Comunicaciones
-            </a>
+                </a>
 
-            <div id="navComunicaciones" class="collapse" data-bs-parent="#sideNavbar">
+                <div id="navComunicaciones" class="collapse" data-bs-parent="#sideNavbar">
                 <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/inicio">Inicio</a></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/identidad-corporativa">Identidad corporativa</a></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/contacto">Contacto</a></li>
-                <li class="nav-item mt-2"><div class="navbar-heading">Sobre iQ</div></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compania">Compañía</a></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/cultura-iq">Cultura iQ</a></li>
-                <li class="nav-item mt-2"><div class="navbar-heading">Lo que necesitas</div></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/bienestar-formacion">Bienestar y formación</a></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/atraccion-personal">Atracción de personal</a></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/sst">SST</a></li>
-                <li class="nav-item"><a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compensacion-beneficios">Compensación y beneficios</a></li>
+
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/inicio">Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/identidad-corporativa">Identidad corporativa</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/contacto">Contacto</a>
+                    </li>
+
+                    <li class="nav-item mt-2"><div class="navbar-heading">Sobre iQ</div></li>
+
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compania">Compañía</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/cultura-iq">Cultura iQ</a>
+                    </li>
+
+                    <li class="nav-item mt-2"><div class="navbar-heading">Lo que necesitas</div></li>
+
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/bienestar-formacion">Bienestar y formación</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/atraccion-personal">Atracción de personal</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/sst">SST</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compensacion-beneficios">Compensación y beneficios</a>
+                    </li>
+
+                    <?php if($puedeAdminComunicaciones): ?>
+                    <li class="nav-item mt-3"><div class="navbar-heading">Administración</div></li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/admin_paginas">
+                        <i class="fa-solid fa-gear nav-icon me-2 icon-xxs"></i> Administrar páginas
+                        </a>
+                    </li>
+                    <?php endif; ?>
+
                 </ul>
-            </div>
+                </div>
             </li>
             <?php endif; ?>
 

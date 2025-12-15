@@ -1,4 +1,5 @@
 <?php
+
 class comunicacionesController extends Controller {
 
     private comunicacionesModel $model;
@@ -9,14 +10,14 @@ class comunicacionesController extends Controller {
 
     private function requireLogin(): void {
         if (!isset($_SESSION[APP_SESSION.'usu_id'])) {
-            Redirect::to('login');
+            Redirect::to('?uri=login');
         }
     }
 
     private function requireAdminComunicaciones(): void {
         $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
-        if (!in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'])) {
-            Redirect::to('error');
+        if (!in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true)) {
+            Redirect::to('?uri=error');
         }
     }
 
@@ -25,7 +26,7 @@ class comunicacionesController extends Controller {
     // =========================
     function index() {
         $this->requireLogin();
-        Redirect::to('comunicaciones/ver/inicio');
+        Redirect::to('?uri=comunicaciones/ver/inicio');
     }
 
     function ver($slug = 'inicio') {
@@ -35,7 +36,7 @@ class comunicacionesController extends Controller {
         if ($slug === '') $slug = 'inicio';
 
         $pagina = $this->model->obtenerPaginaPorSlug($slug);
-        if (!$pagina) Redirect::to('error');
+        if (!$pagina) Redirect::to('?uri=error');
 
         $secciones = $this->model->obtenerSeccionesPagina((int)$pagina->pag_id);
 
@@ -44,24 +45,27 @@ class comunicacionesController extends Controller {
             $itemsBySeccion[$sec->sec_id] = $this->model->obtenerItemsSeccion((int)$sec->sec_id);
         }
 
-        // Deben existir: templates/comunicaciones/<slug>.php
+        // templates/comunicaciones/<slug>View.php
         View::render($slug, [
-            'pagina' => $pagina,
-            'secciones' => $secciones,
-            'itemsBySeccion' => $itemsBySeccion,
-            'slug' => $slug,
+            'pagina'        => $pagina,
+            'secciones'     => $secciones,
+            'itemsBySeccion'=> $itemsBySeccion,
+            'slug'          => $slug,
         ]);
     }
 
     // =========================
-    // ADMIN CMS
+    // ADMIN CMS (views en comunicaciones/admin/)
     // =========================
+
     function admin_paginas() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
         $paginas = $this->model->listarPaginasAdmin();
-        View::render('adminPaginas', ['paginas'=>$paginas]);
+
+        // templates/comunicaciones/admin/adminPaginasView.php
+        View::render('admin/adminPaginas', ['paginas' => $paginas]);
     }
 
     function admin_pagina_form($id = 0) {
@@ -69,36 +73,41 @@ class comunicacionesController extends Controller {
         $this->requireAdminComunicaciones();
 
         $pagina = null;
-        if ((int)$id > 0) $pagina = $this->model->getPagina((int)$id);
+        if ((int)$id > 0) {
+            $pagina = $this->model->getPagina((int)$id);
+        }
 
-        View::render('adminPaginaForm', ['pagina'=>$pagina]);
+        // templates/comunicaciones/admin/adminPaginaFormView.php
+        View::render('admin/adminPaginaForm', ['pagina' => $pagina]);
     }
 
     function admin_pagina_guardar() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') Redirect::to('comunicaciones/admin_paginas');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $d = [
-            'pag_id' => $_POST['pag_id'] ?? '',
-            'pag_slug' => trim($_POST['pag_slug'] ?? ''),
-            'pag_titulo' => trim($_POST['pag_titulo'] ?? ''),
-            'pag_subtitulo' => trim($_POST['pag_subtitulo'] ?? ''),
-            'pag_hero_bg' => trim($_POST['pag_hero_bg'] ?? ''),
-            'pag_hero_overlay' => (int)($_POST['pag_hero_overlay'] ?? 1),
-            'pag_hero_alineacion' => $_POST['pag_hero_alineacion'] ?? 'center',
-            'pag_descripcion' => trim($_POST['pag_descripcion'] ?? ''),
-            'pag_estado' => $_POST['pag_estado'] ?? 'ACTIVO',
-            'pag_orden' => (int)($_POST['pag_orden'] ?? 0),
+            'pag_id'             => (int)($_POST['pag_id'] ?? 0),
+            'pag_slug'           => trim($_POST['pag_slug'] ?? ''),
+            'pag_titulo'         => trim($_POST['pag_titulo'] ?? ''),
+            'pag_subtitulo'      => trim($_POST['pag_subtitulo'] ?? ''),
+            'pag_hero_bg'        => trim($_POST['pag_hero_bg'] ?? ''),
+            'pag_hero_overlay'   => (int)($_POST['pag_hero_overlay'] ?? 1),
+            'pag_hero_alineacion'=> $_POST['pag_hero_alineacion'] ?? 'center',
+            'pag_descripcion'    => trim($_POST['pag_descripcion'] ?? ''),
+            'pag_estado'         => $_POST['pag_estado'] ?? 'ACTIVO',
+            'pag_orden'          => (int)($_POST['pag_orden'] ?? 0),
         ];
 
         if ($d['pag_slug'] === '' || $d['pag_titulo'] === '') {
-            Redirect::to('comunicaciones/admin_pagina_form/'.($d['pag_id'] ?: 0));
+            Redirect::to('?uri=comunicaciones/admin_pagina_form/'.($d['pag_id'] ?: 0));
         }
 
-        $id = $this->model->guardarPagina($d);
-        Redirect::to('comunicaciones/admin_secciones/'.$id);
+        $pagId = $this->model->guardarPagina($d);
+        Redirect::to('?uri=comunicaciones/admin_secciones/'.$pagId);
     }
 
     function admin_secciones($pagId = 0) {
@@ -106,13 +115,18 @@ class comunicacionesController extends Controller {
         $this->requireAdminComunicaciones();
 
         $pagId = (int)$pagId;
+
         $pagina = $this->model->getPagina($pagId);
-        if (!$pagina) Redirect::to('comunicaciones/admin_paginas');
+        if (!$pagina) {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $secciones = $this->model->listarSeccionesAdmin($pagId);
-        View::render('adminSecciones', [
-            'pagina'=>$pagina,
-            'secciones'=>$secciones
+
+        // templates/comunicaciones/admin/adminSeccionesView.php
+        View::render('admin/adminSecciones', [
+            'pagina'    => $pagina,
+            'secciones' => $secciones
         ]);
     }
 
@@ -120,15 +134,23 @@ class comunicacionesController extends Controller {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
-        $pagina = $this->model->getPagina((int)$pagId);
-        if (!$pagina) Redirect::to('comunicaciones/admin_paginas');
+        $pagId = (int)$pagId;
+        $secId = (int)$secId;
+
+        $pagina = $this->model->getPagina($pagId);
+        if (!$pagina) {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $seccion = null;
-        if ((int)$secId > 0) $seccion = $this->model->getSeccion((int)$secId);
+        if ($secId > 0) {
+            $seccion = $this->model->getSeccion($secId);
+        }
 
-        View::render('adminSeccionForm', [
-            'pagina'=>$pagina,
-            'seccion'=>$seccion
+        // templates/comunicaciones/admin/adminSeccionFormView.php
+        View::render('admin/adminSeccionForm', [
+            'pagina' => $pagina,
+            'seccion'=> $seccion
         ]);
     }
 
@@ -136,28 +158,30 @@ class comunicacionesController extends Controller {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') Redirect::to('comunicaciones/admin_paginas');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $d = [
-            'sec_id' => $_POST['sec_id'] ?? '',
-            'pag_id' => (int)($_POST['pag_id'] ?? 0),
+            'sec_id'          => (int)($_POST['sec_id'] ?? 0),
+            'pag_id'          => (int)($_POST['pag_id'] ?? 0),
 
-            'sec_slug' => trim($_POST['sec_slug'] ?? ''),
-            'sec_tipo' => $_POST['sec_tipo'] ?? 'CAROUSEL',
-            'sec_titulo' => trim($_POST['sec_titulo'] ?? ''),
+            'sec_slug'        => trim($_POST['sec_slug'] ?? ''),
+            'sec_tipo'        => $_POST['sec_tipo'] ?? 'CAROUSEL',
+            'sec_titulo'      => trim($_POST['sec_titulo'] ?? ''),
             'sec_descripcion' => trim($_POST['sec_descripcion'] ?? ''),
 
-            'sec_layout' => $_POST['sec_layout'] ?? 'CONTAINER',
-            'sec_cols' => (int)($_POST['sec_cols'] ?? 3),
+            'sec_layout'      => $_POST['sec_layout'] ?? 'CONTAINER',
+            'sec_cols'        => (int)($_POST['sec_cols'] ?? 3),
 
-            'sec_iframe_src' => trim($_POST['sec_iframe_src'] ?? ''),
-            'sec_video_url' => trim($_POST['sec_video_url'] ?? ''),
+            'sec_iframe_src'  => trim($_POST['sec_iframe_src'] ?? ''),
+            'sec_video_url'   => trim($_POST['sec_video_url'] ?? ''),
 
             'sec_boton_texto' => trim($_POST['sec_boton_texto'] ?? ''),
-            'sec_boton_url' => trim($_POST['sec_boton_url'] ?? ''),
+            'sec_boton_url'   => trim($_POST['sec_boton_url'] ?? ''),
 
-            'sec_estado' => $_POST['sec_estado'] ?? 'ACTIVO',
-            'sec_orden' => (int)($_POST['sec_orden'] ?? 0),
+            'sec_estado'      => $_POST['sec_estado'] ?? 'ACTIVO',
+            'sec_orden'       => (int)($_POST['sec_orden'] ?? 0),
 
             'sec_config_json' => null,
         ];
@@ -170,24 +194,31 @@ class comunicacionesController extends Controller {
             }
         }
 
-        $secId = $this->model->guardarSeccion($d);
-        Redirect::to('comunicaciones/admin_items/'.$secId);
+        $this->model->guardarSeccion($d);
+
+        // vuelve a la lista de secciones de la página
+        Redirect::to('?uri=comunicaciones/admin_secciones/'.$d['pag_id']);
     }
 
     function admin_items($secId = 0) {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
-        $sec = $this->model->getSeccion((int)$secId);
-        if (!$sec) Redirect::to('comunicaciones/admin_paginas');
+        $secId = (int)$secId;
+
+        $sec = $this->model->getSeccion($secId);
+        if (!$sec) {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $pagina = $this->model->getPagina((int)$sec->pag_id);
-        $items = $this->model->listarItemsAdmin((int)$secId);
+        $items  = $this->model->listarItemsAdmin($secId);
 
-        View::render('adminItems', [
-            'pagina'=>$pagina,
-            'seccion'=>$sec,
-            'items'=>$items
+        // templates/comunicaciones/admin/adminItemsView.php
+        View::render('admin/adminItems', [
+            'pagina' => $pagina,
+            'seccion'=> $sec,
+            'items'  => $items
         ]);
     }
 
@@ -195,18 +226,26 @@ class comunicacionesController extends Controller {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
-        $sec = $this->model->getSeccion((int)$secId);
-        if (!$sec) Redirect::to('comunicaciones/admin_paginas');
+        $secId = (int)$secId;
+        $itmId = (int)$itmId;
+
+        $sec = $this->model->getSeccion($secId);
+        if (!$sec) {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $pagina = $this->model->getPagina((int)$sec->pag_id);
 
         $item = null;
-        if ((int)$itmId > 0) $item = $this->model->getItem((int)$itmId);
+        if ($itmId > 0) {
+            $item = $this->model->getItem($itmId);
+        }
 
-        View::render('adminItemForm', [
-            'pagina'=>$pagina,
-            'seccion'=>$sec,
-            'item'=>$item
+        // templates/comunicaciones/admin/adminItemFormView.php
+        View::render('admin/adminItemForm', [
+            'pagina' => $pagina,
+            'seccion'=> $sec,
+            'item'   => $item
         ]);
     }
 
@@ -216,7 +255,7 @@ class comunicacionesController extends Controller {
 
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allow = ['jpg','jpeg','png','webp','gif'];
-        if (!in_array($ext, $allow)) return null;
+        if (!in_array($ext, $allow, true)) return null;
 
         $dir = UPLOADS_ROOT_ASSETS.'comunicaciones'.DS;
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
@@ -234,27 +273,29 @@ class comunicacionesController extends Controller {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') Redirect::to('comunicaciones/admin_paginas');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+        }
 
         $secId = (int)($_POST['sec_id'] ?? 0);
-        $itmId = $_POST['itm_id'] ?? '';
+        $itmId = (int)($_POST['itm_id'] ?? 0);
 
         $img = $this->subirImagen($_FILES['itm_imagen_file'] ?? null);
         $imgExistente = trim($_POST['itm_imagen'] ?? '');
 
         $d = [
-            'itm_id' => $itmId,
-            'sec_id' => $secId,
-            'itm_titulo' => trim($_POST['itm_titulo'] ?? ''),
+            'itm_id'          => $itmId,
+            'sec_id'          => $secId,
+            'itm_titulo'      => trim($_POST['itm_titulo'] ?? ''),
             'itm_descripcion' => trim($_POST['itm_descripcion'] ?? ''),
-            'itm_imagen' => $img ?: ($imgExistente ?: null),
-            'itm_url' => trim($_POST['itm_url'] ?? ''),
-            'itm_target' => $_POST['itm_target'] ?? '_blank',
-            'itm_badge' => trim($_POST['itm_badge'] ?? ''),
-            'itm_embed' => trim($_POST['itm_embed'] ?? ''),
-            'itm_estado' => $_POST['itm_estado'] ?? 'ACTIVO',
-            'itm_orden' => (int)($_POST['itm_orden'] ?? 0),
-            'itm_extra_json' => null,
+            'itm_imagen'      => $img ?: ($imgExistente ?: null),
+            'itm_url'         => trim($_POST['itm_url'] ?? ''),
+            'itm_target'      => $_POST['itm_target'] ?? '_blank',
+            'itm_badge'       => trim($_POST['itm_badge'] ?? ''),
+            'itm_embed'       => trim($_POST['itm_embed'] ?? ''),
+            'itm_estado'      => $_POST['itm_estado'] ?? 'ACTIVO',
+            'itm_orden'       => (int)($_POST['itm_orden'] ?? 0),
+            'itm_extra_json'  => null,
         ];
 
         $extraRaw = trim($_POST['itm_extra_json_raw'] ?? '');
@@ -266,6 +307,7 @@ class comunicacionesController extends Controller {
         }
 
         $this->model->guardarItem($d);
-        Redirect::to('comunicaciones/admin_items/'.$secId);
+
+        Redirect::to('?uri=comunicaciones/admin_items/'.$secId);
     }
 }

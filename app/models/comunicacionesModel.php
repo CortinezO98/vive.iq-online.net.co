@@ -1,11 +1,11 @@
 <?php
+
 class comunicacionesModel extends Model {
 
     /* ======================================================
      * CONEXIÓN
      * ====================================================== */
     private function db(): Db {
-        // Base de datos PRINCIPAL: iCubive / iqvive
         return new Db(
             DB_ENGINE,
             DB_HOST,
@@ -20,27 +20,44 @@ class comunicacionesModel extends Model {
      * HELPERS INTERNOS
      * ====================================================== */
 
-    /**
-     * Ejecuta una query y SIEMPRE devuelve un array.
-     * Nunca retorna false (evita errores 500).
-     */
-    private function queryAll(string $sql, array $params = []): array {
+    private function toObjArray(array $rows): array {
+        $out = [];
+        foreach ($rows as $r) $out[] = (object)$r;
+        return $out;
+    }
+
+    private function queryAllObj(string $sql, array $params = []): array {
         try {
             $result = $this->db()->query($sql, $params);
-            return is_array($result) ? $result : [];
+            if (!is_array($result)) return [];
+            return $this->toObjArray($result);
         } catch (\Throwable $e) {
-            // En producción puedes loguear:
-            // error_log('[comunicacionesModel] '.$e->getMessage());
             return [];
         }
     }
 
-    /**
-     * Ejecuta una query y devuelve una sola fila o null.
-     */
-    private function queryOne(string $sql, array $params = []): ?array {
-        $rows = $this->queryAll($sql, $params);
+    private function queryOneObj(string $sql, array $params = []): ?object {
+        $rows = $this->queryAllObj($sql, $params);
         return $rows[0] ?? null;
+    }
+
+    private function exec(string $sql, array $params = []): bool {
+        try {
+            $ok = $this->db()->query($sql, $params);
+            return $ok !== false;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function lastId(): int {
+        try {
+            // Si tu clase Db expone lastInsertId() úsalo.
+            if (method_exists($this->db(), 'lastInsertId')) {
+                return (int)$this->db()->lastInsertId();
+            }
+        } catch (\Throwable $e) {}
+        return 0;
     }
 
     private function perfilActual(): string {
@@ -50,7 +67,6 @@ class comunicacionesModel extends Model {
     /* ======================================================
      * FILTROS DE PERFIL (VISIBILIDAD)
      * ====================================================== */
-
     private function wherePerfilPagina(string $alias = 'p'): string {
         return "
             (
@@ -103,11 +119,7 @@ class comunicacionesModel extends Model {
      * LECTURA PÚBLICA (RENDER)
      * ====================================================== */
 
-    /**
-     * Obtiene una página por slug.
-     * Retorna array o null.
-     */
-    public function obtenerPaginaPorSlug(string $slug): ?array {
+    public function obtenerPaginaPorSlug(string $slug): ?object {
         $sql = "
             SELECT p.*
             FROM com_pagina p
@@ -116,21 +128,14 @@ class comunicacionesModel extends Model {
               AND {$this->wherePerfilPagina('p')}
             LIMIT 1
         ";
-
-        return $this->queryOne($sql, [
+        return $this->queryOneObj($sql, [
             'slug'   => $slug,
             'perfil' => $this->perfilActual()
         ]);
     }
 
-    /**
-     * Lista secciones de una página.
-     * SIEMPRE retorna array (puede ser vacío).
-     */
     public function obtenerSeccionesPagina(int $pagId): array {
-        if ($pagId <= 0) {
-            return [];
-        }
+        if ($pagId <= 0) return [];
 
         $sql = "
             SELECT s.*
@@ -140,20 +145,14 @@ class comunicacionesModel extends Model {
               AND {$this->wherePerfilSeccion('s')}
             ORDER BY s.sec_orden ASC, s.sec_id ASC
         ";
-
-        return $this->queryAll($sql, [
+        return $this->queryAllObj($sql, [
             'pag_id' => $pagId,
             'perfil' => $this->perfilActual()
         ]);
     }
 
-    /**
-     * Lista items de una sección.
-     */
     public function obtenerItemsSeccion(int $secId): array {
-        if ($secId <= 0) {
-            return [];
-        }
+        if ($secId <= 0) return [];
 
         $sql = "
             SELECT i.*
@@ -163,8 +162,7 @@ class comunicacionesModel extends Model {
               AND {$this->wherePerfilItem('i')}
             ORDER BY i.itm_orden ASC, i.itm_id ASC
         ";
-
-        return $this->queryAll($sql, [
+        return $this->queryAllObj($sql, [
             'sec_id' => $secId,
             'perfil' => $this->perfilActual()
         ]);
@@ -175,44 +173,223 @@ class comunicacionesModel extends Model {
      * ====================================================== */
 
     public function listarPaginasAdmin(): array {
-        return $this->queryAll(
-            "SELECT * FROM com_pagina ORDER BY pag_orden ASC, pag_id ASC"
-        );
+        return $this->queryAllObj("SELECT * FROM com_pagina ORDER BY pag_orden ASC, pag_id ASC");
     }
 
-    public function getPagina(int $id): ?array {
-        return $this->queryOne(
-            "SELECT * FROM com_pagina WHERE pag_id = :id LIMIT 1",
-            ['id' => $id]
-        );
+    public function getPagina(int $id): ?object {
+        return $this->queryOneObj("SELECT * FROM com_pagina WHERE pag_id = :id LIMIT 1", ['id' => $id]);
+    }
+
+    public function guardarPagina(array $d): int {
+        $id = (int)($d['pag_id'] ?? 0);
+
+        if ($id > 0) {
+            $sql = "
+                UPDATE com_pagina SET
+                    pag_slug = :pag_slug,
+                    pag_titulo = :pag_titulo,
+                    pag_subtitulo = :pag_subtitulo,
+                    pag_hero_bg = :pag_hero_bg,
+                    pag_hero_overlay = :pag_hero_overlay,
+                    pag_hero_alineacion = :pag_hero_alineacion,
+                    pag_descripcion = :pag_descripcion,
+                    pag_estado = :pag_estado,
+                    pag_orden = :pag_orden
+                WHERE pag_id = :pag_id
+            ";
+            $this->exec($sql, [
+                'pag_id' => $id,
+                'pag_slug' => $d['pag_slug'],
+                'pag_titulo' => $d['pag_titulo'],
+                'pag_subtitulo' => $d['pag_subtitulo'],
+                'pag_hero_bg' => $d['pag_hero_bg'],
+                'pag_hero_overlay' => (int)$d['pag_hero_overlay'],
+                'pag_hero_alineacion' => $d['pag_hero_alineacion'],
+                'pag_descripcion' => $d['pag_descripcion'],
+                'pag_estado' => $d['pag_estado'],
+                'pag_orden' => (int)$d['pag_orden'],
+            ]);
+            return $id;
+        }
+
+        $sql = "
+            INSERT INTO com_pagina
+                (pag_slug, pag_titulo, pag_subtitulo, pag_hero_bg, pag_hero_overlay, pag_hero_alineacion, pag_descripcion, pag_estado, pag_orden)
+            VALUES
+                (:pag_slug, :pag_titulo, :pag_subtitulo, :pag_hero_bg, :pag_hero_overlay, :pag_hero_alineacion, :pag_descripcion, :pag_estado, :pag_orden)
+        ";
+        $this->exec($sql, [
+            'pag_slug' => $d['pag_slug'],
+            'pag_titulo' => $d['pag_titulo'],
+            'pag_subtitulo' => $d['pag_subtitulo'],
+            'pag_hero_bg' => $d['pag_hero_bg'],
+            'pag_hero_overlay' => (int)$d['pag_hero_overlay'],
+            'pag_hero_alineacion' => $d['pag_hero_alineacion'],
+            'pag_descripcion' => $d['pag_descripcion'],
+            'pag_estado' => $d['pag_estado'],
+            'pag_orden' => (int)$d['pag_orden'],
+        ]);
+
+        $newId = $this->lastId();
+        return $newId > 0 ? $newId : (int)($this->queryOneObj("SELECT MAX(pag_id) AS id FROM com_pagina")?->id ?? 0);
     }
 
     public function listarSeccionesAdmin(int $pagId): array {
-        return $this->queryAll(
+        return $this->queryAllObj(
             "SELECT * FROM com_seccion WHERE pag_id = :pag ORDER BY sec_orden ASC, sec_id ASC",
             ['pag' => $pagId]
         );
     }
 
-    public function getSeccion(int $id): ?array {
-        return $this->queryOne(
-            "SELECT * FROM com_seccion WHERE sec_id = :id LIMIT 1",
-            ['id' => $id]
-        );
+    public function getSeccion(int $id): ?object {
+        return $this->queryOneObj("SELECT * FROM com_seccion WHERE sec_id = :id LIMIT 1", ['id' => $id]);
+    }
+
+    public function guardarSeccion(array $d): int {
+        $id = (int)($d['sec_id'] ?? 0);
+
+        $cfg = $d['sec_config_json'] ?? null;
+        if (is_array($cfg)) $cfg = json_encode($cfg, JSON_UNESCAPED_UNICODE);
+
+        if ($id > 0) {
+            $sql = "
+                UPDATE com_seccion SET
+                    pag_id = :pag_id,
+                    sec_slug = :sec_slug,
+                    sec_tipo = :sec_tipo,
+                    sec_titulo = :sec_titulo,
+                    sec_descripcion = :sec_descripcion,
+                    sec_layout = :sec_layout,
+                    sec_cols = :sec_cols,
+                    sec_iframe_src = :sec_iframe_src,
+                    sec_video_url = :sec_video_url,
+                    sec_boton_texto = :sec_boton_texto,
+                    sec_boton_url = :sec_boton_url,
+                    sec_estado = :sec_estado,
+                    sec_orden = :sec_orden,
+                    sec_config_json = :sec_config_json
+                WHERE sec_id = :sec_id
+            ";
+            $this->exec($sql, [
+                'sec_id' => $id,
+                'pag_id' => (int)$d['pag_id'],
+                'sec_slug' => $d['sec_slug'],
+                'sec_tipo' => $d['sec_tipo'],
+                'sec_titulo' => $d['sec_titulo'],
+                'sec_descripcion' => $d['sec_descripcion'],
+                'sec_layout' => $d['sec_layout'],
+                'sec_cols' => (int)$d['sec_cols'],
+                'sec_iframe_src' => $d['sec_iframe_src'],
+                'sec_video_url' => $d['sec_video_url'],
+                'sec_boton_texto' => $d['sec_boton_texto'],
+                'sec_boton_url' => $d['sec_boton_url'],
+                'sec_estado' => $d['sec_estado'],
+                'sec_orden' => (int)$d['sec_orden'],
+                'sec_config_json' => $cfg,
+            ]);
+            return $id;
+        }
+
+        $sql = "
+            INSERT INTO com_seccion
+                (pag_id, sec_slug, sec_tipo, sec_titulo, sec_descripcion, sec_layout, sec_cols,
+                 sec_iframe_src, sec_video_url, sec_boton_texto, sec_boton_url, sec_estado, sec_orden, sec_config_json)
+            VALUES
+                (:pag_id, :sec_slug, :sec_tipo, :sec_titulo, :sec_descripcion, :sec_layout, :sec_cols,
+                 :sec_iframe_src, :sec_video_url, :sec_boton_texto, :sec_boton_url, :sec_estado, :sec_orden, :sec_config_json)
+        ";
+        $this->exec($sql, [
+            'pag_id' => (int)$d['pag_id'],
+            'sec_slug' => $d['sec_slug'],
+            'sec_tipo' => $d['sec_tipo'],
+            'sec_titulo' => $d['sec_titulo'],
+            'sec_descripcion' => $d['sec_descripcion'],
+            'sec_layout' => $d['sec_layout'],
+            'sec_cols' => (int)$d['sec_cols'],
+            'sec_iframe_src' => $d['sec_iframe_src'],
+            'sec_video_url' => $d['sec_video_url'],
+            'sec_boton_texto' => $d['sec_boton_texto'],
+            'sec_boton_url' => $d['sec_boton_url'],
+            'sec_estado' => $d['sec_estado'],
+            'sec_orden' => (int)$d['sec_orden'],
+            'sec_config_json' => $cfg,
+        ]);
+
+        $newId = $this->lastId();
+        return $newId > 0 ? $newId : (int)($this->queryOneObj("SELECT MAX(sec_id) AS id FROM com_seccion")?->id ?? 0);
     }
 
     public function listarItemsAdmin(int $secId): array {
-        return $this->queryAll(
+        return $this->queryAllObj(
             "SELECT * FROM com_item WHERE sec_id = :sec ORDER BY itm_orden ASC, itm_id ASC",
             ['sec' => $secId]
         );
     }
 
-    public function getItem(int $id): ?array {
-        return $this->queryOne(
-            "SELECT * FROM com_item WHERE itm_id = :id LIMIT 1",
-            ['id' => $id]
-        );
+    public function getItem(int $id): ?object {
+        return $this->queryOneObj("SELECT * FROM com_item WHERE itm_id = :id LIMIT 1", ['id' => $id]);
     }
 
+    public function guardarItem(array $d): int {
+        $id = (int)($d['itm_id'] ?? 0);
+
+        $extra = $d['itm_extra_json'] ?? null;
+        if (is_array($extra)) $extra = json_encode($extra, JSON_UNESCAPED_UNICODE);
+
+        if ($id > 0) {
+            $sql = "
+                UPDATE com_item SET
+                    sec_id = :sec_id,
+                    itm_titulo = :itm_titulo,
+                    itm_descripcion = :itm_descripcion,
+                    itm_imagen = :itm_imagen,
+                    itm_url = :itm_url,
+                    itm_target = :itm_target,
+                    itm_badge = :itm_badge,
+                    itm_embed = :itm_embed,
+                    itm_estado = :itm_estado,
+                    itm_orden = :itm_orden,
+                    itm_extra_json = :itm_extra_json
+                WHERE itm_id = :itm_id
+            ";
+            $this->exec($sql, [
+                'itm_id' => $id,
+                'sec_id' => (int)$d['sec_id'],
+                'itm_titulo' => $d['itm_titulo'],
+                'itm_descripcion' => $d['itm_descripcion'],
+                'itm_imagen' => $d['itm_imagen'],
+                'itm_url' => $d['itm_url'],
+                'itm_target' => $d['itm_target'],
+                'itm_badge' => $d['itm_badge'],
+                'itm_embed' => $d['itm_embed'],
+                'itm_estado' => $d['itm_estado'],
+                'itm_orden' => (int)$d['itm_orden'],
+                'itm_extra_json' => $extra,
+            ]);
+            return $id;
+        }
+
+        $sql = "
+            INSERT INTO com_item
+                (sec_id, itm_titulo, itm_descripcion, itm_imagen, itm_url, itm_target, itm_badge, itm_embed, itm_estado, itm_orden, itm_extra_json)
+            VALUES
+                (:sec_id, :itm_titulo, :itm_descripcion, :itm_imagen, :itm_url, :itm_target, :itm_badge, :itm_embed, :itm_estado, :itm_orden, :itm_extra_json)
+        ";
+        $this->exec($sql, [
+            'sec_id' => (int)$d['sec_id'],
+            'itm_titulo' => $d['itm_titulo'],
+            'itm_descripcion' => $d['itm_descripcion'],
+            'itm_imagen' => $d['itm_imagen'],
+            'itm_url' => $d['itm_url'],
+            'itm_target' => $d['itm_target'],
+            'itm_badge' => $d['itm_badge'],
+            'itm_embed' => $d['itm_embed'],
+            'itm_estado' => $d['itm_estado'],
+            'itm_orden' => (int)$d['itm_orden'],
+            'itm_extra_json' => $extra,
+        ]);
+
+        $newId = $this->lastId();
+        return $newId > 0 ? $newId : (int)($this->queryOneObj("SELECT MAX(itm_id) AS id FROM com_item")?->id ?? 0);
+    }
 }
