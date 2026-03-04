@@ -4,6 +4,7 @@
 require_once __DIR__ . '/layout.php';
 
 $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
+$GLOBALS['slug'] = $d->slug ?? 'compania'; 
 ?>
 
 <main id="main-wrapper" class="main-wrapper">
@@ -14,9 +15,11 @@ $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
 
       <?php
         render_hero($d->pagina);
-        // var_dump($d->itemsBySeccion);
+        
+        $seccion_index = 0;
         foreach (($d->secciones ?? []) as $sec) {
-          render_section($sec, $d->itemsBySeccion ?? []);
+          render_section($sec, $d->itemsBySeccion ?? [], $seccion_index);
+          $seccion_index++;
         }
       ?>
 

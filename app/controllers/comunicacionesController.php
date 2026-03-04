@@ -45,13 +45,124 @@ class comunicacionesController extends Controller {
             $itemsBySeccion[$sec->sec_id] = $this->model->obtenerItemsSeccion((int)$sec->sec_id);
         }
 
+        // Obtener parámetros de mes y año para la agenda
+        $mes = (int)($_GET['m'] ?? date('n'));
+        $anio = (int)($_GET['y'] ?? date('Y'));
+        
+        // Validar rangos
+        $mes = max(1, min(12, $mes));
+        $anio = max(2020, min(2100, $anio));
+
         // templates/comunicaciones/<slug>View.php
         View::render($slug, [
-            'pagina'        => $pagina,
-            'secciones'     => $secciones,
-            'itemsBySeccion'=> $itemsBySeccion,
-            'slug'          => $slug,
+            'pagina'         => $pagina,
+            'secciones'      => $secciones,
+            'itemsBySeccion' => $itemsBySeccion,
+            'slug'           => $slug,
+            'mes_agenda'     => $mes,
+            'anio_agenda'    => $anio,
         ]);
+    }
+
+    // =========================
+    // GESTIÓN DE EVENTOS DE AGENDA
+    // =========================
+    
+    /**
+     * Obtener eventos para una fecha (formato JSON)
+     */
+    function eventos_obtener() {
+        $this->requireLogin();
+        
+        header('Content-Type: application/json');
+        
+        $fecha_inicio = $_GET['inicio'] ?? date('Y-m-01');
+        $fecha_fin = $_GET['fin'] ?? date('Y-m-t');
+        
+        require_once MODELS . 'eventoModel.php';
+        $eventoModel = new eventoModel();
+        $eventos = $eventoModel->listBetween($fecha_inicio, $fecha_fin);
+        
+        echo json_encode(['eventos' => $eventos]);
+        exit;
+    }
+
+    /**
+     * Guardar un nuevo evento
+     */
+    function eventos_guardar() {
+        $this->requireLogin();
+        $this->requireAdminComunicaciones();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio'));
+        }
+
+        // Validar token CSRF
+        if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['iqvive_token']) {
+            Flasher::new('Error de validación de token', 'danger');
+            Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio'));
+        }
+
+        require_once MODELS . 'eventoModel.php';
+        $evento = new eventoModel();
+        
+        $evento->title = checkInput($_POST['title'] ?? '');
+        $evento->description = checkInput($_POST['description'] ?? '');
+        $evento->event_date = checkInput($_POST['event_date'] ?? '');
+        $evento->start_time = !empty($_POST['start_time']) ? checkInput($_POST['start_time']) : null;
+        $evento->end_time = !empty($_POST['end_time']) ? checkInput($_POST['end_time']) : null;
+        $evento->meet_url = checkInput($_POST['meet_url'] ?? '');
+        $evento->location = checkInput($_POST['location'] ?? '');
+        $evento->is_all_day = empty($_POST['start_time']) ? 1 : 0;
+        $evento->created_by = $_SESSION[APP_SESSION.'usu_id'] ?? 0;
+
+        // Validaciones básicas
+        if (empty($evento->title) || empty($evento->event_date)) {
+            Flasher::new('El título y la fecha son obligatorios', 'danger');
+            Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio') . '?m=' . date('n', strtotime($evento->event_date)) . '&y=' . date('Y', strtotime($evento->event_date)));
+        }
+
+        // Validar URL si se proporcionó
+        if (!empty($evento->meet_url) && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
+            Flasher::new('La URL de la reunión no es válida', 'danger');
+            Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio') . '?m=' . date('n', strtotime($evento->event_date)) . '&y=' . date('Y', strtotime($evento->event_date)));
+        }
+
+        if ($evento->add()) {
+            Flasher::new('Evento creado exitosamente', 'success');
+        } else {
+            Flasher::new('Error al crear el evento', 'danger');
+        }
+
+        // Redirigir al mes del evento creado
+        $mes = date('n', strtotime($evento->event_date));
+        $anio = date('Y', strtotime($evento->event_date));
+        Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio') . '?m=' . $mes . '&y=' . $anio);
+    }
+
+    /**
+     * Eliminar un evento (solo admin)
+     */
+    function eventos_eliminar($id) {
+        $this->requireLogin();
+        $this->requireAdminComunicaciones();
+
+        $id = (int)base64_decode($id);
+        if ($id <= 0) {
+            Redirect::to('?uri=comunicaciones/ver/inicio');
+        }
+
+        require_once MODELS . 'eventoModel.php';
+        $evento = new eventoModel();
+        $evento->id = $id;
+        
+        // Aquí deberías implementar el método delete() en el modelo
+        // Por ahora, redirigimos con un mensaje
+        Flasher::new('Funcionalidad en desarrollo', 'warning');
+        
+        $slug = $_GET['slug'] ?? 'inicio';
+        Redirect::to('?uri=comunicaciones/ver/' . $slug);
     }
 
     // =========================
@@ -81,6 +192,46 @@ class comunicacionesController extends Controller {
         View::render('admin/adminPaginaForm', ['pagina' => $pagina]);
     }
 
+    /**
+     * Subir imagen del hero
+     */
+    private function subirHeroImagen(?array $file, $pagId): ?string {
+        if (!$file || empty($file['name'])) return null;
+        if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) return null;
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allow = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        if (!in_array($ext, $allow, true)) {
+            Flasher::new('Tipo de archivo no permitido. Solo JPG, PNG, WEBP o GIF.', 'danger');
+            return null;
+        }
+
+        // Validar tamaño (5MB)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            Flasher::new('La imagen no puede superar los 5MB.', 'danger');
+            return null;
+        }
+
+        $dir = UPLOADS_ROOT_ASSETS . 'comunicaciones' . DS . 'hero' . DS;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // Nombre seguro: pagina_{id}_{timestamp}.ext
+        $name = 'pagina_' . $pagId . '_' . time() . '.' . $ext;
+        $dest = $dir . $name;
+
+        if (move_uploaded_file($file['tmp_name'], $dest)) {
+            return 'comunicaciones/hero/' . $name;
+        }
+
+        Flasher::new('Error al subir la imagen', 'danger');
+        return null;
+    }
+
+    /**
+     * Guardar página (modificado para manejar imagen)
+     */
     function admin_pagina_guardar() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
@@ -89,12 +240,36 @@ class comunicacionesController extends Controller {
             Redirect::to('?uri=comunicaciones/admin_paginas');
         }
 
+        $pagId = (int)($_POST['pag_id'] ?? 0);
+        $slug = trim($_POST['pag_slug'] ?? '');
+        $titulo = trim($_POST['pag_titulo'] ?? '');
+
+        if ($slug === '' || $titulo === '') {
+            Flasher::new('El slug y el título son obligatorios', 'danger');
+            Redirect::to('?uri=comunicaciones/admin_pagina_form/' . ($pagId ?: 0));
+        }
+
+        // Procesar imagen si se subió una nueva
+        $heroBg = trim($_POST['pag_hero_bg'] ?? '');
+        
+        // Si hay un archivo nuevo y es válido
+        if (isset($_FILES['pag_hero_imagen']) && $_FILES['pag_hero_imagen']['error'] === UPLOAD_ERR_OK) {
+            // Si es una página existente, podemos subir la imagen inmediatamente
+            if ($pagId > 0) {
+                $uploaded = $this->subirHeroImagen($_FILES['pag_hero_imagen'], $pagId);
+                if ($uploaded) {
+                    $heroBg = $uploaded;
+                }
+            }
+            // Si es nueva página, la imagen se procesará después de obtener el ID
+        }
+
         $d = [
-            'pag_id'             => (int)($_POST['pag_id'] ?? 0),
-            'pag_slug'           => trim($_POST['pag_slug'] ?? ''),
-            'pag_titulo'         => trim($_POST['pag_titulo'] ?? ''),
+            'pag_id'             => $pagId,
+            'pag_slug'           => $slug,
+            'pag_titulo'         => $titulo,
             'pag_subtitulo'      => trim($_POST['pag_subtitulo'] ?? ''),
-            'pag_hero_bg'        => trim($_POST['pag_hero_bg'] ?? ''),
+            'pag_hero_bg'        => $heroBg,
             'pag_hero_overlay'   => (int)($_POST['pag_hero_overlay'] ?? 1),
             'pag_hero_alineacion'=> $_POST['pag_hero_alineacion'] ?? 'center',
             'pag_descripcion'    => trim($_POST['pag_descripcion'] ?? ''),
@@ -102,12 +277,19 @@ class comunicacionesController extends Controller {
             'pag_orden'          => (int)($_POST['pag_orden'] ?? 0),
         ];
 
-        if ($d['pag_slug'] === '' || $d['pag_titulo'] === '') {
-            Redirect::to('?uri=comunicaciones/admin_pagina_form/'.($d['pag_id'] ?: 0));
+        $nuevoId = $this->model->guardarPagina($d);
+
+        // Si era nueva página y se subió imagen, actualizar con el ID
+        if ($pagId === 0 && isset($_FILES['pag_hero_imagen']) && $_FILES['pag_hero_imagen']['error'] === UPLOAD_ERR_OK) {
+            $uploaded = $this->subirHeroImagen($_FILES['pag_hero_imagen'], $nuevoId);
+            if ($uploaded) {
+                // Actualizar la página con la ruta de la imagen
+                $this->model->actualizarHeroBg($nuevoId, $uploaded);
+            }
         }
 
-        $pagId = $this->model->guardarPagina($d);
-        Redirect::to('?uri=comunicaciones/admin_secciones/'.$pagId);
+        Flasher::new('Página guardada exitosamente', 'success');
+        Redirect::to('?uri=comunicaciones/admin_secciones/' . ($pagId ?: $nuevoId));
     }
 
     function admin_secciones($pagId = 0) {

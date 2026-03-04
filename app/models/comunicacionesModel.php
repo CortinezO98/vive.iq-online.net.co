@@ -392,4 +392,16 @@ class comunicacionesModel extends Model {
         $newId = $this->lastId();
         return $newId > 0 ? $newId : (int)($this->queryOneObj("SELECT MAX(itm_id) AS id FROM com_item")?->id ?? 0);
     }
+
+
+    /**
+ * Actualizar solo la imagen de fondo del hero
+ */
+    public function actualizarHeroBg($pagId, $heroBg) {
+        $sql = "UPDATE com_pagina SET pag_hero_bg = :hero_bg WHERE pag_id = :pag_id";
+        return $this->exec($sql, [
+            'pag_id' => $pagId,
+            'hero_bg' => $heroBg
+        ]);
+    }
 }

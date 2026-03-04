@@ -2,9 +2,8 @@
 
 <?php
 require_once __DIR__ . '/layout.php';
-
-// fallback global por si alguien llama mal render_section()
 $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
+$GLOBALS['slug'] = $d->slug ?? 'inicio';
 ?>
 
 <main id="main-wrapper" class="main-wrapper">
@@ -14,10 +13,13 @@ $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
     <div class="app-content-area">
 
       <?php
+        // El hero se renderiza aquí con la imagen configurada
         render_hero($d->pagina);
-
+        
+        $seccion_index = 0;
         foreach (($d->secciones ?? []) as $sec) {
-          render_section($sec, $d->itemsBySeccion ?? []);
+          render_section($sec, $d->itemsBySeccion ?? [], $seccion_index);
+          $seccion_index++;
         }
       ?>
 
