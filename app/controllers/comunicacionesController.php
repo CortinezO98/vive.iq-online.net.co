@@ -251,6 +251,10 @@ class comunicacionesController extends Controller {
      */
     function calendario($secId = 0) {
         $this->requireLogin();
+        if (empty($_SESSION['iqvive_token'])) {
+            $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
+        }
+
 
         $secId = (int)$secId;
         $year = (int)($_GET['year'] ?? date('Y'));
