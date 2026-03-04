@@ -12,3 +12,17 @@ Thumbs.db
 # Configuración local
 .env
 .env.local
+
+# Ignora TODO assets...
+/assets/*
+
+# ...PERO permite subir uploads
+!/assets/uploads/
+!/assets/uploads/**
+
+# Dentro de uploads, ignora TODO...
+/assets/uploads/*
+
+# ...PERO permite comunicaciones completo
+!/assets/uploads/comunicaciones/
+!/assets/uploads/comunicaciones/**
