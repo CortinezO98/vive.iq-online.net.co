@@ -1,0 +1,14 @@
+# Ignorar carpeta de assets completa
+/assets/
+
+# Archivos temporales
+*.log
+*.tmp
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Configuración local
+.env
+.env.local
