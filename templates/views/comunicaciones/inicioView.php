@@ -4,6 +4,13 @@
 require_once __DIR__ . '/layout.php';
 $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
 $GLOBALS['slug'] = $d->slug ?? 'inicio';
+
+// --- NUEVO: Variables para el calendario de eventos ---
+$GLOBALS['eventos_mes'] = $d->eventos ?? []; // Lista completa de eventos del mes
+$GLOBALS['eventosPorDia'] = $d->eventosPorDia ?? []; // Eventos organizados por día
+$GLOBALS['mes_agenda'] = $d->mes_agenda ?? (int)($_GET['m'] ?? date('n'));
+$GLOBALS['anio_agenda'] = $d->anio_agenda ?? (int)($_GET['y'] ?? date('Y'));
+// -----------------------------------------------------
 ?>
 
 <main id="main-wrapper" class="main-wrapper">

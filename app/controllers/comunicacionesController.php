@@ -53,6 +53,29 @@ class comunicacionesController extends Controller {
         $mes = max(1, min(12, $mes));
         $anio = max(2020, min(2100, $anio));
 
+        // --- NUEVO: Obtener eventos del mes ---
+        $eventos = [];
+        $eventosPorDia = [];
+        
+        // Verificar si el modelo de eventos existe antes de usarlo
+        if (file_exists(MODELS . 'eventoModel.php')) {
+            require_once MODELS . 'eventoModel.php';
+            $eventoModel = new eventoModel();
+            $fecha_inicio = sprintf('%04d-%02d-01', $anio, $mes);
+            $fecha_fin = date('Y-m-t', strtotime($fecha_inicio));
+            $eventos = $eventoModel->listBetween($fecha_inicio, $fecha_fin);
+
+            // Organizar eventos por día
+            foreach ($eventos as $ev) {
+                $dia = (int)date('j', strtotime($ev['event_date']));
+                if (!isset($eventosPorDia[$dia])) {
+                    $eventosPorDia[$dia] = [];
+                }
+                $eventosPorDia[$dia][] = $ev;
+            }
+        }
+        // ---------------------------------------
+
         // templates/comunicaciones/<slug>View.php
         View::render($slug, [
             'pagina'         => $pagina,
@@ -61,6 +84,8 @@ class comunicacionesController extends Controller {
             'slug'           => $slug,
             'mes_agenda'     => $mes,
             'anio_agenda'    => $anio,
+            'eventos'        => $eventos,
+            'eventosPorDia'  => $eventosPorDia
         ]);
     }
 
@@ -88,7 +113,7 @@ class comunicacionesController extends Controller {
     }
 
     /**
-     * Guardar un nuevo evento
+     * Guardar un nuevo evento (POST tradicional)
      */
     function eventos_guardar() {
         $this->requireLogin();
@@ -115,6 +140,7 @@ class comunicacionesController extends Controller {
         $evento->meet_url = checkInput($_POST['meet_url'] ?? '');
         $evento->location = checkInput($_POST['location'] ?? '');
         $evento->is_all_day = empty($_POST['start_time']) ? 1 : 0;
+        $evento->color = checkInput($_POST['color'] ?? '#1C2262');
         $evento->created_by = $_SESSION[APP_SESSION.'usu_id'] ?? 0;
 
         // Validaciones básicas
@@ -157,12 +183,183 @@ class comunicacionesController extends Controller {
         $evento = new eventoModel();
         $evento->id = $id;
         
-        // Aquí deberías implementar el método delete() en el modelo
-        // Por ahora, redirigimos con un mensaje
-        Flasher::new('Funcionalidad en desarrollo', 'warning');
+        if ($evento->delete()) {
+            Flasher::new('Evento eliminado exitosamente', 'success');
+        } else {
+            Flasher::new('Error al eliminar el evento', 'danger');
+        }
         
         $slug = $_GET['slug'] ?? 'inicio';
         Redirect::to('?uri=comunicaciones/ver/' . $slug);
+    }
+
+    // =========================
+    // NUEVAS FUNCIONES PARA GESTIÓN DE EVENTOS (AJAX para SCHEDULE)
+    // =========================
+
+    /**
+     * Mostrar calendario de eventos completo
+     */
+    function calendario($secId = 0) {
+        $this->requireLogin();
+        
+        $secId = (int)$secId;
+        $year = (int)($_GET['year'] ?? date('Y'));
+        $month = (int)($_GET['month'] ?? date('n'));
+        
+        // Validar rangos
+        $year = max(2020, min(2100, $year));
+        $month = max(1, min(12, $month));
+        
+        require_once MODELS . 'eventoModel.php';
+        $eventoModel = new eventoModel();
+        $eventos = $eventoModel->getMonthEvents($year, $month);
+        
+        // Organizar eventos por día
+        $eventosPorDia = [];
+        foreach ($eventos as $ev) {
+            $dia = (int)date('j', strtotime($ev['event_date']));
+            if (!isset($eventosPorDia[$dia])) {
+                $eventosPorDia[$dia] = [];
+            }
+            $eventosPorDia[$dia][] = $ev;
+        }
+        
+        // Obtener información de la sección
+        $seccion = $this->model->getSeccion($secId);
+        $pagina = $seccion ? $this->model->getPagina((int)$seccion->pag_id) : null;
+        
+        View::render('calendario', [
+            'year' => $year,
+            'month' => $month,
+            'eventosPorDia' => $eventosPorDia,
+            'seccion' => $seccion,
+            'pagina' => $pagina
+        ]);
+    }
+
+    /**
+     * Guardar evento (AJAX)
+     */
+    function evento_guardar_ajax() {
+        $this->requireLogin();
+        $this->requireAdminComunicaciones();
+        
+        header('Content-Type: application/json');
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            exit;
+        }
+        
+        // Validar token CSRF
+        if (!isset($_POST['token']) || $_POST['token'] !== $_SESSION['iqvive_token']) {
+            echo json_encode(['success' => false, 'message' => 'Token inválido']);
+            exit;
+        }
+        
+        require_once MODELS . 'eventoModel.php';
+        $evento = new eventoModel();
+        
+        $evento->id = (int)($_POST['id'] ?? 0);
+        $evento->title = checkInput($_POST['title'] ?? '');
+        $evento->description = checkInput($_POST['description'] ?? '');
+        $evento->event_date = checkInput($_POST['event_date'] ?? '');
+        $evento->start_time = !empty($_POST['start_time']) ? checkInput($_POST['start_time']) : null;
+        $evento->end_time = !empty($_POST['end_time']) ? checkInput($_POST['end_time']) : null;
+        $evento->meet_url = checkInput($_POST['meet_url'] ?? '');
+        $evento->location = checkInput($_POST['location'] ?? '');
+        $evento->color = checkInput($_POST['color'] ?? '#1C2262');
+        $evento->is_all_day = !empty($_POST['is_all_day']) ? 1 : 0;
+        $evento->created_by = $_SESSION[APP_SESSION.'usu_id'] ?? 0;
+        
+        // Validaciones
+        if (empty($evento->title)) {
+            echo json_encode(['success' => false, 'message' => 'El título es obligatorio']);
+            exit;
+        }
+        
+        if (empty($evento->event_date)) {
+            echo json_encode(['success' => false, 'message' => 'La fecha es obligatoria']);
+            exit;
+        }
+        
+        // Validar URL si existe
+        if (!empty($evento->meet_url) && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
+            echo json_encode(['success' => false, 'message' => 'La URL no es válida']);
+            exit;
+        }
+        
+        try {
+            if ($evento->id > 0) {
+                $result = $evento->update();
+                $message = 'Evento actualizado correctamente';
+            } else {
+                $result = $evento->add();
+                $message = 'Evento creado correctamente';
+            }
+            
+            if ($result) {
+                echo json_encode(['success' => true, 'message' => $message]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error al guardar el evento']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        
+        exit;
+    }
+
+    /**
+     * Eliminar evento (AJAX)
+     */
+    function evento_eliminar_ajax() {
+        $this->requireLogin();
+        $this->requireAdminComunicaciones();
+        
+        header('Content-Type: application/json');
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            exit;
+        }
+        
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            echo json_encode(['success' => false, 'message' => 'ID inválido']);
+            exit;
+        }
+        
+        require_once MODELS . 'eventoModel.php';
+        $evento = new eventoModel();
+        $evento->id = $id;
+        
+        if ($evento->delete()) {
+            echo json_encode(['success' => true, 'message' => 'Evento eliminado']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error al eliminar']);
+        }
+        
+        exit;
+    }
+
+    /**
+     * Obtener eventos para una fecha (JSON)
+     */
+    function eventos_por_fecha() {
+        $this->requireLogin();
+        
+        header('Content-Type: application/json');
+        
+        $fecha = $_GET['fecha'] ?? date('Y-m-d');
+        
+        require_once MODELS . 'eventoModel.php';
+        $eventoModel = new eventoModel();
+        $eventos = $eventoModel->listBetween($fecha, $fecha);
+        
+        echo json_encode(['eventos' => $eventos]);
+        exit;
     }
 
     // =========================

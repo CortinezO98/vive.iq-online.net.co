@@ -210,35 +210,161 @@ if (!function_exists('render_com_styles_once')) {
         margin-right: auto;
       }
 
-      /* Tarjetas mejoradas */
-      .com-card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        border: none;
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08);
+      /* ===== MEJORAS PARA EL CARRUSEL ===== */
+      .carousel.com-carousel {
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px -10px rgba(28, 34, 98, 0.2);
       }
-      .com-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 1rem 2rem rgba(0,0,0,0.12);
-      }
-      .com-card-img { height: 200px; object-fit: cover; }
-      .com-card-body { padding: 1.5rem; }
-      .com-card-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.75rem; }
-      .com-card-text { color: #6c757d; line-height: 1.6; }
 
-      /* Enlaces como tarjetas */
-      .com-link-item {
-        padding: 1rem 1.5rem;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        transition: background-color 0.2s;
-        text-decoration: none;
-        color: #1C2262;
-        font-weight: 500;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+      .carousel-item .row {
+        background: linear-gradient(145deg, #ffffff 0%, #f8faff 100%);
       }
-      .com-link-item:hover { background-color: #e9ecef; }
+
+      .com-carousel-media {
+        min-height: 350px;
+        background-color: #1C2262;
+        transition: transform 0.5s ease;
+      }
+
+      .carousel-item:hover .com-carousel-media {
+        transform: scale(1.02);
+      }
+
+      .com-imgbox.com-carousel-media img {
+        object-fit: cover;
+      }
+
+      .carousel-item .p-4 {
+        padding: 2.5rem !important;
+      }
+
+      .carousel-item .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        display: inline-block;
+        margin-bottom: 1rem;
+      }
+
+      .carousel-item h3.h5 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1C2262;
+        margin-bottom: 1rem;
+      }
+
+      .carousel-item .text-muted {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #4a5568 !important;
+      }
+
+      .carousel-item .btn-outline-primary {
+        border-width: 2px;
+        padding: 0.75rem 2rem;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .carousel-item .btn-outline-primary:hover {
+        background-color: #1C2262;
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(28, 34, 98, 0.2);
+      }
+
+      /* Controles del carrusel más grandes y con mejor diseño */
+      .carousel-control-prev,
+      .carousel-control-next {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        margin: 0 20px;
+      }
+
+      .carousel:hover .carousel-control-prev,
+      .carousel:hover .carousel-control-next {
+        opacity: 1;
+      }
+
+      .carousel-control-prev-icon,
+      .carousel-control-next-icon {
+        filter: invert(1) grayscale(100);
+      }
+
+      /* ===== MEJORAS PARA LAS TARJETAS (CARDS) ===== */
+      .com-card {
+        border-radius: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background: #ffffff;
+        border: none;
+      }
+
+      .com-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 30px -5px rgba(28, 34, 98, 0.15);
+      }
+
+      .com-imgbox.com-card-media {
+        height: 200px;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+      }
+
+      .com-imgbox.com-card-media img {
+        object-fit: cover;
+      }
+
+      .com-card .card-body {
+        padding: 1.5rem;
+      }
+
+      .com-card .badge {
+        background-color: #09A28E;
+        color: white;
+        font-weight: 600;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        letter-spacing: 0.3px;
+        margin-bottom: 0.75rem;
+      }
+
+      .com-card .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1C2262;
+        margin-bottom: 0.75rem;
+      }
+
+      .com-card .card-text {
+        color: #4a5568;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin-bottom: 1.25rem;
+      }
+
+      .com-card .btn-outline-dark {
+        border-width: 2px;
+        border-radius: 50px;
+        padding: 0.4rem 1.25rem;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+
+      .com-card .btn-outline-dark:hover {
+        background-color: #1C2262;
+        border-color: #1C2262;
+        color: white;
+      }
 
       /* Calendario / Schedule */
       .table-schedule {
@@ -252,6 +378,19 @@ if (!function_exists('render_com_styles_once')) {
         color: white;
         font-weight: 500;
         border: none;
+      }
+
+      /* Ajustes responsivos */
+      @media (max-width: 768px) {
+        .carousel-item .row {
+          flex-direction: column;
+        }
+        .carousel-item .p-4 {
+          padding: 1.5rem !important;
+        }
+        .carousel-item h3.h5 {
+          font-size: 1.5rem;
+        }
       }
     </style>
     <?php
@@ -352,7 +491,7 @@ if (!function_exists('render_carousel')) {
       }
     }
     ?>
-    <div id="<?= e($carouselId) ?>" class="carousel slide"
+    <div id="<?= e($carouselId) ?>" class="carousel slide com-carousel"
          <?= $autoplay ? 'data-bs-ride="carousel"' : '' ?>
          data-bs-interval="<?= (int)$interval ?>">
 
@@ -738,7 +877,19 @@ if (!function_exists('render_section')) {
 
     if ($tipo === 'SCHEDULE') {
       render_section_header($sec);
-      render_schedule($sec, $items);
+      
+      // Mostrar enlace al calendario en lugar de la tabla tradicional
+      global $mes_agenda, $anio_agenda;
+      ?>
+      <div class="text-center mb-4">
+        <a href="<?= URL ?>?uri=comunicaciones/calendario/<?= $secId ?>&year=<?= $anio_agenda ?? date('Y') ?>&month=<?= $mes_agenda ?? date('n') ?>" 
+           class="btn btn-primary btn-lg" style="background: #1C2262; border-color: #1C2262; padding: 1rem 3rem;">
+          <i class="fas fa-calendar-alt me-2"></i>
+          Ver calendario de eventos
+        </a>
+      </div>
+      <?php
+      
       echo render_section_inner_close($layout);
       echo render_container_close();
       return;
