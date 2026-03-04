@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/_helpers.php';
 
-
 /**
  * ============================================================
  * Helpers (no rompe compatibilidad)
@@ -42,6 +41,16 @@ if (!function_exists('items_for_section')) {
     if (isset($map[$k]) && is_array($map[$k])) return $map[$k];
 
     return [];
+  }
+}
+
+/**
+ * ✅ Nuevo helper: Admin comunicaciones (para mostrar botón y/o acciones)
+ */
+if (!function_exists('is_admin_comunicaciones')) {
+  function is_admin_comunicaciones(): bool {
+    $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
+    return in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true);
   }
 }
 
@@ -94,6 +103,9 @@ if (!function_exists('render_section_inner_close')) {
 /**
  * ============================================================
  * Estilos UI/UX (una sola vez)
+ *  - Mejora alturas de imágenes (cards + carrusel)
+ *  - Carrusel más pro
+ *  - Calendario iframe mejorado (tamaño y borde)
  * ============================================================
  */
 if (!function_exists('render_com_styles_once')) {
@@ -111,7 +123,9 @@ if (!function_exists('render_com_styles_once')) {
       }
       .com-section--full { margin: 0 !important; padding: 0 !important; }
 
-      /* Estilos base existentes */
+      /* =========================
+         Base
+         ========================= */
       .com-imgbox{
         width: 100%;
         background: #fff;
@@ -119,6 +133,7 @@ if (!function_exists('render_com_styles_once')) {
         align-items:center;
         justify-content:center;
         overflow:hidden;
+        border-radius: 14px;
       }
       .com-imgbox--soft{
         background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
@@ -126,17 +141,43 @@ if (!function_exists('render_com_styles_once')) {
       .com-imgbox img{
         width: 100%;
         height: 100%;
-        object-fit: contain;
         object-position: center;
         display:block;
       }
 
-      .com-card-media{ height: 100px; }
-      .com-carousel-media{ min-height: 100px; height: 100%; }
+      /* =========================
+         ALTURAS PRO (FIX PRINCIPAL)
+         - Antes estaban en 100px
+         ========================= */
+
+      /* Cards (grid) */
+      .com-card-media{
+        height: clamp(170px, 18vw, 260px) !important;
+      }
+
+      /* Carrusel (lado imagen) */
+      .com-carousel-media{
+        min-height: clamp(240px, 35vw, 460px) !important;
+        height: 100%;
+      }
+
+      /* Por defecto: cover para que se vea premium */
+      .com-card .com-imgbox img,
+      .carousel .com-imgbox img,
+      .com-card-media img,
+      .com-carousel-media img{
+        object-fit: cover !important;
+      }
+
+      /* Si en algún momento quieres contain para logos:
+         usa class="com-imgbox com-imgbox--contain" */
+      .com-imgbox--contain img{
+        object-fit: contain !important;
+      }
 
       @media (max-width: 767px){
-        .com-card-media{ height: 170px; }
-        .com-carousel-media{ min-height: 200px; }
+        .com-card-media{ height: 190px !important; }
+        .com-carousel-media{ min-height: 240px !important; }
       }
 
       /* ===== HERO 100% pantalla ===== */
@@ -210,7 +251,9 @@ if (!function_exists('render_com_styles_once')) {
         margin-right: auto;
       }
 
-      /* ===== MEJORAS PARA EL CARRUSEL ===== */
+      /* =========================
+         Carrusel (mejor UX)
+         ========================= */
       .carousel.com-carousel {
         border-radius: 24px;
         overflow: hidden;
@@ -221,18 +264,13 @@ if (!function_exists('render_com_styles_once')) {
         background: linear-gradient(145deg, #ffffff 0%, #f8faff 100%);
       }
 
-      .com-carousel-media {
-        min-height: 350px;
-        background-color: #1C2262;
-        transition: transform 0.5s ease;
-      }
-
+      /* zoom suave al pasar */
       .carousel-item:hover .com-carousel-media {
         transform: scale(1.02);
       }
-
-      .com-imgbox.com-carousel-media img {
-        object-fit: cover;
+      .com-carousel-media {
+        background-color: #1C2262;
+        transition: transform 0.5s ease;
       }
 
       .carousel-item .p-4 {
@@ -276,7 +314,7 @@ if (!function_exists('render_com_styles_once')) {
         box-shadow: 0 10px 20px rgba(28, 34, 98, 0.2);
       }
 
-      /* Controles del carrusel más grandes y con mejor diseño */
+      /* Controles del carrusel */
       .carousel-control-prev,
       .carousel-control-next {
         width: 60px;
@@ -301,27 +339,20 @@ if (!function_exists('render_com_styles_once')) {
         filter: invert(1) grayscale(100);
       }
 
-      /* ===== MEJORAS PARA LAS TARJETAS (CARDS) ===== */
+      /* =========================
+         Cards (grid)
+         ========================= */
       .com-card {
         border-radius: 20px;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         background: #ffffff;
         border: none;
+        overflow: hidden;
       }
 
       .com-card:hover {
         transform: translateY(-8px);
         box-shadow: 0 20px 30px -5px rgba(28, 34, 98, 0.15);
-      }
-
-      .com-imgbox.com-card-media {
-        height: 200px;
-        border-top-left-radius: 20px;
-        border-top-right-radius: 20px;
-      }
-
-      .com-imgbox.com-card-media img {
-        object-fit: cover;
       }
 
       .com-card .card-body {
@@ -366,18 +397,48 @@ if (!function_exists('render_com_styles_once')) {
         color: white;
       }
 
-      /* Calendario / Schedule */
+      /* =========================
+         CALENDAR (iframe) mejorado
+         - más alto en desktop
+         - más usable en mobile
+         ========================= */
+      .com-calendar-frame{
+        border: 1px solid rgba(0,0,0,.06);
+        box-shadow: 0 10px 22px rgba(16,24,40,.06);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .com-calendar-frame iframe{
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+
+      /* ratio más cómodo: 21:9 en desktop, 16:9 en mobile */
+      .com-calendar-ratio{
+        aspect-ratio: 21 / 9;
+      }
+      @media (max-width: 992px){
+        .com-calendar-ratio{ aspect-ratio: 16 / 10; }
+      }
+      @media (max-width: 576px){
+        .com-calendar-ratio{ aspect-ratio: 16 / 12; }
+      }
+
+      /* Schedule tabla */
       .table-schedule {
         background-color: white;
-        border-radius: 8px;
+        border-radius: 10px;
         overflow: hidden;
         box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08);
       }
       .table-schedule thead th {
         background-color: #1C2262;
         color: white;
-        font-weight: 500;
+        font-weight: 600;
         border: none;
+        white-space: nowrap;
       }
 
       /* Ajustes responsivos */
@@ -687,12 +748,14 @@ if (!function_exists('render_links')) {
  */
 if (!function_exists('render_calendar')) {
   function render_calendar($sec) {
+    render_com_styles_once();
+
     if (empty($sec->sec_iframe_src)) {
       echo '<p class="text-muted text-center">Calendar no configurado.</p>';
       return;
     }
     ?>
-    <div class="ratio ratio-16x9 shadow-sm rounded overflow-hidden">
+    <div class="com-calendar-frame com-calendar-ratio">
       <iframe src="<?= e($sec->sec_iframe_src) ?>" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
     <?php
@@ -796,63 +859,72 @@ if (!function_exists('render_cta')) {
 
 /**
  * ============================================================
- * SCHEDULE
+ * SCHEDULE (tabla)
  * ============================================================
  */
-if (!function_exists('render_schedule')) {
-  function render_schedule($sec, $items) {
-    if (empty($items)) {
-      echo '<p class="text-muted text-center">No hay eventos programados.</p>';
+if (!function_exists('render_schedule_table_from_events')) {
+  function render_schedule_table_from_events(array $eventosPorDia): void {
+
+    if (empty($eventosPorDia)) {
+      echo '<p class="text-muted text-center mb-0">No hay eventos registrados para este mes.</p>';
       return;
     }
-    ?>
-    <div class="table-responsive">
-      <table class="table table-hover table-bordered align-middle table-schedule">
-        <thead class="table-dark">
-          <tr>
-            <th scope="col" style="width: 80px;">Hora</th>
-            <th scope="col">Evento</th>
-            <th scope="col" style="width: 200px;">Enlace</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($items as $it): ?>
-            <?php
-              $extra = json_decode($it->itm_extra_json ?? '{}', true);
-              $dia = $extra['dia'] ?? '';
-              $duracion = $extra['duracion'] ?? '';
-            ?>
-          <tr>
-            <td class="fw-bold text-nowrap"><?= e($it->itm_badge ?? '') ?></td>
-            <td>
-              <strong><?= e($it->itm_titulo ?? '') ?></strong>
-              <?php if ($dia || $duracion): ?>
-                <br><small class="text-muted">
-                  <?= e($dia) ?><?= ($dia && $duracion) ? ' &bull; ' : '' ?><?= e($duracion) ?>
-                </small>
-              <?php endif; ?>
-              <?php if (!empty($it->itm_descripcion)): ?>
-                <p class="text-muted mt-1 mb-0"><?= nl2br(e($it->itm_descripcion)) ?></p>
-              <?php endif; ?>
-            </td>
-            <td>
-              <?php if (!empty($it->itm_url) && $it->itm_url !== '#!'): ?>
-                <a href="<?= e(safe_url($it->itm_url)) ?>"
-                   target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                   rel="noopener"
-                   class="btn btn-sm btn-outline-primary w-100">
-                  <span class="fas fa-video me-1"></span> Unirse
-                </a>
-              <?php else: ?>
-                <span class="text-muted fst-italic">Sin enlace</span>
-              <?php endif; ?>
-            </td>
-          </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-    <?php
+
+    ksort($eventosPorDia);
+
+    echo '<div class="table-responsive">';
+    echo '<table class="table table-hover table-bordered align-middle table-schedule">';
+    echo '<thead><tr>';
+    echo '<th style="width:120px;">Fecha</th>';
+    echo '<th>Evento</th>';
+    echo '<th style="width:200px;">Enlace</th>';
+    echo '</tr></thead><tbody>';
+
+    foreach ($eventosPorDia as $dia => $lista) {
+      if (!is_array($lista)) continue;
+
+      foreach ($lista as $ev) {
+        $fecha  = (string)($ev['event_date'] ?? '');
+        $title  = (string)($ev['title'] ?? '');
+        $desc   = (string)($ev['description'] ?? '');
+        $loc    = (string)($ev['location'] ?? '');
+        $url    = (string)($ev['meet_url'] ?? '');
+        $allDay = (int)($ev['is_all_day'] ?? 0) === 1;
+
+        $start  = (string)($ev['start_time'] ?? '');
+        $end    = (string)($ev['end_time'] ?? '');
+
+        $horaTxt = $allDay ? 'Todo el día' : trim($start . ($end ? ' - '.$end : ''));
+
+        echo '<tr>';
+
+        echo '<td class="text-nowrap fw-semibold">'.e($fecha).'<br><small class="text-muted">'.e($horaTxt).'</small></td>';
+
+        echo '<td>';
+        echo '<strong>'.e($title).'</strong>';
+        if ($loc !== '') {
+          echo '<br><small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>'.e($loc).'</small>';
+        }
+        if ($desc !== '') {
+          echo '<p class="text-muted mt-2 mb-0">'.nl2br(e($desc)).'</p>';
+        }
+        echo '</td>';
+
+        echo '<td>';
+        if ($url !== '' && $url !== '#!') {
+          echo '<a href="'.e(safe_url($url)).'" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary w-100">';
+          echo '<span class="fas fa-video me-1"></span> Unirse';
+          echo '</a>';
+        } else {
+          echo '<span class="text-muted fst-italic">Sin enlace</span>';
+        }
+        echo '</td>';
+
+        echo '</tr>';
+      }
+    }
+
+    echo '</tbody></table></div>';
   }
 }
 
@@ -875,21 +947,31 @@ if (!function_exists('render_section')) {
     echo render_container_open($layout);
     echo render_section_inner_open($layout);
 
+    /**
+     * ✅ SCHEDULE:
+     * - Botón "Ver calendario" SOLO admin
+     * - Mostrar eventos guardados (desde $eventosPorDia que viene del controller)
+     */
     if ($tipo === 'SCHEDULE') {
       render_section_header($sec);
-      
-      // Mostrar enlace al calendario en lugar de la tabla tradicional
-      global $mes_agenda, $anio_agenda;
-      ?>
-      <div class="text-center mb-4">
-        <a href="<?= URL ?>?uri=comunicaciones/calendario/<?= $secId ?>&year=<?= $anio_agenda ?? date('Y') ?>&month=<?= $mes_agenda ?? date('n') ?>" 
-           class="btn btn-primary btn-lg" style="background: #1C2262; border-color: #1C2262; padding: 1rem 3rem;">
-          <i class="fas fa-calendar-alt me-2"></i>
-          Ver calendario de eventos
-        </a>
-      </div>
-      <?php
-      
+
+      $mes  = (int)($GLOBALS['mes_agenda'] ?? date('n'));
+      $anio = (int)($GLOBALS['anio_agenda'] ?? date('Y'));
+      $eventosPorDia = $GLOBALS['eventosPorDia'] ?? [];
+
+      if (is_admin_comunicaciones()) { ?>
+        <div class="text-center mb-4">
+          <a href="<?= URL ?>?uri=comunicaciones/calendario/<?= $secId ?>&year=<?= $anio ?>&month=<?= $mes ?>"
+             class="btn btn-primary btn-lg" style="background: #1C2262; border-color: #1C2262; padding: 1rem 3rem;">
+            <i class="fas fa-calendar-alt me-2"></i>
+            Ver calendario de eventos
+          </a>
+        </div>
+      <?php }
+
+      // Mostrar tabla con eventos (para todos)
+      render_schedule_table_from_events(is_array($eventosPorDia) ? $eventosPorDia : []);
+
       echo render_section_inner_close($layout);
       echo render_container_close();
       return;
