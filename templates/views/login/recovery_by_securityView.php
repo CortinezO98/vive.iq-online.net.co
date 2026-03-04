@@ -24,7 +24,7 @@
                         <img src="<?php echo IMAGES; ?>logo/logo.png" class="mb-2 img-fluid" alt="Image">
                         <h3>Recuperar contraseña</h3>
                         <p class="mb-6">
-                            Ingrese la dirección de correo electrónico asociada a su cuenta y validaremos su identidad mediante una
+                            Ingrese el <strong>usuario</strong> asociado a su cuenta y validaremos su identidad mediante una
                             <strong>pregunta de seguridad</strong> para permitir el cambio de contraseña.
                         </p>
                     </div>
@@ -37,11 +37,12 @@
 
                         <div class="mb-3">
                             <input
-                                type="email"
-                                name="correo"
+                                type="text"
+                                name="usuario"
                                 class="form-control"
-                                value="<?php echo (isset($_POST["form_recovery_security_start"])) ? checkInput($_POST['correo'] ?? '') : ''; ?>"
-                                placeholder="correo@dominio.com"
+                                value="<?php echo (isset($_POST["form_recovery_security_start"])) ? checkInput($_POST['usuario'] ?? '') : ''; ?>"
+                                placeholder="usuario (usu_acceso)"
+                                autocomplete="username"
                                 required
                             >
                         </div>

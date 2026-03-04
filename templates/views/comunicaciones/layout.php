@@ -104,8 +104,8 @@ if (!function_exists('render_com_styles_once')) {
         display:block;
       }
 
-      .com-card-media{ height: 190px; }
-      .com-carousel-media{ min-height: 260px; height: 100%; }
+      .com-card-media{ height: 100px; }
+      .com-carousel-media{ min-height: 100px; height: 100%; }
 
       @media (max-width: 767px){
         .com-card-media{ height: 170px; }
