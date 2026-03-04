@@ -11,13 +11,17 @@ class comunicacionesController extends Controller {
     private function requireLogin(): void {
         if (!isset($_SESSION[APP_SESSION.'usu_id'])) {
             Redirect::to('?uri=login');
+            exit;
         }
     }
 
     private function requireAdminComunicaciones(): void {
-        $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
-        if (!in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true)) {
+        $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION.'usu_perfil'] ?? '')));
+        $allow = ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'];
+
+        if (!in_array($perfil, $allow, true)) {
             Redirect::to('?uri=error');
+            exit;
         }
     }
 
@@ -48,7 +52,7 @@ class comunicacionesController extends Controller {
         // Obtener parámetros de mes y año para la agenda
         $mes = (int)($_GET['m'] ?? date('n'));
         $anio = (int)($_GET['y'] ?? date('Y'));
-        
+
         // Validar rangos
         $mes = max(1, min(12, $mes));
         $anio = max(2020, min(2100, $anio));
@@ -56,7 +60,7 @@ class comunicacionesController extends Controller {
         // --- NUEVO: Obtener eventos del mes ---
         $eventos = [];
         $eventosPorDia = [];
-        
+
         // Verificar si el modelo de eventos existe antes de usarlo
         if (file_exists(MODELS . 'eventoModel.php')) {
             require_once MODELS . 'eventoModel.php';
@@ -66,12 +70,17 @@ class comunicacionesController extends Controller {
             $eventos = $eventoModel->listBetween($fecha_inicio, $fecha_fin);
 
             // Organizar eventos por día
-            foreach ($eventos as $ev) {
-                $dia = (int)date('j', strtotime($ev['event_date']));
-                if (!isset($eventosPorDia[$dia])) {
-                    $eventosPorDia[$dia] = [];
+            if (is_array($eventos)) {
+                foreach ($eventos as $ev) {
+                    if (!isset($ev['event_date'])) continue;
+                    $dia = (int)date('j', strtotime($ev['event_date']));
+                    if (!isset($eventosPorDia[$dia])) {
+                        $eventosPorDia[$dia] = [];
+                    }
+                    $eventosPorDia[$dia][] = $ev;
                 }
-                $eventosPorDia[$dia][] = $ev;
+            } else {
+                $eventos = [];
             }
         }
         // ---------------------------------------
@@ -92,22 +101,46 @@ class comunicacionesController extends Controller {
     // =========================
     // GESTIÓN DE EVENTOS DE AGENDA
     // =========================
-    
+
     /**
      * Obtener eventos para una fecha (formato JSON)
      */
     function eventos_obtener() {
         $this->requireLogin();
-        
+
         header('Content-Type: application/json');
-        
+
         $fecha_inicio = $_GET['inicio'] ?? date('Y-m-01');
         $fecha_fin = $_GET['fin'] ?? date('Y-m-t');
-        
+
         require_once MODELS . 'eventoModel.php';
         $eventoModel = new eventoModel();
-        $eventos = $eventoModel->listBetween($fecha_inicio, $fecha_fin);
-        
+
+        $rows = $eventoModel->listBetween($fecha_inicio, $fecha_fin);
+        if (!is_array($rows)) $rows = [];
+
+        // Transformar al formato esperado por calendarios JS (start/end/allDay/color)
+        $eventos = [];
+        foreach ($rows as $r) {
+            if (!isset($r['event_date'])) continue;
+
+            $date  = $r['event_date'];
+            $start = $date . (!empty($r['start_time']) ? (' ' . $r['start_time'] . ':00') : ' 00:00:00');
+            $end   = $date . (!empty($r['end_time']) ? (' ' . $r['end_time'] . ':00') : ' 23:59:59');
+
+            $eventos[] = [
+                'id'          => (int)($r['id'] ?? 0),
+                'title'       => (string)($r['title'] ?? ''),
+                'start'       => $start,
+                'end'         => $end,
+                'allDay'      => (bool)($r['is_all_day'] ?? 0),
+                'color'       => $r['color'] ?? '#1C2262',
+                'description' => $r['description'] ?? '',
+                'location'    => $r['location'] ?? '',
+                'meet_url'    => $r['meet_url'] ?? '',
+            ];
+        }
+
         echo json_encode(['eventos' => $eventos]);
         exit;
     }
@@ -121,17 +154,20 @@ class comunicacionesController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio'));
+            exit;
         }
 
-        // Validar token CSRF
-        if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['iqvive_token']) {
+        // Validar token CSRF (acepta token o form_token)
+        $token = $_POST['form_token'] ?? ($_POST['token'] ?? null);
+        if (!$token || $token !== ($_SESSION['iqvive_token'] ?? '')) {
             Flasher::new('Error de validación de token', 'danger');
             Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio'));
+            exit;
         }
 
         require_once MODELS . 'eventoModel.php';
         $evento = new eventoModel();
-        
+
         $evento->title = checkInput($_POST['title'] ?? '');
         $evento->description = checkInput($_POST['description'] ?? '');
         $evento->event_date = checkInput($_POST['event_date'] ?? '');
@@ -146,13 +182,23 @@ class comunicacionesController extends Controller {
         // Validaciones básicas
         if (empty($evento->title) || empty($evento->event_date)) {
             Flasher::new('El título y la fecha son obligatorios', 'danger');
-            Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio') . '?m=' . date('n', strtotime($evento->event_date)) . '&y=' . date('Y', strtotime($evento->event_date)));
+            Redirect::to(
+                '?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio')
+                . '?m=' . date('n', strtotime($evento->event_date ?: date('Y-m-d')))
+                . '&y=' . date('Y', strtotime($evento->event_date ?: date('Y-m-d')))
+            );
+            exit;
         }
 
         // Validar URL si se proporcionó
         if (!empty($evento->meet_url) && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
             Flasher::new('La URL de la reunión no es válida', 'danger');
-            Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio') . '?m=' . date('n', strtotime($evento->event_date)) . '&y=' . date('Y', strtotime($evento->event_date)));
+            Redirect::to(
+                '?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio')
+                . '?m=' . date('n', strtotime($evento->event_date))
+                . '&y=' . date('Y', strtotime($evento->event_date))
+            );
+            exit;
         }
 
         if ($evento->add()) {
@@ -165,6 +211,7 @@ class comunicacionesController extends Controller {
         $mes = date('n', strtotime($evento->event_date));
         $anio = date('Y', strtotime($evento->event_date));
         Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio') . '?m=' . $mes . '&y=' . $anio);
+        exit;
     }
 
     /**
@@ -177,20 +224,22 @@ class comunicacionesController extends Controller {
         $id = (int)base64_decode($id);
         if ($id <= 0) {
             Redirect::to('?uri=comunicaciones/ver/inicio');
+            exit;
         }
 
         require_once MODELS . 'eventoModel.php';
         $evento = new eventoModel();
         $evento->id = $id;
-        
+
         if ($evento->delete()) {
             Flasher::new('Evento eliminado exitosamente', 'success');
         } else {
             Flasher::new('Error al eliminar el evento', 'danger');
         }
-        
+
         $slug = $_GET['slug'] ?? 'inicio';
         Redirect::to('?uri=comunicaciones/ver/' . $slug);
+        exit;
     }
 
     // =========================
@@ -202,33 +251,35 @@ class comunicacionesController extends Controller {
      */
     function calendario($secId = 0) {
         $this->requireLogin();
-        
+
         $secId = (int)$secId;
         $year = (int)($_GET['year'] ?? date('Y'));
         $month = (int)($_GET['month'] ?? date('n'));
-        
+
         // Validar rangos
         $year = max(2020, min(2100, $year));
         $month = max(1, min(12, $month));
-        
+
         require_once MODELS . 'eventoModel.php';
         $eventoModel = new eventoModel();
         $eventos = $eventoModel->getMonthEvents($year, $month);
-        
+        if (!is_array($eventos)) $eventos = [];
+
         // Organizar eventos por día
         $eventosPorDia = [];
         foreach ($eventos as $ev) {
+            if (!isset($ev['event_date'])) continue;
             $dia = (int)date('j', strtotime($ev['event_date']));
             if (!isset($eventosPorDia[$dia])) {
                 $eventosPorDia[$dia] = [];
             }
             $eventosPorDia[$dia][] = $ev;
         }
-        
+
         // Obtener información de la sección
         $seccion = $this->model->getSeccion($secId);
         $pagina = $seccion ? $this->model->getPagina((int)$seccion->pag_id) : null;
-        
+
         View::render('calendario', [
             'year' => $year,
             'month' => $month,
@@ -244,70 +295,87 @@ class comunicacionesController extends Controller {
     function evento_guardar_ajax() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
-        
-        header('Content-Type: application/json');
-        
+
+        header('Content-Type: application/json; charset=UTF-8');
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             echo json_encode(['success' => false, 'message' => 'Método no permitido']);
             exit;
         }
-        
-        // Validar token CSRF
-        if (!isset($_POST['token']) || $_POST['token'] !== $_SESSION['iqvive_token']) {
-            echo json_encode(['success' => false, 'message' => 'Token inválido']);
+
+        // ✅ Validar token CSRF (acepta token o form_token) + mensaje más claro
+        $token = $_POST['token'] ?? ($_POST['form_token'] ?? null);
+        $sessToken = $_SESSION['iqvive_token'] ?? '';
+        if (!$token || !$sessToken || !hash_equals($sessToken, (string)$token)) {
+            echo json_encode(['success' => false, 'message' => 'Token inválido o expirado. Recarga la página.']);
             exit;
         }
-        
+
         require_once MODELS . 'eventoModel.php';
         $evento = new eventoModel();
-        
-        $evento->id = (int)($_POST['id'] ?? 0);
-        $evento->title = checkInput($_POST['title'] ?? '');
+
+        $evento->id          = (int)($_POST['id'] ?? 0);
+        $evento->title       = checkInput($_POST['title'] ?? '');
         $evento->description = checkInput($_POST['description'] ?? '');
-        $evento->event_date = checkInput($_POST['event_date'] ?? '');
-        $evento->start_time = !empty($_POST['start_time']) ? checkInput($_POST['start_time']) : null;
-        $evento->end_time = !empty($_POST['end_time']) ? checkInput($_POST['end_time']) : null;
-        $evento->meet_url = checkInput($_POST['meet_url'] ?? '');
-        $evento->location = checkInput($_POST['location'] ?? '');
-        $evento->color = checkInput($_POST['color'] ?? '#1C2262');
-        $evento->is_all_day = !empty($_POST['is_all_day']) ? 1 : 0;
-        $evento->created_by = $_SESSION[APP_SESSION.'usu_id'] ?? 0;
-        
-        // Validaciones
-        if (empty($evento->title)) {
+        $evento->event_date  = checkInput($_POST['event_date'] ?? '');
+        $evento->start_time  = !empty($_POST['start_time']) ? checkInput($_POST['start_time']) : null;
+        $evento->end_time    = !empty($_POST['end_time']) ? checkInput($_POST['end_time']) : null;
+        $evento->meet_url    = checkInput($_POST['meet_url'] ?? '');
+        $evento->location    = checkInput($_POST['location'] ?? '');
+        $evento->color       = checkInput($_POST['color'] ?? '#1C2262');
+        $evento->is_all_day  = !empty($_POST['is_all_day']) ? 1 : 0;
+        $evento->created_by  = (int)($_SESSION[APP_SESSION.'usu_id'] ?? 0);
+
+        // ✅ Validaciones
+        if ($evento->title === '') {
             echo json_encode(['success' => false, 'message' => 'El título es obligatorio']);
             exit;
         }
-        
-        if (empty($evento->event_date)) {
+
+        if ($evento->event_date === '') {
             echo json_encode(['success' => false, 'message' => 'La fecha es obligatoria']);
             exit;
         }
-        
-        // Validar URL si existe
-        if (!empty($evento->meet_url) && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
+
+        // ✅ Si es "todo el día", ignora horas (evita guardar horas sucias)
+        if ((int)$evento->is_all_day === 1) {
+            $evento->start_time = null;
+            $evento->end_time = null;
+        }
+
+        // ✅ Validar URL si existe
+        if ($evento->meet_url !== '' && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
             echo json_encode(['success' => false, 'message' => 'La URL no es válida']);
             exit;
         }
-        
+
+        // ✅ Validar coherencia de horas si vienen
+        if ($evento->start_time && $evento->end_time) {
+            // Comparación simple HH:MM
+            if (strcmp($evento->end_time, $evento->start_time) < 0) {
+                echo json_encode(['success' => false, 'message' => 'La hora fin no puede ser menor que la hora inicio']);
+                exit;
+            }
+        }
+
         try {
             if ($evento->id > 0) {
-                $result = $evento->update();
+                $result  = $evento->update(); // ✅ debe retornar bool (por el fix del modelo)
                 $message = 'Evento actualizado correctamente';
             } else {
-                $result = $evento->add();
+                $result  = $evento->add();    // ✅ debe retornar bool (por el fix del modelo)
                 $message = 'Evento creado correctamente';
             }
-            
+
             if ($result) {
                 echo json_encode(['success' => true, 'message' => $message]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Error al guardar el evento']);
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
-        
+
         exit;
     }
 
@@ -317,30 +385,30 @@ class comunicacionesController extends Controller {
     function evento_eliminar_ajax() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
-        
+
         header('Content-Type: application/json');
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             echo json_encode(['success' => false, 'message' => 'Método no permitido']);
             exit;
         }
-        
+
         $id = (int)($_POST['id'] ?? 0);
         if ($id <= 0) {
             echo json_encode(['success' => false, 'message' => 'ID inválido']);
             exit;
         }
-        
+
         require_once MODELS . 'eventoModel.php';
         $evento = new eventoModel();
         $evento->id = $id;
-        
+
         if ($evento->delete()) {
             echo json_encode(['success' => true, 'message' => 'Evento eliminado']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al eliminar']);
         }
-        
+
         exit;
     }
 
@@ -349,15 +417,39 @@ class comunicacionesController extends Controller {
      */
     function eventos_por_fecha() {
         $this->requireLogin();
-        
+
         header('Content-Type: application/json');
-        
+
         $fecha = $_GET['fecha'] ?? date('Y-m-d');
-        
+
         require_once MODELS . 'eventoModel.php';
         $eventoModel = new eventoModel();
-        $eventos = $eventoModel->listBetween($fecha, $fecha);
-        
+        $rows = $eventoModel->listBetween($fecha, $fecha);
+        if (!is_array($rows)) $rows = [];
+
+        // Mantener compatibilidad: devuelve "eventos" como antes (sin romper),
+        // pero normaliza por si el front espera start/end.
+        $eventos = [];
+        foreach ($rows as $r) {
+            if (!isset($r['event_date'])) continue;
+
+            $date  = $r['event_date'];
+            $start = $date . (!empty($r['start_time']) ? (' ' . $r['start_time'] . ':00') : ' 00:00:00');
+            $end   = $date . (!empty($r['end_time']) ? (' ' . $r['end_time'] . ':00') : ' 23:59:59');
+
+            $eventos[] = [
+                'id'          => (int)($r['id'] ?? 0),
+                'title'       => (string)($r['title'] ?? ''),
+                'start'       => $start,
+                'end'         => $end,
+                'allDay'      => (bool)($r['is_all_day'] ?? 0),
+                'color'       => $r['color'] ?? '#1C2262',
+                'description' => $r['description'] ?? '',
+                'location'    => $r['location'] ?? '',
+                'meet_url'    => $r['meet_url'] ?? '',
+            ];
+        }
+
         echo json_encode(['eventos' => $eventos]);
         exit;
     }
@@ -435,6 +527,7 @@ class comunicacionesController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $pagId = (int)($_POST['pag_id'] ?? 0);
@@ -444,11 +537,12 @@ class comunicacionesController extends Controller {
         if ($slug === '' || $titulo === '') {
             Flasher::new('El slug y el título son obligatorios', 'danger');
             Redirect::to('?uri=comunicaciones/admin_pagina_form/' . ($pagId ?: 0));
+            exit;
         }
 
         // Procesar imagen si se subió una nueva
         $heroBg = trim($_POST['pag_hero_bg'] ?? '');
-        
+
         // Si hay un archivo nuevo y es válido
         if (isset($_FILES['pag_hero_imagen']) && $_FILES['pag_hero_imagen']['error'] === UPLOAD_ERR_OK) {
             // Si es una página existente, podemos subir la imagen inmediatamente
@@ -462,16 +556,16 @@ class comunicacionesController extends Controller {
         }
 
         $d = [
-            'pag_id'             => $pagId,
-            'pag_slug'           => $slug,
-            'pag_titulo'         => $titulo,
-            'pag_subtitulo'      => trim($_POST['pag_subtitulo'] ?? ''),
-            'pag_hero_bg'        => $heroBg,
-            'pag_hero_overlay'   => (int)($_POST['pag_hero_overlay'] ?? 1),
-            'pag_hero_alineacion'=> $_POST['pag_hero_alineacion'] ?? 'center',
-            'pag_descripcion'    => trim($_POST['pag_descripcion'] ?? ''),
-            'pag_estado'         => $_POST['pag_estado'] ?? 'ACTIVO',
-            'pag_orden'          => (int)($_POST['pag_orden'] ?? 0),
+            'pag_id'              => $pagId,
+            'pag_slug'            => $slug,
+            'pag_titulo'          => $titulo,
+            'pag_subtitulo'       => trim($_POST['pag_subtitulo'] ?? ''),
+            'pag_hero_bg'         => $heroBg,
+            'pag_hero_overlay'    => (int)($_POST['pag_hero_overlay'] ?? 1),
+            'pag_hero_alineacion' => $_POST['pag_hero_alineacion'] ?? 'center',
+            'pag_descripcion'     => trim($_POST['pag_descripcion'] ?? ''),
+            'pag_estado'          => $_POST['pag_estado'] ?? 'ACTIVO',
+            'pag_orden'           => (int)($_POST['pag_orden'] ?? 0),
         ];
 
         $nuevoId = $this->model->guardarPagina($d);
@@ -487,6 +581,7 @@ class comunicacionesController extends Controller {
 
         Flasher::new('Página guardada exitosamente', 'success');
         Redirect::to('?uri=comunicaciones/admin_secciones/' . ($pagId ?: $nuevoId));
+        exit;
     }
 
     function admin_secciones($pagId = 0) {
@@ -498,6 +593,7 @@ class comunicacionesController extends Controller {
         $pagina = $this->model->getPagina($pagId);
         if (!$pagina) {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $secciones = $this->model->listarSeccionesAdmin($pagId);
@@ -519,6 +615,7 @@ class comunicacionesController extends Controller {
         $pagina = $this->model->getPagina($pagId);
         if (!$pagina) {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $seccion = null;
@@ -539,6 +636,7 @@ class comunicacionesController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $d = [
@@ -577,6 +675,7 @@ class comunicacionesController extends Controller {
 
         // vuelve a la lista de secciones de la página
         Redirect::to('?uri=comunicaciones/admin_secciones/'.$d['pag_id']);
+        exit;
     }
 
     function admin_items($secId = 0) {
@@ -588,6 +687,7 @@ class comunicacionesController extends Controller {
         $sec = $this->model->getSeccion($secId);
         if (!$sec) {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $pagina = $this->model->getPagina((int)$sec->pag_id);
@@ -611,6 +711,7 @@ class comunicacionesController extends Controller {
         $sec = $this->model->getSeccion($secId);
         if (!$sec) {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $pagina = $this->model->getPagina((int)$sec->pag_id);
@@ -654,6 +755,7 @@ class comunicacionesController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
         }
 
         $secId = (int)($_POST['sec_id'] ?? 0);
@@ -688,5 +790,6 @@ class comunicacionesController extends Controller {
         $this->model->guardarItem($d);
 
         Redirect::to('?uri=comunicaciones/admin_items/'.$secId);
+        exit;
     }
 }
