@@ -253,19 +253,25 @@ class comunicacionesController extends Controller {
     /**
      * Mostrar calendario de eventos completo - VERSIÓN CORREGIDA
      */
+/**
+ * Mostrar calendario de eventos completo - VERSIÓN CORREGIDA
+ */
+    /**
+ * Mostrar calendario de eventos - VERSIÓN CORREGIDA CON DEBUG
+ */
     function calendario($secId = 0) {
         $this->requireLogin();
         
-        // ✅ GENERAR TOKEN CSRF SI NO EXISTE
+        error_log("=== CALENDARIO CARGADO ===");
+        
         if (empty($_SESSION['iqvive_token'])) {
             $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
         }
 
         $secId = (int)$secId;
         
-        // ✅ VERIFICAR QUE EL ID DE SECCIÓN ES VÁLIDO
         if ($secId <= 0) {
-            error_log("ERROR: calendario() llamado con secId inválido: " . $secId);
+            error_log("ERROR: calendario() secId inválido: " . $secId);
             Flasher::new('ID de sección inválido', 'danger');
             Redirect::to('?uri=comunicaciones/ver/inicio');
             exit;
@@ -273,17 +279,29 @@ class comunicacionesController extends Controller {
 
         $year = (int)($_GET['year'] ?? date('Y'));
         $month = (int)($_GET['month'] ?? date('n'));
+        
+        error_log("Año: $year, Mes: $month");
 
-        // Validar rangos
         $year = max(2020, min(2100, $year));
         $month = max(1, min(12, $month));
 
         require_once MODELS . 'eventoModel.php';
         $eventoModel = new eventoModel();
-        $eventos = $eventoModel->getMonthEvents($year, $month);
-        if (!is_array($eventos)) $eventos = [];
+        
+        $fecha_inicio = sprintf('%04d-%02d-01', $year, $month);
+        $fecha_fin = date('Y-m-t', strtotime($fecha_inicio));
+        
+        error_log("Buscando eventos entre: $fecha_inicio y $fecha_fin");
+        
+        $eventos = $eventoModel->listBetween($fecha_inicio, $fecha_fin);
+        
+        error_log("Eventos encontrados: " . (is_array($eventos) ? count($eventos) : 'NO ES ARRAY'));
+        
+        if (!is_array($eventos)) {
+            $eventos = [];
+        }
 
-        // Organizar eventos por día (por fecha Y-m-d)
+        // Organizar eventos por día (por fecha Y-m-d) - ¡CORREGIDO!
         $eventosPorDia = [];
         foreach ($eventos as $ev) {
             if (!isset($ev['event_date'])) continue;
@@ -294,7 +312,11 @@ class comunicacionesController extends Controller {
             $eventosPorDia[$fecha][] = $ev;
         }
 
-        // Obtener información de la sección
+        error_log("Eventos por día: " . count($eventosPorDia) . " días");
+        if (count($eventosPorDia) > 0) {
+            error_log("Fechas con eventos: " . implode(', ', array_keys($eventosPorDia)));
+        }
+
         $seccion = $this->model->getSeccion($secId);
         if (!$seccion) {
             error_log("ERROR: No existe sección con ID: " . $secId);
@@ -305,19 +327,26 @@ class comunicacionesController extends Controller {
         
         $pagina = $this->model->getPagina((int)$seccion->pag_id);
 
-        // DEBUG - Registrar en log
-        error_log("=== CALENDARIO CARGADO ===");
-        error_log("secId: " . $secId);
-        error_log("year: " . $year . ", month: " . $month);
-        error_log("eventos encontrados: " . count($eventos));
+        // DEBUG - Mostrar en el log qué estamos pasando
+        error_log("ENVIANDO A LA VISTA:");
+        error_log("- eventosPorDia count: " . count($eventosPorDia));
+        error_log("- eventos count: " . count($eventos));
 
         View::render('calendario', [
             'year' => $year,
             'month' => $month,
+            'eventos' => $eventos,
             'eventosPorDia' => $eventosPorDia,
             'seccion' => $seccion,
             'pagina' => $pagina,
-            'secId' => $secId
+            'secId' => $secId,
+            'debug_info' => [
+                'fecha_inicio' => $fecha_inicio,
+                'fecha_fin' => $fecha_fin,
+                'total_eventos' => count($eventos),
+                'dias_con_eventos' => count($eventosPorDia),
+                'fechas' => array_keys($eventosPorDia)
+            ]
         ]);
     }
 

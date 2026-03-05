@@ -15,19 +15,31 @@ class eventoModel extends Model {
     /**
      * Listar eventos entre dos fechas
      */
+/**
+ * Listar eventos entre dos fechas
+ */
     public function listBetween($startDate, $endDate) {
+        error_log("EventoModel::listBetween($startDate, $endDate)");
+        
         $sql = "SELECT e.*, u.usu_nombres_apellidos as creator_name
                 FROM comm_events e
                 LEFT JOIN app_usuario u ON e.created_by = u.usu_id
                 WHERE e.event_date BETWEEN :start_date AND :end_date
                 ORDER BY e.event_date ASC, e.start_time ASC";
 
-        $res = parent::query($sql, [
-            'start_date' => $startDate,
-            'end_date'   => $endDate
-        ]);
-
-        return is_array($res) ? $res : [];
+        try {
+            $res = parent::query($sql, [
+                'start_date' => $startDate,
+                'end_date'   => $endDate
+            ]);
+            
+            error_log("Resultado de query: " . (is_array($res) ? count($res) . ' registros' : 'NO ES ARRAY'));
+            
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log("ERROR en EventoModel::listBetween: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
