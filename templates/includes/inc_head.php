@@ -20,6 +20,8 @@
     <script src="<?php echo PLUGINS; ?>Tour-JS/lib.js"></script>
     <script src="<?php echo PLUGINS; ?>Highcharts-Gantt/code/highcharts-gantt.js"></script>
     <script src="<?php echo PLUGINS; ?>tinymce/tinymce.min.js"></script>
+    <!-- Bootstrap JS y Popper -->
+    <script src="<?php echo LIBS; ?>bootstrap/dist/js/bootstrap.bundle.min.js"></script>    
     <!-- Theme CSS -->
     <link rel="stylesheet" href="<?php echo CSS; ?>theme.min.css?v=1.1">
     <?php

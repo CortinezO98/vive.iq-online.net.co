@@ -35,6 +35,11 @@ class comunicacionesController extends Controller {
 
     function ver($slug = 'inicio') {
         $this->requireLogin();
+        
+        // ✅ GENERAR TOKEN CSRF SI NO EXISTE
+        if (empty($_SESSION['iqvive_token'])) {
+            $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
+        }
 
         $slug = trim((string)$slug);
         if ($slug === '') $slug = 'inicio';
@@ -57,7 +62,7 @@ class comunicacionesController extends Controller {
         $mes = max(1, min(12, $mes));
         $anio = max(2020, min(2100, $anio));
 
-        // --- NUEVO: Obtener eventos del mes ---
+        // Obtener eventos del mes
         $eventos = [];
         $eventosPorDia = [];
 
@@ -83,7 +88,6 @@ class comunicacionesController extends Controller {
                 $eventos = [];
             }
         }
-        // ---------------------------------------
 
         // templates/comunicaciones/<slug>View.php
         View::render($slug, [
@@ -247,15 +251,82 @@ class comunicacionesController extends Controller {
     // =========================
 
     /**
-     * Mostrar calendario de eventos completo
+     * Mostrar calendario de eventos completo - VERSIÓN CORREGIDA
      */
     function calendario($secId = 0) {
         $this->requireLogin();
+        
+        // ✅ GENERAR TOKEN CSRF SI NO EXISTE
         if (empty($_SESSION['iqvive_token'])) {
             $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
         }
 
+        $secId = (int)$secId;
+        
+        // ✅ VERIFICAR QUE EL ID DE SECCIÓN ES VÁLIDO
+        if ($secId <= 0) {
+            error_log("ERROR: calendario() llamado con secId inválido: " . $secId);
+            Flasher::new('ID de sección inválido', 'danger');
+            Redirect::to('?uri=comunicaciones/ver/inicio');
+            exit;
+        }
 
+        $year = (int)($_GET['year'] ?? date('Y'));
+        $month = (int)($_GET['month'] ?? date('n'));
+
+        // Validar rangos
+        $year = max(2020, min(2100, $year));
+        $month = max(1, min(12, $month));
+
+        require_once MODELS . 'eventoModel.php';
+        $eventoModel = new eventoModel();
+        $eventos = $eventoModel->getMonthEvents($year, $month);
+        if (!is_array($eventos)) $eventos = [];
+
+        // Organizar eventos por día (por fecha Y-m-d)
+        $eventosPorDia = [];
+        foreach ($eventos as $ev) {
+            if (!isset($ev['event_date'])) continue;
+            $fecha = $ev['event_date'];
+            if (!isset($eventosPorDia[$fecha])) {
+                $eventosPorDia[$fecha] = [];
+            }
+            $eventosPorDia[$fecha][] = $ev;
+        }
+
+        // Obtener información de la sección
+        $seccion = $this->model->getSeccion($secId);
+        if (!$seccion) {
+            error_log("ERROR: No existe sección con ID: " . $secId);
+            Flasher::new('La sección no existe', 'danger');
+            Redirect::to('?uri=comunicaciones/ver/inicio');
+            exit;
+        }
+        
+        $pagina = $this->model->getPagina((int)$seccion->pag_id);
+
+        // DEBUG - Registrar en log
+        error_log("=== CALENDARIO CARGADO ===");
+        error_log("secId: " . $secId);
+        error_log("year: " . $year . ", month: " . $month);
+        error_log("eventos encontrados: " . count($eventos));
+
+        View::render('calendario', [
+            'year' => $year,
+            'month' => $month,
+            'eventosPorDia' => $eventosPorDia,
+            'seccion' => $seccion,
+            'pagina' => $pagina,
+            'secId' => $secId
+        ]);
+    }
+
+    /**
+     * Obtener calendario vía AJAX (solo el HTML del grid)
+     */
+    function calendario_ajax($secId = 0) {
+        $this->requireLogin();
+        
         $secId = (int)$secId;
         $year = (int)($_GET['year'] ?? date('Y'));
         $month = (int)($_GET['month'] ?? date('n'));
@@ -269,34 +340,38 @@ class comunicacionesController extends Controller {
         $eventos = $eventoModel->getMonthEvents($year, $month);
         if (!is_array($eventos)) $eventos = [];
 
-        // Organizar eventos por día
+        // Organizar eventos por día (por fecha Y-m-d)
         $eventosPorDia = [];
         foreach ($eventos as $ev) {
             if (!isset($ev['event_date'])) continue;
-            $dia = (int)date('j', strtotime($ev['event_date']));
-            if (!isset($eventosPorDia[$dia])) {
-                $eventosPorDia[$dia] = [];
+            $fecha = $ev['event_date'];
+            if (!isset($eventosPorDia[$fecha])) {
+                $eventosPorDia[$fecha] = [];
             }
-            $eventosPorDia[$dia][] = $ev;
+            $eventosPorDia[$fecha][] = $ev;
         }
 
-        // Obtener información de la sección
-        $seccion = $this->model->getSeccion($secId);
-        $pagina = $seccion ? $this->model->getPagina((int)$seccion->pag_id) : null;
+        // Verificar permisos de administrador
+        $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION.'usu_perfil'] ?? '')));
+        $puedeEditar = in_array($perfil, ['ADMIN','ADMINISTRADOR','SUPERADMIN'], true);
 
-        View::render('calendario', [
-            'year' => $year,
-            'month' => $month,
-            'eventosPorDia' => $eventosPorDia,
-            'seccion' => $seccion,
-            'pagina' => $pagina
-        ]);
+        // Renderizar solo el grid del calendario
+        header('Content-Type: text/html; charset=UTF-8');
+        
+        // Incluir la lógica de renderizado del calendario
+        include VIEWS . 'comunicaciones/calendario_grid.php';
+        exit;
     }
 
     /**
      * Guardar evento (AJAX)
      */
     function evento_guardar_ajax() {
+        // DEBUG - Registrar lo que llega
+        error_log("=== evento_guardar_ajax ===");
+        error_log("POST: " . print_r($_POST, true));
+        error_log("SESSION token: " . ($_SESSION['iqvive_token'] ?? 'NO SET'));
+        error_log("POST token: " . ($_POST['token'] ?? 'NO TOKEN'));
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
@@ -307,11 +382,20 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        // ✅ Validar token CSRF (acepta token o form_token) + mensaje más claro
+
+        // Validar token CSRF
         $token = $_POST['token'] ?? ($_POST['form_token'] ?? null);
         $sessToken = $_SESSION['iqvive_token'] ?? '';
+
         if (!$token || !$sessToken || !hash_equals($sessToken, (string)$token)) {
-            echo json_encode(['success' => false, 'message' => 'Token inválido o expirado. Recarga la página.']);
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Token inválido o expirado. Recarga la página.',
+                'debug' => [
+                    'session_token' => $sessToken,
+                    'post_token' => $token
+                ]
+            ]);
             exit;
         }
 
@@ -319,68 +403,50 @@ class comunicacionesController extends Controller {
         $evento = new eventoModel();
 
         $evento->id          = (int)($_POST['id'] ?? 0);
-        $evento->title       = checkInput($_POST['title'] ?? '');
-        $evento->description = checkInput($_POST['description'] ?? '');
-        $evento->event_date  = checkInput($_POST['event_date'] ?? '');
-        $evento->start_time  = !empty($_POST['start_time']) ? checkInput($_POST['start_time']) : null;
-        $evento->end_time    = !empty($_POST['end_time']) ? checkInput($_POST['end_time']) : null;
-        $evento->meet_url    = checkInput($_POST['meet_url'] ?? '');
-        $evento->location    = checkInput($_POST['location'] ?? '');
-        $evento->color       = checkInput($_POST['color'] ?? '#1C2262');
+        $evento->title       = trim($_POST['title'] ?? '');
+        $evento->description = trim($_POST['description'] ?? '');
+        $evento->event_date  = trim($_POST['event_date'] ?? '');
+        $evento->start_time  = !empty($_POST['start_time']) ? trim($_POST['start_time']) : null;
+        $evento->end_time    = !empty($_POST['end_time']) ? trim($_POST['end_time']) : null;
+        $evento->meet_url    = trim($_POST['meet_url'] ?? '');
+        $evento->location    = trim($_POST['location'] ?? '');
+        $evento->color       = trim($_POST['color'] ?? '#1C2262');
         $evento->is_all_day  = !empty($_POST['is_all_day']) ? 1 : 0;
         $evento->created_by  = (int)($_SESSION[APP_SESSION.'usu_id'] ?? 0);
 
-        // ✅ Validaciones
         if ($evento->title === '') {
             echo json_encode(['success' => false, 'message' => 'El título es obligatorio']);
             exit;
         }
-
         if ($evento->event_date === '') {
             echo json_encode(['success' => false, 'message' => 'La fecha es obligatoria']);
             exit;
         }
 
-        // ✅ Si es "todo el día", ignora horas (evita guardar horas sucias)
-        if ((int)$evento->is_all_day === 1) {
-            $evento->start_time = null;
-            $evento->end_time = null;
-        }
-
-        // ✅ Validar URL si existe
-        if ($evento->meet_url !== '' && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
+        if (!empty($evento->meet_url) && !filter_var($evento->meet_url, FILTER_VALIDATE_URL)) {
             echo json_encode(['success' => false, 'message' => 'La URL no es válida']);
             exit;
         }
 
-        // ✅ Validar coherencia de horas si vienen
-        if ($evento->start_time && $evento->end_time) {
-            // Comparación simple HH:MM
-            if (strcmp($evento->end_time, $evento->start_time) < 0) {
-                echo json_encode(['success' => false, 'message' => 'La hora fin no puede ser menor que la hora inicio']);
-                exit;
-            }
-        }
-
         try {
             if ($evento->id > 0) {
-                $result  = $evento->update(); // ✅ debe retornar bool (por el fix del modelo)
+                $result = $evento->update();
                 $message = 'Evento actualizado correctamente';
             } else {
-                $result  = $evento->add();    // ✅ debe retornar bool (por el fix del modelo)
+                $result = $evento->add();
                 $message = 'Evento creado correctamente';
             }
 
-            if ($result) {
-                echo json_encode(['success' => true, 'message' => $message]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Error al guardar el evento']);
-            }
-        } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
-        }
+            echo json_encode([
+                'success' => (bool)$result,
+                'message' => $result ? $message : 'Error al guardar el evento'
+            ]);
+            exit;
 
-        exit;
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            exit;
+        }
     }
 
     /**
@@ -468,7 +534,6 @@ class comunicacionesController extends Controller {
 
         $paginas = $this->model->listarPaginasAdmin();
 
-        // templates/comunicaciones/admin/adminPaginasView.php
         View::render('admin/adminPaginas', ['paginas' => $paginas]);
     }
 
@@ -481,7 +546,6 @@ class comunicacionesController extends Controller {
             $pagina = $this->model->getPagina((int)$id);
         }
 
-        // templates/comunicaciones/admin/adminPaginaFormView.php
         View::render('admin/adminPaginaForm', ['pagina' => $pagina]);
     }
 
@@ -499,7 +563,6 @@ class comunicacionesController extends Controller {
             return null;
         }
 
-        // Validar tamaño (5MB)
         if ($file['size'] > 5 * 1024 * 1024) {
             Flasher::new('La imagen no puede superar los 5MB.', 'danger');
             return null;
@@ -510,7 +573,6 @@ class comunicacionesController extends Controller {
             mkdir($dir, 0755, true);
         }
 
-        // Nombre seguro: pagina_{id}_{timestamp}.ext
         $name = 'pagina_' . $pagId . '_' . time() . '.' . $ext;
         $dest = $dir . $name;
 
@@ -523,7 +585,7 @@ class comunicacionesController extends Controller {
     }
 
     /**
-     * Guardar página (modificado para manejar imagen)
+     * Guardar página
      */
     function admin_pagina_guardar() {
         $this->requireLogin();
@@ -544,19 +606,15 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        // Procesar imagen si se subió una nueva
         $heroBg = trim($_POST['pag_hero_bg'] ?? '');
 
-        // Si hay un archivo nuevo y es válido
         if (isset($_FILES['pag_hero_imagen']) && $_FILES['pag_hero_imagen']['error'] === UPLOAD_ERR_OK) {
-            // Si es una página existente, podemos subir la imagen inmediatamente
             if ($pagId > 0) {
                 $uploaded = $this->subirHeroImagen($_FILES['pag_hero_imagen'], $pagId);
                 if ($uploaded) {
                     $heroBg = $uploaded;
                 }
             }
-            // Si es nueva página, la imagen se procesará después de obtener el ID
         }
 
         $d = [
@@ -574,11 +632,9 @@ class comunicacionesController extends Controller {
 
         $nuevoId = $this->model->guardarPagina($d);
 
-        // Si era nueva página y se subió imagen, actualizar con el ID
         if ($pagId === 0 && isset($_FILES['pag_hero_imagen']) && $_FILES['pag_hero_imagen']['error'] === UPLOAD_ERR_OK) {
             $uploaded = $this->subirHeroImagen($_FILES['pag_hero_imagen'], $nuevoId);
             if ($uploaded) {
-                // Actualizar la página con la ruta de la imagen
                 $this->model->actualizarHeroBg($nuevoId, $uploaded);
             }
         }
@@ -602,7 +658,6 @@ class comunicacionesController extends Controller {
 
         $secciones = $this->model->listarSeccionesAdmin($pagId);
 
-        // templates/comunicaciones/admin/adminSeccionesView.php
         View::render('admin/adminSecciones', [
             'pagina'    => $pagina,
             'secciones' => $secciones
@@ -627,7 +682,6 @@ class comunicacionesController extends Controller {
             $seccion = $this->model->getSeccion($secId);
         }
 
-        // templates/comunicaciones/admin/adminSeccionFormView.php
         View::render('admin/adminSeccionForm', [
             'pagina' => $pagina,
             'seccion'=> $seccion
@@ -646,24 +700,18 @@ class comunicacionesController extends Controller {
         $d = [
             'sec_id'          => (int)($_POST['sec_id'] ?? 0),
             'pag_id'          => (int)($_POST['pag_id'] ?? 0),
-
             'sec_slug'        => trim($_POST['sec_slug'] ?? ''),
             'sec_tipo'        => $_POST['sec_tipo'] ?? 'CAROUSEL',
             'sec_titulo'      => trim($_POST['sec_titulo'] ?? ''),
             'sec_descripcion' => trim($_POST['sec_descripcion'] ?? ''),
-
             'sec_layout'      => $_POST['sec_layout'] ?? 'CONTAINER',
             'sec_cols'        => (int)($_POST['sec_cols'] ?? 3),
-
             'sec_iframe_src'  => trim($_POST['sec_iframe_src'] ?? ''),
             'sec_video_url'   => trim($_POST['sec_video_url'] ?? ''),
-
             'sec_boton_texto' => trim($_POST['sec_boton_texto'] ?? ''),
             'sec_boton_url'   => trim($_POST['sec_boton_url'] ?? ''),
-
             'sec_estado'      => $_POST['sec_estado'] ?? 'ACTIVO',
             'sec_orden'       => (int)($_POST['sec_orden'] ?? 0),
-
             'sec_config_json' => null,
         ];
 
@@ -677,7 +725,6 @@ class comunicacionesController extends Controller {
 
         $this->model->guardarSeccion($d);
 
-        // vuelve a la lista de secciones de la página
         Redirect::to('?uri=comunicaciones/admin_secciones/'.$d['pag_id']);
         exit;
     }
@@ -697,7 +744,6 @@ class comunicacionesController extends Controller {
         $pagina = $this->model->getPagina((int)$sec->pag_id);
         $items  = $this->model->listarItemsAdmin($secId);
 
-        // templates/comunicaciones/admin/adminItemsView.php
         View::render('admin/adminItems', [
             'pagina' => $pagina,
             'seccion'=> $sec,
@@ -725,7 +771,6 @@ class comunicacionesController extends Controller {
             $item = $this->model->getItem($itmId);
         }
 
-        // templates/comunicaciones/admin/adminItemFormView.php
         View::render('admin/adminItemForm', [
             'pagina' => $pagina,
             'seccion'=> $sec,

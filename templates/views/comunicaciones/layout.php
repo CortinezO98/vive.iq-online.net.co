@@ -45,12 +45,12 @@ if (!function_exists('items_for_section')) {
 }
 
 /**
- * ✅ Nuevo helper: Admin comunicaciones (para mostrar botón y/o acciones)
+ * ✅ Helper: Admin comunicaciones (para mostrar botón y/o acciones)
  */
 if (!function_exists('is_admin_comunicaciones')) {
   function is_admin_comunicaciones(): bool {
     $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
-    return in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true);
+    return in_array($perfil, ['ADMIN','ADMINISTRADOR','SUPERADMIN'], true);
   }
 }
 
@@ -103,9 +103,6 @@ if (!function_exists('render_section_inner_close')) {
 /**
  * ============================================================
  * Estilos UI/UX (una sola vez)
- *  - Mejora alturas de imágenes (cards + carrusel)
- *  - Carrusel más pro
- *  - Calendario iframe mejorado (tamaño y borde)
  * ============================================================
  */
 if (!function_exists('render_com_styles_once')) {
@@ -115,7 +112,7 @@ if (!function_exists('render_com_styles_once')) {
     $printed = true;
     ?>
     <style>
-      /* ---- Forzar full width aunque el template tenga wrappers raros ---- */
+      /* ---- Forzar full width ---- */
       .com-section--full,
       .com-section--full > .container-fluid {
         width: 100% !important;
@@ -146,22 +143,17 @@ if (!function_exists('render_com_styles_once')) {
       }
 
       /* =========================
-         ALTURAS PRO (FIX PRINCIPAL)
-         - Antes estaban en 100px
+         ALTURAS PRO
          ========================= */
-
-      /* Cards (grid) */
       .com-card-media{
         height: clamp(170px, 18vw, 260px) !important;
       }
 
-      /* Carrusel (lado imagen) */
       .com-carousel-media{
         min-height: clamp(240px, 35vw, 460px) !important;
         height: 100%;
       }
 
-      /* Por defecto: cover para que se vea premium */
       .com-card .com-imgbox img,
       .carousel .com-imgbox img,
       .com-card-media img,
@@ -169,8 +161,6 @@ if (!function_exists('render_com_styles_once')) {
         object-fit: cover !important;
       }
 
-      /* Si en algún momento quieres contain para logos:
-         usa class="com-imgbox com-imgbox--contain" */
       .com-imgbox--contain img{
         object-fit: contain !important;
       }
@@ -180,10 +170,10 @@ if (!function_exists('render_com_styles_once')) {
         .com-carousel-media{ min-height: 240px !important; }
       }
 
-      /* ===== HERO 100% pantalla ===== */
+      /* ===== HERO ===== */
       .com-dynamic-header{
         width: 100%;
-        min-height: calc(100vh - 64px); /* ajusta si tu navbar mide distinto */
+        min-height: calc(100vh - 64px);
         display:flex;
         align-items:center;
         justify-content:center;
@@ -223,7 +213,7 @@ if (!function_exists('render_com_styles_once')) {
         opacity: .95;
       }
 
-      /* Sticky bar al hacer scroll (mini header) */
+      /* Sticky bar */
       .com-stickybar{
         position: sticky;
         top: 0;
@@ -252,7 +242,7 @@ if (!function_exists('render_com_styles_once')) {
       }
 
       /* =========================
-         Carrusel (mejor UX)
+         Carrusel
          ========================= */
       .carousel.com-carousel {
         border-radius: 24px;
@@ -264,7 +254,6 @@ if (!function_exists('render_com_styles_once')) {
         background: linear-gradient(145deg, #ffffff 0%, #f8faff 100%);
       }
 
-      /* zoom suave al pasar */
       .carousel-item:hover .com-carousel-media {
         transform: scale(1.02);
       }
@@ -314,7 +303,6 @@ if (!function_exists('render_com_styles_once')) {
         box-shadow: 0 10px 20px rgba(28, 34, 98, 0.2);
       }
 
-      /* Controles del carrusel */
       .carousel-control-prev,
       .carousel-control-next {
         width: 60px;
@@ -340,7 +328,7 @@ if (!function_exists('render_com_styles_once')) {
       }
 
       /* =========================
-         Cards (grid)
+         Cards
          ========================= */
       .com-card {
         border-radius: 20px;
@@ -398,9 +386,7 @@ if (!function_exists('render_com_styles_once')) {
       }
 
       /* =========================
-         CALENDAR (iframe) mejorado
-         - más alto en desktop
-         - más usable en mobile
+         CALENDAR (iframe)
          ========================= */
       .com-calendar-frame{
         border: 1px solid rgba(0,0,0,.06);
@@ -415,7 +401,6 @@ if (!function_exists('render_com_styles_once')) {
         border: 0;
       }
 
-      /* ratio más cómodo: 21:9 en desktop, 16:9 en mobile */
       .com-calendar-ratio{
         aspect-ratio: 21 / 9;
       }
@@ -441,7 +426,6 @@ if (!function_exists('render_com_styles_once')) {
         white-space: nowrap;
       }
 
-      /* Ajustes responsivos */
       @media (max-width: 768px) {
         .carousel-item .row {
           flex-direction: column;
@@ -460,7 +444,7 @@ if (!function_exists('render_com_styles_once')) {
 
 /**
  * ============================================================
- * HERO (FULL WIDTH + stickybar al bajar)
+ * HERO
  * ============================================================
  */
 if (!function_exists('render_hero')) {
@@ -930,7 +914,7 @@ if (!function_exists('render_schedule_table_from_events')) {
 
 /**
  * ============================================================
- * Render principal por sección
+ * Render principal por sección - VERSIÓN CORREGIDA
  * ============================================================
  */
 if (!function_exists('render_section')) {
@@ -948,9 +932,10 @@ if (!function_exists('render_section')) {
     echo render_section_inner_open($layout);
 
     /**
-     * ✅ SCHEDULE:
-     * - Botón "Ver calendario" SOLO admin
-     * - Mostrar eventos guardados (desde $eventosPorDia que viene del controller)
+     * ✅ SCHEDULE - CORREGIDO:
+     * - Botón visible para TODOS los usuarios
+     * - Usa el ID de sección FIJO 8 (el que obtuviste de la BD)
+     * - La tabla de eventos se muestra para todos
      */
     if ($tipo === 'SCHEDULE') {
       render_section_header($sec);
@@ -959,15 +944,16 @@ if (!function_exists('render_section')) {
       $anio = (int)($GLOBALS['anio_agenda'] ?? date('Y'));
       $eventosPorDia = $GLOBALS['eventosPorDia'] ?? [];
 
-      if (is_admin_comunicaciones()) { ?>
-        <div class="text-center mb-4">
-          <a href="<?= URL ?>?uri=comunicaciones/calendario/<?= $secId ?>&year=<?= $anio ?>&month=<?= $mes ?>"
-             class="btn btn-primary btn-lg" style="background: #1C2262; border-color: #1C2262; padding: 1rem 3rem;">
-            <i class="fas fa-calendar-alt me-2"></i>
-            Ver calendario de eventos
-          </a>
-        </div>
-      <?php }
+      // ✅ BOTÓN VISIBLE PARA TODOS (sin condición de admin)
+      ?>
+      <div class="text-center mb-4">
+        <a href="<?= URL ?>?uri=comunicaciones/calendario/8&year=<?= $anio ?>&month=<?= $mes ?>"
+           class="btn btn-primary btn-lg" style="background: #1C2262; border-color: #1C2262; padding: 1rem 3rem;">
+          <i class="fas fa-calendar-alt me-2"></i>
+          Ver calendario de eventos
+        </a>
+      </div>
+      <?php
 
       // Mostrar tabla con eventos (para todos)
       render_schedule_table_from_events(is_array($eventosPorDia) ? $eventosPorDia : []);

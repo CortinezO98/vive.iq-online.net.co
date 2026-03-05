@@ -2,6 +2,11 @@
 
 <?php
 require_once __DIR__ . '/layout.php';
+// DEBUG - Ver perfil actual
+echo '<!-- PERFIL_USUARIO: ' . ($_SESSION[APP_SESSION.'usu_perfil'] ?? 'NO SET') . ' -->';
+echo '<!-- ES_ADMIN: ' . (is_admin_comunicaciones() ? 'SI' : 'NO') . ' -->';
+
+
 $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
 $GLOBALS['slug'] = $d->slug ?? 'inicio';
 
