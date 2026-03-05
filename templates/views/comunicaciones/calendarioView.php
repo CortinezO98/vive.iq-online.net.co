@@ -467,7 +467,7 @@ let eventoActual = null;
 
 function abrirFormularioEvento(fecha) {
     console.log('Abriendo formulario para fecha:', fecha);
-    
+
     document.getElementById('eventoFormTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuevo evento';
     document.getElementById('eventoId').value = '0';
     document.getElementById('eventoTitulo').value = '';
@@ -479,11 +479,21 @@ function abrirFormularioEvento(fecha) {
     document.getElementById('eventoMeetUrl').value = '';
     document.getElementById('eventoDescripcion').value = '';
     document.getElementById('eventoColor').value = '#1C2262';
-    
+
     // Habilitar campos de hora
     document.getElementById('eventoHoraInicio').disabled = false;
     document.getElementById('eventoHoraFin').disabled = false;
-    
+
+    // ✅ Blindaje: resetear botón submit por si quedó bloqueado antes
+    try {
+        const form = document.getElementById('eventoForm');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Guardar evento';
+        }
+    } catch (e) {}
+
     // Abrir modal
     try {
         const modal = new bootstrap.Modal(document.getElementById('eventoFormModal'));
@@ -496,29 +506,29 @@ function abrirFormularioEvento(fecha) {
 
 function verEvento(evento) {
     if (!evento) return;
-    
+
     eventoActual = evento;
     console.log('Viendo evento:', evento);
-    
+
     let html = '<div class="event-detail">' +
                '<div class="event-detail-label">Título</div>' +
                '<div class="event-detail-value">' + (evento.title || '') + '</div>' +
                '</div>';
-    
+
     if (evento.description) {
         html += '<div class="event-detail">' +
                 '<div class="event-detail-label">Descripción</div>' +
                 '<div class="event-detail-value">' + evento.description.replace(/\n/g,'<br>') + '</div>' +
                 '</div>';
     }
-    
+
     html += '<div class="event-detail">' +
             '<div class="event-detail-label">Fecha</div>' +
             '<div class="event-detail-value">' + (evento.event_date || '') + '</div>' +
             '</div>';
-    
+
     document.getElementById('eventoModalBody').innerHTML = html;
-    
+
     try {
         const modal = new bootstrap.Modal(document.getElementById('eventoModal'));
         modal.show();
@@ -529,11 +539,11 @@ function verEvento(evento) {
 
 function editarEvento() {
     if (!eventoActual) return;
-    
+
     try {
         bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
     } catch (e) {}
-    
+
     document.getElementById('eventoFormTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Editar evento';
     document.getElementById('eventoId').value = eventoActual.id || 0;
     document.getElementById('eventoTitulo').value = eventoActual.title || '';
@@ -545,12 +555,22 @@ function editarEvento() {
     document.getElementById('eventoMeetUrl').value = eventoActual.meet_url || '';
     document.getElementById('eventoDescripcion').value = eventoActual.description || '';
     document.getElementById('eventoColor').value = eventoActual.color || '#1C2262';
-    
+
     // Ajustar campos de hora según allDay
     const allDay = document.getElementById('eventoAllDay').checked;
     document.getElementById('eventoHoraInicio').disabled = allDay;
     document.getElementById('eventoHoraFin').disabled = allDay;
-    
+
+    // ✅ Blindaje: resetear botón submit por si quedó bloqueado antes
+    try {
+        const form = document.getElementById('eventoForm');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Guardar evento';
+        }
+    } catch (e) {}
+
     setTimeout(() => {
         try {
             const modal = new bootstrap.Modal(document.getElementById('eventoFormModal'));
@@ -562,15 +582,15 @@ function editarEvento() {
 // ✅ VERSIÓN CORREGIDA - Guardar SIN recargar la página
 document.getElementById('eventoForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     // Mostrar indicador de carga
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
     submitBtn.disabled = true;
-    
+
     const formData = new FormData(this);
-    
+
     fetch('<?= URL ?>?uri=comunicaciones/evento_guardar_ajax', {
         method: 'POST',
         body: formData
@@ -578,7 +598,7 @@ document.getElementById('eventoForm').addEventListener('submit', function(e) {
     .then(async response => {
         const text = await response.text();
         console.log('Respuesta del servidor:', text);
-        
+
         try {
             return JSON.parse(text);
         } catch (e) {
@@ -587,21 +607,20 @@ document.getElementById('eventoForm').addEventListener('submit', function(e) {
         }
     })
     .then(data => {
+        // ✅ SIEMPRE restaurar el botón, incluso cuando success = true
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+
         if (data.success) {
             // ✅ Cerrar modal
             try {
                 bootstrap.Modal.getInstance(document.getElementById('eventoFormModal')).hide();
             } catch (e) {}
-            
-            // ✅ RECARGAR SOLO EL CONTENIDO DEL CALENDARIO, NO TODA LA PÁGINA
+
+            // ✅ Recargar SOLO el calendario
             recargarCalendario();
-            
-            // Mensaje de éxito (opcional)
-            // alert('Evento guardado correctamente');
         } else {
             alert('Error: ' + (data.message || 'No se pudo guardar'));
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
         }
     })
     .catch(err => {
@@ -614,23 +633,25 @@ document.getElementById('eventoForm').addEventListener('submit', function(e) {
 
 // ✅ NUEVA FUNCIÓN - Recargar calendario vía AJAX
 function recargarCalendario() {
-    // Mostrar indicador de carga en el calendario
     const calendarGrid = document.querySelector('.calendar-grid');
+    if (!calendarGrid) return;
+
     const originalHTML = calendarGrid.innerHTML;
+
+    // Mostrar indicador de carga en el calendario
     calendarGrid.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>';
-    
+
     // Hacer petición AJAX para obtener solo el HTML del calendario
     fetch('<?= URL ?>?uri=comunicaciones/calendario_ajax/' + currentSecId + '?year=' + currentYear + '&month=' + currentMonth)
     .then(response => response.text())
     .then(html => {
-        // Reemplazar solo el grid del calendario
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const newGrid = doc.querySelector('.calendar-grid');
-        
+
         if (newGrid) {
             calendarGrid.innerHTML = newGrid.innerHTML;
-            
+
             // Reasignar eventos a los nuevos botones
             document.querySelectorAll('.add-event-btn').forEach(btn => {
                 const fecha = btn.closest('[data-fecha]')?.dataset.fecha;
@@ -641,7 +662,7 @@ function recargarCalendario() {
                     };
                 }
             });
-            
+
             // Reasignar eventos a los eventos del calendario
             document.querySelectorAll('.calendar-event').forEach(eventEl => {
                 const eventoData = eventEl.getAttribute('data-evento');
@@ -649,6 +670,10 @@ function recargarCalendario() {
                     eventEl.onclick = () => verEvento(JSON.parse(eventoData));
                 }
             });
+        } else {
+            // ✅ Bonus: si la respuesta no trae grid, volver al original (evita spinner eterno)
+            console.error('Respuesta AJAX sin .calendar-grid', html);
+            calendarGrid.innerHTML = originalHTML;
         }
     })
     .catch(err => {
@@ -658,15 +683,15 @@ function recargarCalendario() {
     });
 }
 
-// Modificar la función eliminarEvento para usar recargarCalendario
+// ✅ CORREGIDA: Eliminar evento SIN recargar la página
 function eliminarEvento() {
     if (!eventoActual) return;
     if (!confirm('¿Estás seguro de eliminar este evento?')) return;
-    
+
     const params = new URLSearchParams();
     params.append('id', eventoActual.id);
     params.append('token', '<?= htmlspecialchars($csrfToken) ?>');
-    
+
     fetch('<?= URL ?>?uri=comunicaciones/evento_eliminar_ajax', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -679,7 +704,7 @@ function eliminarEvento() {
             try {
                 bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
             } catch (e) {}
-            
+
             // ✅ Recargar SOLO el calendario
             recargarCalendario();
         } else {
@@ -696,10 +721,10 @@ function eliminarEvento() {
 document.getElementById('eventoAllDay').addEventListener('change', function() {
     const hi = document.getElementById('eventoHoraInicio');
     const hf = document.getElementById('eventoHoraFin');
-    
+
     hi.disabled = this.checked;
     hf.disabled = this.checked;
-    
+
     if (this.checked) {
         hi.value = '';
         hf.value = '';
