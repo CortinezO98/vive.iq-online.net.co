@@ -2,20 +2,13 @@
 
 <?php
 require_once __DIR__ . '/layout.php';
-// DEBUG - Ver perfil actual
-echo '<!-- PERFIL_USUARIO: ' . ($_SESSION[APP_SESSION.'usu_perfil'] ?? 'NO SET') . ' -->';
-echo '<!-- ES_ADMIN: ' . (is_admin_comunicaciones() ? 'SI' : 'NO') . ' -->';
-
 
 $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
 $GLOBALS['slug'] = $d->slug ?? 'inicio';
-
-// --- NUEVO: Variables para el calendario de eventos ---
-$GLOBALS['eventos_mes'] = $d->eventos ?? []; // Lista completa de eventos del mes
-$GLOBALS['eventosPorDia'] = $d->eventosPorDia ?? [];// Eventos organizados por día
+$GLOBALS['eventos_mes'] = $d->eventos ?? [];
+$GLOBALS['eventosPorDia'] = $d->eventosPorDia ?? [];
 $GLOBALS['mes_agenda'] = $d->mes_agenda ?? (int)($_GET['m'] ?? date('n'));
 $GLOBALS['anio_agenda'] = $d->anio_agenda ?? (int)($_GET['y'] ?? date('Y'));
-// -----------------------------------------------------
 ?>
 
 <main id="main-wrapper" class="main-wrapper">
@@ -23,18 +16,15 @@ $GLOBALS['anio_agenda'] = $d->anio_agenda ?? (int)($_GET['y'] ?? date('Y'));
 
   <div id="app-content">
     <div class="app-content-area">
-
       <?php
-        // El hero se renderiza aquí con la imagen configurada
         render_hero($d->pagina);
-        
+
         $seccion_index = 0;
         foreach (($d->secciones ?? []) as $sec) {
-          render_section($sec, $d->itemsBySeccion ?? [], $seccion_index);
+          render_section($sec, $d->itemsBySeccion ?? []);
           $seccion_index++;
         }
       ?>
-
     </div>
   </div>
 </main>
