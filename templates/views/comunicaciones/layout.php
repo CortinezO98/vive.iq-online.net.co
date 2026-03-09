@@ -94,27 +94,48 @@ if (!function_exists('cfg_get')) {
 
 if (!function_exists('normalize_eventos_por_dia')) {
     function normalize_eventos_por_dia($eventosPorDia): array {
-        if (!is_array($eventosPorDia)) return [];
+        if (is_object($eventosPorDia)) {
+            $eventosPorDia = get_object_vars($eventosPorDia);
+        }
+
+        if (!is_array($eventosPorDia)) {
+            return [];
+        }
 
         $result = [];
 
         foreach ($eventosPorDia as $key => $lista) {
-            if (!is_array($lista)) continue;
+            if (is_object($lista)) {
+                $lista = get_object_vars($lista);
+            }
+
+            if (!is_array($lista)) {
+                continue;
+            }
 
             $fechaKey = null;
-
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$key)) {
                 $fechaKey = (string)$key;
             }
 
             foreach ($lista as $ev) {
-                if (!is_array($ev)) continue;
+                if (is_object($ev)) {
+                    $ev = get_object_vars($ev);
+                }
+
+                if (!is_array($ev)) {
+                    continue;
+                }
 
                 $fecha = $ev['event_date'] ?? $fechaKey;
-                if (!$fecha) continue;
+                if (!$fecha) {
+                    continue;
+                }
 
                 $ts = strtotime((string)$fecha);
-                if ($ts === false) continue;
+                if ($ts === false) {
+                    continue;
+                }
 
                 $fechaNormalizada = date('Y-m-d', $ts);
                 $ev['event_date'] = $fechaNormalizada;

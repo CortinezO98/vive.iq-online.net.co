@@ -99,22 +99,43 @@ class comunicacionesController extends Controller {
         $eventos = [];
         $eventosPorDia = [];
 
-        if (!file_exists(MODELS . 'EventoModel.php')) {
-            return [$eventos, $eventosPorDia];
-        }
-
-        require_once MODELS . 'EventoModel.php';
-        $eventoModel = new eventoModel();
-
+        $modelPath = MODELS . 'EventoModel.php';
         $fechaInicio = sprintf('%04d-%02d-01', $anio, $mes);
         $fechaFin = date('Y-m-t', strtotime($fechaInicio));
 
-        if (method_exists($eventoModel, 'listBetween')) {
-            $rows = $eventoModel->listBetween($fechaInicio, $fechaFin);
-        } elseif (method_exists($eventoModel, 'getMonthEvents')) {
-            $rows = $eventoModel->getMonthEvents($anio, $mes);
-        } else {
+        error_log("=== loadEventosMes ===");
+        error_log("MODELS path: " . MODELS);
+        error_log("Model path completo: " . $modelPath);
+        error_log("¿Existe archivo?: " . (file_exists($modelPath) ? 'SI' : 'NO'));
+        error_log("Mes consultado: " . $mes);
+        error_log("Año consultado: " . $anio);
+        error_log("Fecha inicio: " . $fechaInicio);
+        error_log("Fecha fin: " . $fechaFin);
+
+        if (!file_exists($modelPath)) {
+            error_log("ERROR: No existe EventoModel.php en la ruta esperada.");
+            return [$eventos, $eventosPorDia];
+        }
+
+        require_once $modelPath;
+        $eventoModel = new eventoModel();
+
+        try {
+            if (method_exists($eventoModel, 'listBetween')) {
+                $rows = $eventoModel->listBetween($fechaInicio, $fechaFin);
+            } elseif (method_exists($eventoModel, 'getMonthEvents')) {
+                $rows = $eventoModel->getMonthEvents($anio, $mes);
+            } else {
+                $rows = [];
+            }
+        } catch (Exception $e) {
+            error_log("ERROR llamando al modelo de eventos: " . $e->getMessage());
             $rows = [];
+        }
+
+        error_log("Rows obtenidos desde modelo: " . (is_array($rows) ? count($rows) : 'NO ARRAY'));
+        if (is_array($rows) && !empty($rows)) {
+            error_log("Primer row: " . print_r($rows[0], true));
         }
 
         if (!is_array($rows)) {
@@ -124,8 +145,68 @@ class comunicacionesController extends Controller {
         $eventos = $rows;
         $eventosPorDia = $this->buildEventosPorDia($rows);
 
+        error_log("eventosPorDia armados: " . count($eventosPorDia));
+        error_log("Fechas encontradas: " . (!empty($eventosPorDia) ? implode(', ', array_keys($eventosPorDia)) : 'NINGUNA'));
+
         return [$eventos, $eventosPorDia];
     }
+
+
+    public function debug_eventos() {
+        $this->requireLogin();
+
+        header('Content-Type: application/json; charset=UTF-8');
+
+        $anio = (int)($_GET['y'] ?? 2026);
+        $mes  = (int)($_GET['m'] ?? 3);
+
+        $fechaInicio = sprintf('%04d-%02d-01', $anio, $mes);
+        $fechaFin = date('Y-m-t', strtotime($fechaInicio));
+
+        $modelPath = MODELS . 'EventoModel.php';
+
+        $out = [
+            'MODELS' => MODELS,
+            'modelPath' => $modelPath,
+            'file_exists' => file_exists($modelPath),
+            'anio' => $anio,
+            'mes' => $mes,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin' => $fechaFin,
+            'rows' => [],
+            'eventosPorDia' => [],
+        ];
+
+        if (!file_exists($modelPath)) {
+            echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        require_once $modelPath;
+        $eventoModel = new eventoModel();
+
+        try {
+            $rows = $eventoModel->listBetween($fechaInicio, $fechaFin);
+            if (!is_array($rows)) {
+                $rows = [];
+            }
+
+            $eventosPorDia = $this->buildEventosPorDia($rows);
+
+            $out['rows_count'] = count($rows);
+            $out['rows'] = $rows;
+            $out['eventosPorDia'] = $eventosPorDia;
+            $out['eventosPorDia_count'] = count($eventosPorDia);
+            $out['eventosPorDia_keys'] = array_keys($eventosPorDia);
+        } catch (Exception $e) {
+            $out['error'] = $e->getMessage();
+        }
+
+        echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+
 
     // =========================
     // PÚBLICO (logueados)

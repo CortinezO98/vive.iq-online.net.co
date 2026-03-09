@@ -5,8 +5,12 @@ require_once __DIR__ . '/layout.php';
 
 $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
 $GLOBALS['slug'] = $d->slug ?? 'inicio';
-$GLOBALS['eventos_mes'] = $d->eventos ?? [];
-$GLOBALS['eventosPorDia'] = $d->eventosPorDia ?? [];
+$GLOBALS['eventos_mes'] = isset($d->eventos)
+    ? (is_object($d->eventos) ? get_object_vars($d->eventos) : $d->eventos)
+    : [];
+$GLOBALS['eventosPorDia'] = isset($d->eventosPorDia)
+    ? (is_object($d->eventosPorDia) ? get_object_vars($d->eventosPorDia) : $d->eventosPorDia)
+    : [];
 $GLOBALS['mes_agenda'] = $d->mes_agenda ?? (int)($_GET['m'] ?? date('n'));
 $GLOBALS['anio_agenda'] = $d->anio_agenda ?? (int)($_GET['y'] ?? date('Y'));
 ?>

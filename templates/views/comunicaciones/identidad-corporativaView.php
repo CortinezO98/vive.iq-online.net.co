@@ -7,8 +7,12 @@ $GLOBALS['itemsBySeccion'] = $d->itemsBySeccion ?? [];
 $GLOBALS['slug'] = $d->slug ?? 'identidad-corporativa';
 
 // --- NUEVO: Variables para el calendario de eventos ---
-$GLOBALS['eventos_mes'] = $d->eventos ?? []; // Lista completa de eventos del mes
-$GLOBALS['eventosPorDia'] = $d->eventosPorDia ?? []; // Eventos organizados por día
+$GLOBALS['eventos_mes'] = isset($d->eventos)
+    ? (is_object($d->eventos) ? get_object_vars($d->eventos) : $d->eventos)
+    : []; // Lista completa de eventos del mes
+$GLOBALS['eventosPorDia'] = isset($d->eventosPorDia)
+    ? (is_object($d->eventosPorDia) ? get_object_vars($d->eventosPorDia) : $d->eventosPorDia)
+    : []; // Eventos organizados por día
 $GLOBALS['mes_agenda'] = $d->mes_agenda ?? (int)($_GET['m'] ?? date('n'));
 $GLOBALS['anio_agenda'] = $d->anio_agenda ?? (int)($_GET['y'] ?? date('Y'));
 // -----------------------------------------------------
