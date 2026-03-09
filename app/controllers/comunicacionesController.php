@@ -99,11 +99,11 @@ class comunicacionesController extends Controller {
         $eventos = [];
         $eventosPorDia = [];
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             return [$eventos, $eventosPorDia];
         }
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $eventoModel = new eventoModel();
 
         $fechaInicio = sprintf('%04d-%02d-01', $anio, $mes);
@@ -185,7 +185,7 @@ class comunicacionesController extends Controller {
 
         header('Content-Type: application/json; charset=UTF-8');
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             echo json_encode(['eventos' => []]);
             exit;
         }
@@ -193,7 +193,7 @@ class comunicacionesController extends Controller {
         $fechaInicio = $this->normalizeDate($_GET['inicio'] ?? date('Y-m-01')) ?? date('Y-m-01');
         $fechaFin = $this->normalizeDate($_GET['fin'] ?? date('Y-m-t')) ?? date('Y-m-t');
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $eventoModel = new eventoModel();
 
         $rows = $eventoModel->listBetween($fechaInicio, $fechaFin);
@@ -247,13 +247,13 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             Flasher::new('No existe el modelo de eventos', 'danger');
             Redirect::to('?uri=comunicaciones/ver/' . ($_POST['slug'] ?? 'inicio'));
             exit;
         }
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $evento = new eventoModel();
 
         $slug = trim((string)($_POST['slug'] ?? 'inicio'));
@@ -319,13 +319,13 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             Flasher::new('No existe el modelo de eventos', 'danger');
             Redirect::to('?uri=comunicaciones/ver/inicio');
             exit;
         }
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $evento = new eventoModel();
         $evento->id = $id;
 
@@ -430,12 +430,12 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             echo json_encode(['success' => false, 'message' => 'No existe el modelo de eventos']);
             exit;
         }
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $evento = new eventoModel();
 
         $evento->id          = (int)($_POST['id'] ?? 0);
@@ -499,7 +499,7 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             echo json_encode(['success' => false, 'message' => 'No existe el modelo de eventos']);
             exit;
         }
@@ -510,7 +510,7 @@ class comunicacionesController extends Controller {
             exit;
         }
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $evento = new eventoModel();
         $evento->id = $id;
 
@@ -528,14 +528,14 @@ class comunicacionesController extends Controller {
 
         header('Content-Type: application/json; charset=UTF-8');
 
-        if (!file_exists(MODELS . 'eventoModel.php')) {
+        if (!file_exists(MODELS . 'EventoModel.php')) {
             echo json_encode(['eventos' => []]);
             exit;
         }
 
         $fecha = $this->normalizeDate($_GET['fecha'] ?? date('Y-m-d')) ?? date('Y-m-d');
 
-        require_once MODELS . 'eventoModel.php';
+        require_once MODELS . 'EventoModel.php';
         $eventoModel = new eventoModel();
 
         $rows = $eventoModel->listBetween($fecha, $fecha);
