@@ -302,8 +302,10 @@ if (!function_exists('render_com_styles_once')) {
             .com-card-img {
                 width: 100%;
                 height: 100%;
-                object-fit: cover;
-                transition: transform 0.6s ease;
+                object-fit: contain;
+                object-position: center;
+                transition: transform 0.3s ease;
+                background: #fff;
             }
 
             .com-card:hover .com-card-img {
@@ -392,11 +394,24 @@ if (!function_exists('render_com_styles_once')) {
                 overflow: hidden;
             }
 
+            .com-carousel-media {
+                height: 100%;
+                min-height: 380px;
+                max-height: 420px;
+                background: #fff;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
             .com-carousel-media img {
                 width: 100%;
                 height: 100%;
-                object-fit: cover;
-                transition: transform 0.8s ease;
+                object-fit: contain;
+                object-position: center;
+                transition: transform 0.3s ease;
+                background: #fff;
             }
 
             .carousel-item:hover .com-carousel-media img {
