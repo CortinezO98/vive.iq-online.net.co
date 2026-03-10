@@ -4,7 +4,6 @@ class analyticsController extends Controller
     public function __construct()
     {
         // Se permite registrar clics incluso sin sesión.
-        // Si en el futuro quieres restringirlo, aquí puedes validar login.
     }
 
     /**
@@ -33,7 +32,7 @@ class analyticsController extends Controller
             $entidad_id        = isset($_POST['entidad_id']) && $_POST['entidad_id'] !== '' ? (int)$_POST['entidad_id'] : null;
             $entidad_tipo      = isset($_POST['entidad_tipo']) ? trim((string)$_POST['entidad_tipo']) : null;
 
-            // Nuevos campos enriquecidos
+            // Campos enriquecidos
             $click_dom_path      = isset($_POST['click_dom_path']) ? trim((string)$_POST['click_dom_path']) : null;
             $click_texto_visible = isset($_POST['click_texto_visible']) ? trim((string)$_POST['click_texto_visible']) : null;
             $click_x             = isset($_POST['click_x']) && $_POST['click_x'] !== '' ? (int)$_POST['click_x'] : null;
@@ -55,8 +54,8 @@ class analyticsController extends Controller
                 $session_id = '';
             }
 
-            // Evitar doble clic inmediato
-            if ($session_id !== '' && $model->existeClickReciente($click_clave, $click_tipo, $session_id, 2)) {
+            // Dedupe en 1 segundo
+            if ($session_id !== '' && $model->existeClickReciente($click_clave, $click_tipo, $session_id, 1)) {
                 $response = [
                     'success' => true,
                     'message' => 'Click ya registrado recientemente'
@@ -81,7 +80,6 @@ class analyticsController extends Controller
                     : null;
                 $model->click_session_id = $session_id !== '' ? $session_id : null;
 
-                // Asignación de nuevos campos enriquecidos
                 $model->click_dom_path = ($click_dom_path !== null && $click_dom_path !== '') ? $click_dom_path : null;
                 $model->click_texto_visible = ($click_texto_visible !== null && $click_texto_visible !== '') ? $click_texto_visible : null;
                 $model->click_x = $click_x;
@@ -165,6 +163,11 @@ class analyticsController extends Controller
             $serie_diaria  = $model->obtenerSerieDiaria($fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
             $top_usuarios  = $model->obtenerTopUsuarios($fecha_inicio, $fecha_fin, $click_tipo, $click_modulo, 10);
 
+            // Nuevas agregaciones
+            $por_pagina    = $model->obtenerPorPagina($fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
+            $por_seccion   = $model->obtenerPorSeccion($fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
+            $por_contexto  = $model->obtenerPorContexto($fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
+
             $response = [
                 'data' => is_array($detalle) ? $detalle : [],
                 'resumen' => is_array($resumen) ? $resumen : [
@@ -177,7 +180,10 @@ class analyticsController extends Controller
                 'por_tipo' => is_array($por_tipo) ? $por_tipo : [],
                 'por_modulo' => is_array($por_modulo) ? $por_modulo : [],
                 'serie_diaria' => is_array($serie_diaria) ? $serie_diaria : [],
-                'top_usuarios' => is_array($top_usuarios) ? $top_usuarios : []
+                'top_usuarios' => is_array($top_usuarios) ? $top_usuarios : [],
+                'por_pagina' => is_array($por_pagina) ? $por_pagina : [],
+                'por_seccion' => is_array($por_seccion) ? $por_seccion : [],
+                'por_contexto' => is_array($por_contexto) ? $por_contexto : []
             ];
         } catch (Exception $e) {
             error_log('Error datos_json analytics: ' . $e->getMessage());
@@ -194,7 +200,10 @@ class analyticsController extends Controller
                 'por_tipo' => [],
                 'por_modulo' => [],
                 'serie_diaria' => [],
-                'top_usuarios' => []
+                'top_usuarios' => [],
+                'por_pagina' => [],
+                'por_seccion' => [],
+                'por_contexto' => []
             ];
         }
 
@@ -244,11 +253,17 @@ class analyticsController extends Controller
             $sheet->setCellValue('D1', 'Clave');
             $sheet->setCellValue('E1', 'Etiqueta');
             $sheet->setCellValue('F1', 'Módulo');
-            $sheet->setCellValue('G1', 'URL Destino');
-            $sheet->setCellValue('H1', 'URL Origen');
-            $sheet->setCellValue('I1', 'Usuario');
-            $sheet->setCellValue('J1', 'IP');
-            $sheet->setCellValue('K1', 'Session ID');
+            $sheet->setCellValue('G1', 'Página');
+            $sheet->setCellValue('H1', 'Sección');
+            $sheet->setCellValue('I1', 'Contexto');
+            $sheet->setCellValue('J1', 'Posición');
+            $sheet->setCellValue('K1', 'Texto Visible');
+            $sheet->setCellValue('L1', 'Coordenadas');
+            $sheet->setCellValue('M1', 'URL Destino');
+            $sheet->setCellValue('N1', 'URL Origen');
+            $sheet->setCellValue('O1', 'Usuario');
+            $sheet->setCellValue('P1', 'IP');
+            $sheet->setCellValue('Q1', 'Session ID');
 
             $row = 2;
             foreach ($datos as $d) {
@@ -258,15 +273,21 @@ class analyticsController extends Controller
                 $sheet->setCellValue('D' . $row, $d['click_clave'] ?? '');
                 $sheet->setCellValue('E' . $row, $d['click_label'] ?? '');
                 $sheet->setCellValue('F' . $row, $d['click_modulo'] ?? '');
-                $sheet->setCellValue('G' . $row, $d['click_url_destino'] ?? '');
-                $sheet->setCellValue('H' . $row, $d['click_url_origen'] ?? '');
-                $sheet->setCellValue('I' . $row, $d['usuario_nombre'] ?? 'Anónimo');
-                $sheet->setCellValue('J' . $row, $d['click_ip'] ?? '');
-                $sheet->setCellValue('K' . $row, $d['click_session_id'] ?? '');
+                $sheet->setCellValue('G' . $row, $d['page_slug'] ?? '');
+                $sheet->setCellValue('H' . $row, $d['seccion_nombre'] ?? '');
+                $sheet->setCellValue('I' . $row, $d['click_contexto'] ?? '');
+                $sheet->setCellValue('J' . $row, $d['click_posicion'] ?? '');
+                $sheet->setCellValue('K' . $row, $d['click_texto_visible'] ?? '');
+                $sheet->setCellValue('L' . $row, (($d['click_x'] ?? '') !== '' && ($d['click_y'] ?? '') !== '') ? (($d['click_x'] ?? '') . ', ' . ($d['click_y'] ?? '')) : '');
+                $sheet->setCellValue('M' . $row, $d['click_url_destino'] ?? '');
+                $sheet->setCellValue('N' . $row, $d['click_url_origen'] ?? '');
+                $sheet->setCellValue('O' . $row, $d['usuario_nombre'] ?? 'Anónimo');
+                $sheet->setCellValue('P' . $row, $d['click_ip'] ?? '');
+                $sheet->setCellValue('Q' . $row, $d['click_session_id'] ?? '');
                 $row++;
             }
 
-            foreach (range('A', 'K') as $col) {
+            foreach (range('A', 'Q') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 

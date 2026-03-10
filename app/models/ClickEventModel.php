@@ -14,7 +14,6 @@ class ClickEventModel extends Model
     public $click_user_agent;
     public $click_session_id;
 
-    // Nuevos campos enriquecidos
     public $click_dom_path;
     public $click_texto_visible;
     public $click_x;
@@ -124,9 +123,9 @@ class ClickEventModel extends Model
     }
 
     /**
-     * Evitar doble click inmediato
+     * Dedupe en 1 segundo
      */
-    public function existeClickReciente($click_clave, $click_tipo, $session_id, $segundos = 2)
+    public function existeClickReciente($click_clave, $click_tipo, $session_id, $segundos = 1)
     {
         $click_clave = trim((string)$click_clave);
         $click_tipo = trim((string)$click_tipo);
@@ -165,9 +164,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Filtro base reutilizable
-     */
     private function aplicarFiltros(&$sql, &$params, $alias, $fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
     {
         $prefijo = $alias !== '' ? $alias . '.' : '';
@@ -193,9 +189,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Obtener reporte detallado
-     */
     public function obtenerReporte($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
     {
         $sql = "SELECT
@@ -219,9 +212,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Resumen general
-     */
     public function obtenerResumenGeneral($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
     {
         $sql = "SELECT
@@ -237,7 +227,6 @@ class ClickEventModel extends Model
 
         try {
             $res = parent::query($sql, $params);
-
             return isset($res[0]) ? $res[0] : [
                 'total_clics' => 0,
                 'elementos_unicos' => 0,
@@ -255,9 +244,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Top elementos más clicados
-     */
     public function obtenerTopElementos($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null, $limite = 10)
     {
         $limite = (int)$limite;
@@ -290,9 +276,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Estadísticas por tipo
-     */
     public function obtenerPorTipo($fecha_inicio = null, $fecha_fin = null, $click_modulo = null)
     {
         $sql = "SELECT
@@ -330,9 +313,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Estadísticas por módulo
-     */
     public function obtenerPorModulo($fecha_inicio = null, $fecha_fin = null, $click_tipo = null)
     {
         $sql = "SELECT
@@ -370,9 +350,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Serie diaria
-     */
     public function obtenerSerieDiaria($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
     {
         $sql = "SELECT
@@ -396,9 +373,6 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Top usuarios
-     */
     public function obtenerTopUsuarios($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null, $limite = 10)
     {
         $limite = (int)$limite;
@@ -430,9 +404,75 @@ class ClickEventModel extends Model
         }
     }
 
-    /**
-     * Normaliza texto obligatorio
-     */
+    public function obtenerPorPagina($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
+    {
+        $sql = "SELECT
+                    COALESCE(NULLIF(page_slug, ''), 'Sin página') AS page_slug,
+                    COUNT(*) AS total_clics
+                FROM app_click_event
+                WHERE 1=1";
+
+        $params = [];
+        $this->aplicarFiltros($sql, $params, '', $fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
+
+        $sql .= " GROUP BY COALESCE(NULLIF(page_slug, ''), 'Sin página')
+                  ORDER BY total_clics DESC, page_slug ASC";
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener clics por página: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function obtenerPorSeccion($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
+    {
+        $sql = "SELECT
+                    COALESCE(NULLIF(seccion_nombre, ''), 'Sin sección') AS seccion_nombre,
+                    COUNT(*) AS total_clics
+                FROM app_click_event
+                WHERE 1=1";
+
+        $params = [];
+        $this->aplicarFiltros($sql, $params, '', $fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
+
+        $sql .= " GROUP BY COALESCE(NULLIF(seccion_nombre, ''), 'Sin sección')
+                  ORDER BY total_clics DESC, seccion_nombre ASC";
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener clics por sección: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function obtenerPorContexto($fecha_inicio = null, $fecha_fin = null, $click_tipo = null, $click_modulo = null)
+    {
+        $sql = "SELECT
+                    COALESCE(NULLIF(click_contexto, ''), 'Sin contexto') AS click_contexto,
+                    COUNT(*) AS total_clics
+                FROM app_click_event
+                WHERE 1=1";
+
+        $params = [];
+        $this->aplicarFiltros($sql, $params, '', $fecha_inicio, $fecha_fin, $click_tipo, $click_modulo);
+
+        $sql .= " GROUP BY COALESCE(NULLIF(click_contexto, ''), 'Sin contexto')
+                  ORDER BY total_clics DESC, click_contexto ASC";
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener clics por contexto: ' . $e->getMessage());
+            return [];
+        }
+    }
+
     private function normalizarTexto($valor, $max = 255)
     {
         $valor = trim((string)$valor);
@@ -443,9 +483,6 @@ class ClickEventModel extends Model
         return mb_substr($valor, 0, (int)$max);
     }
 
-    /**
-     * Normaliza texto nullable
-     */
     private function normalizarNullableTexto($valor, $max = 255)
     {
         $valor = trim((string)$valor);
@@ -456,18 +493,12 @@ class ClickEventModel extends Model
         return mb_substr($valor, 0, (int)$max);
     }
 
-    /**
-     * Normaliza texto largo nullable
-     */
     private function normalizarNullableTextoLargo($valor)
     {
         $valor = trim((string)$valor);
         return $valor === '' ? null : $valor;
     }
 
-    /**
-     * Normaliza entero nullable
-     */
     private function normalizarNullableEntero($valor)
     {
         if ($valor === null || $valor === '') {

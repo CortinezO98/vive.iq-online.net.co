@@ -2,24 +2,31 @@
 require_once __DIR__ . '/_helpers.php';
 
 // ============================================================
-// SCRIPT PARA REGISTRO DE CLICS (NUEVO)
+// SCRIPT PARA REGISTRO DE CLICS POR ITEM (COMPATIBLE CON ANALYTICS)
 // ============================================================
 ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Selecciona todos los enlaces que son items clickeables
     const clickableItems = document.querySelectorAll('[data-item-id]');
 
-    clickableItems.forEach(item => {
-        item.addEventListener('click', function(event) {
+    clickableItems.forEach(function(item) {
+        item.addEventListener('click', function() {
             const itemId = this.dataset.itemId;
-            
+
             if (itemId) {
                 const formData = new FormData();
                 formData.append('itm_id', itemId);
-                
-                // Usar sendBeacon para asegurar que la solicitud se envíe incluso si la página se cierra
-                navigator.sendBeacon('<?= URL ?>?uri=comunicaciones/registrar_click_item', formData);
+
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('<?= URL ?>?uri=comunicaciones/registrar_click_item', formData);
+                } else {
+                    fetch('<?= URL ?>?uri=comunicaciones/registrar_click_item', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'same-origin',
+                        keepalive: true
+                    }).catch(function() {});
+                }
             }
         });
     });
@@ -176,6 +183,22 @@ if (!function_exists('normalize_eventos_por_dia')) {
 
         ksort($result);
         return $result;
+    }
+}
+
+if (!function_exists('build_tracking_attrs')) {
+    function build_tracking_attrs(array $attrs): string {
+        $html = [];
+
+        foreach ($attrs as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $html[] = $key . '="' . e((string)$value) . '"';
+        }
+
+        return implode(' ', $html);
     }
 }
 
@@ -1066,7 +1089,7 @@ if (!function_exists('render_section_inner_close')) {
 
 /**
  * ============================================================
- * CARRUSEL - MODIFICADO PARA AÑADIR DATA-ITEM-ID
+ * CARRUSEL
  * ============================================================
  */
 if (!function_exists('render_carousel')) {
@@ -1092,6 +1115,23 @@ if (!function_exists('render_carousel')) {
                     $img = !empty($it->itm_imagen) ? asset_upload($it->itm_imagen) : '';
                     $url = !empty($it->itm_url) ? $it->itm_url : '#';
                     $badge = !empty($it->itm_badge) ? $it->itm_badge : '';
+
+                    $trackingAttrs = build_tracking_attrs([
+                        'class'             => 'btn js-track-click',
+                        'href'              => safe_url($url),
+                        'target'            => safe_target($it->itm_target ?? '_blank'),
+                        'rel'               => 'noopener',
+                        'data-item-id'      => (int)$it->itm_id,
+                        'data-click-tipo'   => 'carousel',
+                        'data-click-clave'  => 'carousel_item_' . (int)$it->itm_id,
+                        'data-click-label'  => $it->itm_titulo ?? 'Ver más',
+                        'data-click-modulo' => 'comunicaciones',
+                        'data-entidad-id'   => (int)$it->itm_id,
+                        'data-entidad-tipo' => 'com_item',
+                        'data-seccion'      => 'carousel',
+                        'data-contexto'     => 'boton_ver_mas',
+                        'data-posicion'     => (int)($i + 1),
+                    ]);
                     ?>
                     <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
                         <div class="row g-0 align-items-stretch">
@@ -1116,11 +1156,7 @@ if (!function_exists('render_carousel')) {
                                     <?php endif; ?>
 
                                     <?php if ($url !== '#'): ?>
-                                        <a class="btn"
-                                           href="<?= e(safe_url($url)) ?>"
-                                           target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                                           rel="noopener"
-                                           data-item-id="<?= (int)$it->itm_id ?>"> <!-- NUEVO ATRIBUTO -->
+                                        <a <?= $trackingAttrs ?>>
                                             <span>Ver más</span>
                                             <i class="fas fa-arrow-right"></i>
                                         </a>
@@ -1158,7 +1194,7 @@ if (!function_exists('render_carousel')) {
 
 /**
  * ============================================================
- * CARDS - MODIFICADO PARA AÑADIR DATA-ITEM-ID
+ * CARDS
  * ============================================================
  */
 if (!function_exists('render_cards')) {
@@ -1181,10 +1217,30 @@ if (!function_exists('render_cards')) {
         if ($cols === 4) $colClass = 'col-12 col-sm-6 col-lg-3';
 
         echo '<div class="row g-4 com-grid">';
+        $index = 0;
+
         foreach ($items as $it):
+            $index++;
             $img = !empty($it->itm_imagen) ? asset_upload($it->itm_imagen) : '';
             $badge = !empty($it->itm_badge) ? $it->itm_badge : '';
             $url = !empty($it->itm_url) ? $it->itm_url : '#';
+
+            $trackingAttrs = build_tracking_attrs([
+                'href'              => safe_url($url),
+                'class'             => 'com-card-btn js-track-click',
+                'target'            => safe_target($it->itm_target ?? '_blank'),
+                'rel'               => 'noopener',
+                'data-item-id'      => (int)$it->itm_id,
+                'data-click-tipo'   => 'card',
+                'data-click-clave'  => 'card_item_' . (int)$it->itm_id,
+                'data-click-label'  => $it->itm_titulo ?? 'Conocer más',
+                'data-click-modulo' => 'comunicaciones',
+                'data-entidad-id'   => (int)$it->itm_id,
+                'data-entidad-tipo' => 'com_item',
+                'data-seccion'      => 'cards',
+                'data-contexto'     => 'boton_conocer_mas',
+                'data-posicion'     => $index,
+            ]);
             ?>
             <div class="<?= e($colClass) ?>">
                 <div class="com-card">
@@ -1208,11 +1264,7 @@ if (!function_exists('render_cards')) {
                         <?php endif; ?>
 
                         <?php if ($url !== '#'): ?>
-                            <a href="<?= e(safe_url($url)) ?>"
-                               class="com-card-btn"
-                               target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                               rel="noopener"
-                               data-item-id="<?= (int)$it->itm_id ?>"> <!-- NUEVO ATRIBUTO -->
+                            <a <?= $trackingAttrs ?>>
                                 <span>Conocer más</span>
                                 <i class="fas fa-arrow-right"></i>
                             </a>
@@ -1228,7 +1280,7 @@ if (!function_exists('render_cards')) {
 
 /**
  * ============================================================
- * LINKS - MODIFICADO PARA AÑADIR DATA-ITEM-ID
+ * LINKS
  * ============================================================
  */
 if (!function_exists('render_links')) {
@@ -1241,14 +1293,30 @@ if (!function_exists('render_links')) {
         }
         ?>
         <div class="com-links-list">
-            <?php foreach ($items as $it):
+            <?php
+            $index = 0;
+            foreach ($items as $it):
+                $index++;
                 $url = !empty($it->itm_url) ? $it->itm_url : '#';
+
+                $trackingAttrs = build_tracking_attrs([
+                    'href'              => safe_url($url),
+                    'class'             => 'com-link-item js-track-click',
+                    'target'            => safe_target($it->itm_target ?? '_blank'),
+                    'rel'               => 'noopener',
+                    'data-item-id'      => (int)$it->itm_id,
+                    'data-click-tipo'   => 'link',
+                    'data-click-clave'  => 'link_item_' . (int)$it->itm_id,
+                    'data-click-label'  => $it->itm_titulo ?? 'Enlace',
+                    'data-click-modulo' => 'comunicaciones',
+                    'data-entidad-id'   => (int)$it->itm_id,
+                    'data-entidad-tipo' => 'com_item',
+                    'data-seccion'      => 'links',
+                    'data-contexto'     => 'enlace_lista',
+                    'data-posicion'     => $index,
+                ]);
                 ?>
-                <a href="<?= e(safe_url($url)) ?>"
-                   class="com-link-item"
-                   target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                   rel="noopener"
-                   data-item-id="<?= (int)$it->itm_id ?>"> <!-- NUEVO ATRIBUTO -->
+                <a <?= $trackingAttrs ?>>
                     <div class="link-content">
                         <div class="link-title"><?= e($it->itm_titulo ?? '') ?></div>
                         <?php if (!empty($it->itm_descripcion)): ?>
@@ -1370,23 +1438,51 @@ if (!function_exists('render_schedule')) {
 
                 <div class="com-schedule-nav">
                     <a href="?uri=comunicaciones/ver/<?= e($slug) ?>&m=<?= $mesAnterior ?>&y=<?= $anioAnterior ?>"
-                       class="btn btn-outline-primary">
+                       class="btn btn-outline-primary js-track-click"
+                       data-click-tipo="boton"
+                       data-click-clave="agenda_mes_anterior"
+                       data-click-label="Anterior"
+                       data-click-modulo="comunicaciones"
+                       data-seccion="agenda"
+                       data-contexto="navegacion_mes"
+                       data-posicion="1">
                         <i class="fas fa-chevron-left me-2"></i>Anterior
                     </a>
 
                     <a href="?uri=comunicaciones/ver/<?= e($slug) ?>&m=<?= date('n') ?>&y=<?= date('Y') ?>"
-                       class="btn btn-outline-secondary">
+                       class="btn btn-outline-secondary js-track-click"
+                       data-click-tipo="boton"
+                       data-click-clave="agenda_hoy"
+                       data-click-label="Hoy"
+                       data-click-modulo="comunicaciones"
+                       data-seccion="agenda"
+                       data-contexto="navegacion_mes"
+                       data-posicion="2">
                         <i class="fas fa-calendar-day me-2"></i>Hoy
                     </a>
 
                     <a href="?uri=comunicaciones/ver/<?= e($slug) ?>&m=<?= $mesSiguiente ?>&y=<?= $anioSiguiente ?>"
-                       class="btn btn-outline-primary">
+                       class="btn btn-outline-primary js-track-click"
+                       data-click-tipo="boton"
+                       data-click-clave="agenda_mes_siguiente"
+                       data-click-label="Siguiente"
+                       data-click-modulo="comunicaciones"
+                       data-seccion="agenda"
+                       data-contexto="navegacion_mes"
+                       data-posicion="3">
                         Siguiente<i class="fas fa-chevron-right ms-2"></i>
                     </a>
 
                     <?php if ($puedeEditar): ?>
                         <button type="button"
-                                class="btn btn-primary"
+                                class="btn btn-primary js-track-click"
+                                data-click-tipo="boton"
+                                data-click-clave="agenda_agregar_evento_header"
+                                data-click-label="Agregar evento"
+                                data-click-modulo="comunicaciones"
+                                data-seccion="agenda"
+                                data-contexto="crear_evento"
+                                data-posicion="4"
                                 onclick="abrirFormularioEvento('<?= e(date('Y-m-d')) ?>')">
                             <i class="fas fa-plus me-2"></i>Agregar evento
                         </button>
@@ -1416,15 +1512,29 @@ if (!function_exists('render_schedule')) {
                     if (!$esMesActual) $clase .= ' other-month';
                     if ($esHoy) $clase .= ' today';
                     ?>
-                    <div class="<?= e($clase) ?>" 
+                    <div class="<?= e($clase) ?>"
                          data-fecha="<?= e($fechaKey) ?>"
+                         data-click-tipo="calendario"
+                         data-click-clave="dia_<?= e($fechaKey) ?>"
+                         data-click-label="Día <?= e($fechaKey) ?>"
+                         data-click-modulo="comunicaciones"
+                         data-seccion="agenda_calendario"
+                         data-contexto="ver_eventos_dia"
+                         data-posicion="<?= (int)($i + 1) ?>"
                          onclick="verEventosDelDia('<?= e($fechaKey) ?>')">
                         <div class="com-calendar-day-number">
                             <span><?= (int)$fecha->format('d') ?></span>
 
                             <?php if ($puedeEditar && $esMesActual): ?>
                                 <button type="button"
-                                        class="add-event-btn"
+                                        class="add-event-btn js-track-click"
+                                        data-click-tipo="boton"
+                                        data-click-clave="agenda_agregar_evento_<?= e($fechaKey) ?>"
+                                        data-click-label="Agregar evento <?= e($fechaKey) ?>"
+                                        data-click-modulo="comunicaciones"
+                                        data-seccion="agenda_calendario"
+                                        data-contexto="crear_evento_dia"
+                                        data-posicion="<?= (int)($i + 1) ?>"
                                         onclick="event.stopPropagation(); abrirFormularioEvento('<?= e($fechaKey) ?>')"
                                         title="Agregar evento">
                                     <i class="fas fa-plus"></i>
@@ -1434,7 +1544,7 @@ if (!function_exists('render_schedule')) {
 
                         <div class="com-calendar-events" onclick="event.stopPropagation();">
                             <?php if (!empty($eventosDia)): ?>
-                                <?php foreach (array_slice($eventosDia, 0, 3) as $ev): ?>
+                                <?php foreach (array_slice($eventosDia, 0, 3) as $evIndex => $ev): ?>
                                     <?php
                                     $titulo = $ev['title'] ?? 'Evento';
                                     $desc = $ev['description'] ?? '';
@@ -1442,9 +1552,16 @@ if (!function_exists('render_schedule')) {
                                     $color = $ev['color'] ?? '#1C2262';
                                     $hora = $allDay ? 'Todo el día' : (!empty($ev['start_time']) ? substr((string)$ev['start_time'], 0, 5) : 'Sin hora');
                                     ?>
-                                    <div class="com-calendar-event <?= $allDay ? 'all-day' : '' ?>"
+                                    <div class="com-calendar-event <?= $allDay ? 'all-day' : '' ?> js-track-click"
                                          style="border-left-color: <?= e($color) ?>;"
                                          data-evento='<?= htmlspecialchars(json_encode($ev, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>'
+                                         data-click-tipo="evento"
+                                         data-click-clave="evento_<?= e($fechaKey) ?>_<?= (int)($evIndex + 1) ?>"
+                                         data-click-label="<?= e($titulo) ?>"
+                                         data-click-modulo="comunicaciones"
+                                         data-seccion="agenda_calendario"
+                                         data-contexto="ver_detalle_evento"
+                                         data-posicion="<?= (int)($evIndex + 1) ?>"
                                          onclick='event.stopPropagation(); verEvento(<?= htmlspecialchars(json_encode($ev, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>)'
                                          title="<?= e($titulo . ($desc ? ' - ' . $desc : '')) ?>">
                                         <div class="event-time"><?= e($hora) ?></div>
@@ -1481,6 +1598,20 @@ if (!function_exists('render_cta')) {
 
         $btnText = $sec->sec_boton_texto ?? 'Contáctanos';
         $btnUrl = $sec->sec_boton_url ?? '#';
+
+        $trackingAttrs = build_tracking_attrs([
+            'href'              => safe_url($btnUrl),
+            'class'             => 'btn js-track-click',
+            'target'            => '_blank',
+            'rel'               => 'noopener',
+            'data-click-tipo'   => 'cta',
+            'data-click-clave'  => 'cta_' . (int)($sec->sec_id ?? 0),
+            'data-click-label'  => $btnText,
+            'data-click-modulo' => 'comunicaciones',
+            'data-seccion'      => 'cta',
+            'data-contexto'     => 'boton_principal_cta',
+            'data-posicion'     => '1',
+        ]);
         ?>
         <div class="com-cta-section">
             <div class="com-cta-content">
@@ -1493,7 +1624,7 @@ if (!function_exists('render_cta')) {
                 <?php endif; ?>
 
                 <?php if ($btnUrl !== '#'): ?>
-                    <a href="<?= e(safe_url($btnUrl)) ?>" class="btn" target="_blank" rel="noopener">
+                    <a <?= $trackingAttrs ?>>
                         <span><?= e($btnText) ?></span>
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1590,18 +1721,16 @@ if (!function_exists('render_event_modals')) {
         static $modalsRendered = false;
         if ($modalsRendered) return;
         $modalsRendered = true;
-        
+
         $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION.'usu_perfil'] ?? '')));
         $puedeEditar = in_array($perfil, ['ADMIN','ADMINISTRADOR','SUPERADMIN'], true);
-        
-        // Token CSRF
+
         if (empty($_SESSION['iqvive_token'])) {
             $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
         }
         $csrfToken = (string)($_SESSION['iqvive_token'] ?? '');
         ?>
-        
-        <!-- Modal de eventos del día -->
+
         <div class="modal fade event-modal" id="eventosDiaModal" tabindex="-1">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
@@ -1617,7 +1746,15 @@ if (!function_exists('render_event_modals')) {
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
                         <?php if ($puedeEditar): ?>
-                            <button type="button" class="btn btn-primary" id="btnAgregarEventoDesdeDia">
+                            <button type="button"
+                                    class="btn btn-primary js-track-click"
+                                    id="btnAgregarEventoDesdeDia"
+                                    data-click-tipo="boton"
+                                    data-click-clave="modal_agregar_evento_dia"
+                                    data-click-label="Agregar evento"
+                                    data-click-modulo="comunicaciones"
+                                    data-seccion="modal_eventos_dia"
+                                    data-contexto="crear_evento">
                                 <i class="fas fa-plus me-2"></i>Agregar evento
                             </button>
                         <?php endif; ?>
@@ -1626,7 +1763,6 @@ if (!function_exists('render_event_modals')) {
             </div>
         </div>
 
-        <!-- Modal de detalle de evento -->
         <div class="modal fade event-modal" id="eventoModal" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -1642,10 +1778,26 @@ if (!function_exists('render_event_modals')) {
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
                         <?php if ($puedeEditar): ?>
-                            <button type="button" class="btn btn-outline-danger" onclick="eliminarEvento()">
+                            <button type="button"
+                                    class="btn btn-outline-danger js-track-click"
+                                    data-click-tipo="boton"
+                                    data-click-clave="modal_eliminar_evento"
+                                    data-click-label="Eliminar evento"
+                                    data-click-modulo="comunicaciones"
+                                    data-seccion="modal_evento"
+                                    data-contexto="eliminar_evento"
+                                    onclick="eliminarEvento()">
                                 <i class="fas fa-trash me-1"></i>Eliminar
                             </button>
-                            <button type="button" class="btn btn-primary" onclick="editarEvento()">
+                            <button type="button"
+                                    class="btn btn-primary js-track-click"
+                                    data-click-tipo="boton"
+                                    data-click-clave="modal_editar_evento"
+                                    data-click-label="Editar evento"
+                                    data-click-modulo="comunicaciones"
+                                    data-seccion="modal_evento"
+                                    data-contexto="editar_evento"
+                                    onclick="editarEvento()">
                                 <i class="fas fa-pen me-1"></i>Editar
                             </button>
                         <?php endif; ?>
@@ -1654,7 +1806,6 @@ if (!function_exists('render_event_modals')) {
             </div>
         </div>
 
-        <!-- Modal de formulario de evento -->
         <div class="modal fade event-modal" id="eventoFormModal" tabindex="-1">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
@@ -1683,39 +1834,39 @@ if (!function_exists('render_event_modals')) {
                                         <option value="#dc3545">Rojo</option>
                                     </select>
                                 </div>
-                                
+
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
                                     <input type="date" class="form-control" name="event_date" id="eventoFecha" required>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <label class="form-label fw-semibold">Hora inicio</label>
                                     <input type="time" class="form-control" name="start_time" id="eventoHoraInicio">
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <label class="form-label fw-semibold">Hora fin</label>
                                     <input type="time" class="form-control" name="end_time" id="eventoHoraFin">
                                 </div>
-                                
+
                                 <div class="col-12">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" name="is_all_day" id="eventoAllDay" value="1">
                                         <label class="form-check-label" for="eventoAllDay">Todo el día</label>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Ubicación</label>
                                     <input type="text" class="form-control" name="location" id="eventoLocation">
                                 </div>
-                                
+
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Enlace (Meet/Teams/Zoom)</label>
                                     <input type="url" class="form-control" name="meet_url" id="eventoMeetUrl" placeholder="https://...">
                                 </div>
-                                
+
                                 <div class="col-12">
                                     <label class="form-label fw-semibold">Descripción</label>
                                     <textarea class="form-control" name="description" id="eventoDescripcion" rows="3"></textarea>
@@ -1724,7 +1875,14 @@ if (!function_exists('render_event_modals')) {
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Guardar evento</button>
+                            <button type="submit"
+                                    class="btn btn-primary js-track-click"
+                                    data-click-tipo="boton"
+                                    data-click-clave="modal_guardar_evento"
+                                    data-click-label="Guardar evento"
+                                    data-click-modulo="comunicaciones"
+                                    data-seccion="modal_form_evento"
+                                    data-contexto="guardar_evento">Guardar evento</button>
                         </div>
                     </form>
                 </div>
@@ -1732,7 +1890,6 @@ if (!function_exists('render_event_modals')) {
         </div>
 
         <style>
-        /* Estilos para los modales de eventos */
         .event-modal .modal-content {
             border-radius: 20px;
             border: none;
@@ -1773,8 +1930,7 @@ if (!function_exists('render_event_modals')) {
             height: 3rem;
             color: #1C2262;
         }
-        
-        /* Estilos para la lista de eventos en el modal del día */
+
         .evento-dia-item {
             background: #f8f9fa;
             border-left: 4px solid #1C2262;
@@ -1784,57 +1940,57 @@ if (!function_exists('render_event_modals')) {
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .evento-dia-item:hover {
             transform: translateX(5px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             background: #ffffff;
         }
-        
+
         .evento-dia-item.all-day {
             border-left-color: #09A28E;
         }
-        
+
         .evento-dia-titulo {
             font-weight: 700;
             color: #1C2262;
             font-size: 1.1rem;
             margin-bottom: 0.25rem;
         }
-        
+
         .evento-dia-hora {
             font-size: 0.9rem;
             color: #6c757d;
             margin-bottom: 0.5rem;
         }
-        
+
         .evento-dia-descripcion {
             color: #495057;
             font-size: 0.95rem;
             line-height: 1.4;
         }
-        
+
         .evento-dia-enlace {
             margin-top: 0.5rem;
         }
-        
+
         .evento-dia-enlace a {
             color: #1C2262;
             text-decoration: none;
             font-weight: 500;
             font-size: 0.9rem;
         }
-        
+
         .evento-dia-enlace a:hover {
             text-decoration: underline;
         }
-        
+
         .sin-eventos-dia {
             text-align: center;
             padding: 3rem;
             color: #6c757d;
         }
-        
+
         .sin-eventos-dia i {
             font-size: 3rem;
             margin-bottom: 1rem;
@@ -1843,26 +1999,21 @@ if (!function_exists('render_event_modals')) {
         </style>
 
         <script>
-        // Variables globales
         let eventoActual = null;
         let fechaSeleccionada = null;
 
-        // Función para ver eventos del día
         function verEventosDelDia(fecha) {
             fechaSeleccionada = fecha;
-            
-            // Formatear fecha para mostrar
+
             const fechaObj = new Date(fecha + 'T12:00:00');
             const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
             const fechaFormateada = fechaObj.toLocaleDateString('es-ES', opciones);
             document.getElementById('fechaEventosDia').textContent = fechaFormateada;
-            
-            // Obtener eventos del día desde el DOM o desde el servidor
+
             const eventos = window.eventosPorDiaGlobal ? (window.eventosPorDiaGlobal[fecha] || []) : [];
-            
+
             renderEventosDia(eventos);
-            
-            // Configurar botón de agregar evento
+
             const btnAgregar = document.getElementById('btnAgregarEventoDesdeDia');
             if (btnAgregar) {
                 btnAgregar.onclick = function() {
@@ -1872,8 +2023,7 @@ if (!function_exists('render_event_modals')) {
                     }, 300);
                 };
             }
-            
-            // Abrir modal
+
             try {
                 const modal = new bootstrap.Modal(document.getElementById('eventosDiaModal'));
                 modal.show();
@@ -1881,11 +2031,10 @@ if (!function_exists('render_event_modals')) {
                 console.error('Error al abrir modal:', e);
             }
         }
-        
-        // Función para renderizar eventos del día
+
         function renderEventosDia(eventos) {
             const container = document.getElementById('eventosDiaModalBody');
-            
+
             if (!eventos || eventos.length === 0) {
                 container.innerHTML = `
                     <div class="sin-eventos-dia">
@@ -1896,16 +2045,16 @@ if (!function_exists('render_event_modals')) {
                 `;
                 return;
             }
-            
+
             let html = '<div class="eventos-lista">';
-            
+
             eventos.forEach(ev => {
                 const allDay = ev.is_all_day == 1;
                 const hora = allDay ? 'Todo el día' : (ev.start_time ? ev.start_time.substring(0,5) + (ev.end_time ? ' - ' + ev.end_time.substring(0,5) : '') : 'Sin hora');
                 const descripcion = ev.description ? ev.description.substring(0, 150) + (ev.description.length > 150 ? '...' : '') : '';
-                
+
                 html += `
-                    <div class="evento-dia-item ${allDay ? 'all-day' : ''}" 
+                    <div class="evento-dia-item ${allDay ? 'all-day' : ''}"
                          onclick="verEventoDesdeLista(${JSON.stringify(ev).replace(/"/g, '&quot;')})"
                          style="border-left-color: ${ev.color || '#1C2262'};">
                         <div class="evento-dia-titulo">${ev.title || 'Evento sin título'}</div>
@@ -1922,12 +2071,11 @@ if (!function_exists('render_event_modals')) {
                     </div>
                 `;
             });
-            
+
             html += '</div>';
             container.innerHTML = html;
         }
-        
-        // Función para ver evento desde la lista
+
         function verEventoDesdeLista(evento) {
             bootstrap.Modal.getInstance(document.getElementById('eventosDiaModal')).hide();
             setTimeout(() => {
@@ -1935,12 +2083,10 @@ if (!function_exists('render_event_modals')) {
             }, 300);
         }
 
-        // Función para abrir formulario de evento (nuevo o editar)
         function abrirFormularioEvento(fecha, evento = null) {
             console.log('Abriendo formulario para fecha:', fecha);
 
             if (evento) {
-                // Modo edición
                 document.getElementById('eventoFormTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Editar evento';
                 document.getElementById('eventoId').value = evento.id || 0;
                 document.getElementById('eventoTitulo').value = evento.title || '';
@@ -1953,7 +2099,6 @@ if (!function_exists('render_event_modals')) {
                 document.getElementById('eventoDescripcion').value = evento.description || '';
                 document.getElementById('eventoColor').value = evento.color || '#1C2262';
             } else {
-                // Modo nuevo
                 document.getElementById('eventoFormTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuevo evento';
                 document.getElementById('eventoId').value = '0';
                 document.getElementById('eventoTitulo').value = '';
@@ -1967,12 +2112,10 @@ if (!function_exists('render_event_modals')) {
                 document.getElementById('eventoColor').value = '#1C2262';
             }
 
-            // Habilitar/deshabilitar campos de hora según allDay
             const allDay = document.getElementById('eventoAllDay').checked;
             document.getElementById('eventoHoraInicio').disabled = allDay;
             document.getElementById('eventoHoraFin').disabled = allDay;
 
-            // Abrir modal
             try {
                 const modal = new bootstrap.Modal(document.getElementById('eventoFormModal'));
                 modal.show();
@@ -1982,14 +2125,12 @@ if (!function_exists('render_event_modals')) {
             }
         }
 
-        // Función para ver detalle de evento
         function verEvento(evento) {
             if (!evento) return;
 
             eventoActual = evento;
             console.log('Viendo evento:', evento);
 
-            // Construir HTML del detalle
             let html = '<div class="event-detail">' +
                        '<div class="event-detail-label">Título</div>' +
                        '<div class="event-detail-value">' + (evento.title || '') + '</div>' +
@@ -2010,7 +2151,7 @@ if (!function_exists('render_event_modals')) {
             if (evento.start_time) {
                 html += '<div class="event-detail">' +
                         '<div class="event-detail-label">Hora</div>' +
-                        '<div class="event-detail-value">' + (evento.start_time || '') + 
+                        '<div class="event-detail-value">' + (evento.start_time || '') +
                         (evento.end_time ? ' - ' + evento.end_time : '') + '</div>' +
                         '</div>';
             }
@@ -2026,7 +2167,7 @@ if (!function_exists('render_event_modals')) {
                 html += '<div class="event-detail">' +
                         '<div class="event-detail-label">Enlace</div>' +
                         '<div class="event-detail-value">' +
-                        '<a href="' + evento.meet_url + '" target="_blank" rel="noopener">' + 
+                        '<a href="' + evento.meet_url + '" target="_blank" rel="noopener">' +
                         evento.meet_url + '</a>' +
                         '</div></div>';
             }
@@ -2041,22 +2182,18 @@ if (!function_exists('render_event_modals')) {
             }
         }
 
-        // Función para editar evento
         function editarEvento() {
             if (!eventoActual) return;
 
-            // Cerrar modal de detalle
             try {
                 bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
             } catch (e) {}
 
-            // Abrir formulario con datos del evento actual
             setTimeout(() => {
                 abrirFormularioEvento(eventoActual.event_date, eventoActual);
             }, 300);
         }
 
-        // Función para eliminar evento
         function eliminarEvento() {
             if (!eventoActual) return;
             if (!confirm('¿Estás seguro de eliminar este evento?')) return;
@@ -2073,12 +2210,10 @@ if (!function_exists('render_event_modals')) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Cerrar modal
                     try {
                         bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
                     } catch (e) {}
 
-                    // Recargar página para mostrar cambios
                     location.reload();
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo eliminar'));
@@ -2090,14 +2225,12 @@ if (!function_exists('render_event_modals')) {
             });
         }
 
-        // Función para guardar evento
         document.addEventListener('DOMContentLoaded', function() {
             const eventoForm = document.getElementById('eventoForm');
             if (eventoForm) {
                 eventoForm.addEventListener('submit', function(e) {
                     e.preventDefault();
 
-                    // Mostrar indicador de carga
                     const submitBtn = this.querySelector('button[type="submit"]');
                     const originalText = submitBtn.innerHTML;
                     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
@@ -2125,12 +2258,10 @@ if (!function_exists('render_event_modals')) {
                         submitBtn.disabled = false;
 
                         if (data.success) {
-                            // Cerrar modal
                             try {
                                 bootstrap.Modal.getInstance(document.getElementById('eventoFormModal')).hide();
                             } catch (e) {}
 
-                            // Recargar página para mostrar cambios
                             location.reload();
                         } else {
                             alert('Error: ' + (data.message || 'No se pudo guardar'));
@@ -2145,7 +2276,6 @@ if (!function_exists('render_event_modals')) {
                 });
             }
 
-            // Manejar checkbox "Todo el día"
             const allDayCheckbox = document.getElementById('eventoAllDay');
             if (allDayCheckbox) {
                 allDayCheckbox.addEventListener('change', function() {

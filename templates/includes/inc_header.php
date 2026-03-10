@@ -87,8 +87,6 @@
                 </a>
             </li>
 
-            <!-- ... (tu menú existente Hoja de Vida, Selección, Encuestas, Administrador, etc.) ... -->
-
             <li class="nav-item">
                 <div class="navbar-heading">Documentación</div>
             </li>
@@ -112,7 +110,6 @@
 
             <?php
             $puedeVerComunicaciones = isset($_SESSION[APP_SESSION.'usu_id']);
-
             $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
             $puedeAdminComunicaciones = in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true);
             ?>
@@ -199,7 +196,6 @@
     </div>
 </div>
 
-<!-- Script de tracking general de clics enriquecido -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -241,21 +237,202 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function limpiarTexto(texto) {
+        return String(texto || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function slugify(valor) {
+        return limpiarTexto(valor)
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .substring(0, 150);
+    }
+
+    function detectarElementoTrackeable(target) {
+        if (!target) return null;
+
+        return target.closest(
+            '.js-track-click, a[href], button, [role="button"], [data-url], [onclick]'
+        );
+    }
+
+    function inferirTipo(element) {
+        const tag = (element.tagName || '').toLowerCase();
+        const href = element.getAttribute('href') || '';
+        const role = (element.getAttribute('role') || '').toLowerCase();
+
+        if (element.classList.contains('js-track-click') && element.getAttribute('data-click-tipo')) {
+            return element.getAttribute('data-click-tipo');
+        }
+
+        if (tag === 'a') {
+            if (href.startsWith('mailto:')) return 'email';
+            if (href.startsWith('tel:')) return 'telefono';
+            if (href === '#!' || href === '#') return 'accion';
+            return 'link';
+        }
+
+        if (tag === 'button') {
+            return 'boton';
+        }
+
+        if (role === 'button') {
+            return 'boton';
+        }
+
+        if (element.hasAttribute('data-url')) {
+            return 'card';
+        }
+
+        return 'elemento';
+    }
+
+    function inferirModulo(element) {
+        const moduloManual = element.getAttribute('data-click-modulo');
+        if (moduloManual) {
+            return moduloManual;
+        }
+
+        const slug = obtenerPageSlug();
+        if (!slug) {
+            return 'general';
+        }
+
+        return slug.substring(0, 100);
+    }
+
+    function inferirSeccion(element) {
+        const seccionManual = element.getAttribute('data-seccion');
+        if (seccionManual) {
+            return seccionManual;
+        }
+
+        const contenedor = element.closest('[id], section, .card, .navbar, .dropdown-menu, .modal, .table-responsive, .container, .container-fluid');
+        if (!contenedor) {
+            return '';
+        }
+
+        if (contenedor.id) {
+            return limpiarTexto(contenedor.id).substring(0, 255);
+        }
+
+        const clases = typeof contenedor.className === 'string' ? limpiarTexto(contenedor.className) : '';
+        return clases.substring(0, 255);
+    }
+
+    function inferirContexto(element) {
+        const contextoManual = element.getAttribute('data-contexto');
+        if (contextoManual) {
+            return contextoManual;
+        }
+
+        const tag = (element.tagName || '').toLowerCase();
+        const tipo = inferirTipo(element);
+        return (tag + '_' + tipo).substring(0, 255);
+    }
+
+    function inferirPosicion(element) {
+        const posicionManual = element.getAttribute('data-posicion');
+        if (posicionManual !== null && posicionManual !== '') {
+            return posicionManual;
+        }
+
+        if (!element.parentElement) {
+            return '';
+        }
+
+        const hermanos = Array.from(element.parentElement.children).filter(function(child) {
+            return child.tagName === element.tagName;
+        });
+
+        const index = hermanos.indexOf(element);
+        return index >= 0 ? String(index + 1) : '';
+    }
+
+    function autocompletarTracking(element) {
+        const href = element.getAttribute('href') || element.getAttribute('data-url') || '';
+        const texto = limpiarTexto(element.innerText || element.textContent || '');
+        const tipo = inferirTipo(element);
+        const modulo = inferirModulo(element);
+        const seccion = inferirSeccion(element);
+        const contexto = inferirContexto(element);
+        const posicion = inferirPosicion(element);
+
+        if (!element.getAttribute('data-click-tipo')) {
+            element.setAttribute('data-click-tipo', tipo);
+        }
+
+        if (!element.getAttribute('data-click-label')) {
+            element.setAttribute('data-click-label', (texto || href || tipo || 'Elemento').substring(0, 250));
+        }
+
+        if (!element.getAttribute('data-click-clave')) {
+            const baseClave = texto || href || contexto || tipo || 'elemento_auto';
+            element.setAttribute('data-click-clave', slugify(baseClave) || 'elemento_auto');
+        }
+
+        if (!element.getAttribute('data-click-modulo')) {
+            element.setAttribute('data-click-modulo', modulo);
+        }
+
+        if (!element.getAttribute('data-seccion') && seccion) {
+            element.setAttribute('data-seccion', seccion);
+        }
+
+        if (!element.getAttribute('data-contexto') && contexto) {
+            element.setAttribute('data-contexto', contexto);
+        }
+
+        if (!element.getAttribute('data-posicion') && posicion) {
+            element.setAttribute('data-posicion', posicion);
+        }
+    }
+
+    function debeInterceptarNavegacion(element) {
+        if (!element) return false;
+
+        const tag = (element.tagName || '').toLowerCase();
+        const href = element.getAttribute('href') || '';
+        const target = (element.getAttribute('target') || '').toLowerCase();
+        const download = element.hasAttribute('download');
+
+        if (tag !== 'a') {
+            return false;
+        }
+
+        if (!href || href === '#' || href === '#!') {
+            return false;
+        }
+
+        if (target === '_blank' || download) {
+            return false;
+        }
+
+        if (href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+            return false;
+        }
+
+        return true;
+    }
+
     window.registrarClick = function(element, originalEvent = null) {
         const tipo = element.getAttribute('data-click-tipo') || 'elemento';
         const clave = element.getAttribute('data-click-clave') || '';
-        const label = element.getAttribute('data-click-label') || (element.textContent || '').trim() || 'sin_etiqueta';
+        const label = element.getAttribute('data-click-label') || limpiarTexto(element.textContent) || 'sin_etiqueta';
         const modulo = element.getAttribute('data-click-modulo') || '';
         const destino = element.getAttribute('href') || element.getAttribute('data-url') || '';
         const entidadId = element.getAttribute('data-entidad-id') || '';
         const entidadTipo = element.getAttribute('data-entidad-tipo') || '';
-
         const seccionNombre = element.getAttribute('data-seccion') || '';
         const clickContexto = element.getAttribute('data-contexto') || '';
         const clickPosicion = element.getAttribute('data-posicion') || '';
 
         if (!clave) {
-            console.warn('Elemento sin data-click-clave, no se trackeará');
             return true;
         }
 
@@ -279,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
             entidad_tipo: entidadTipo,
 
             click_dom_path: construirDomPath(element).substring(0, 1000),
-            click_texto_visible: ((element.innerText || element.textContent || '').trim()).substring(0, 500),
+            click_texto_visible: limpiarTexto(element.innerText || element.textContent || '').substring(0, 500),
             click_x: clickX,
             click_y: clickY,
             viewport_w: window.innerWidth || document.documentElement.clientWidth || 0,
@@ -297,13 +474,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: new URLSearchParams(payload),
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            keepalive: true
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
             console.log('Respuesta tracking:', data);
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Error enviando tracking:', error);
         });
 
@@ -311,23 +491,26 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     document.addEventListener('click', function(e) {
-        const element = e.target.closest('.js-track-click');
+        const element = detectarElementoTrackeable(e.target);
         if (!element) return;
 
-        const href = element.getAttribute('href');
+        autocompletarTracking(element);
 
-        if (href && href !== '#') {
+        if (debeInterceptarNavegacion(element)) {
+            const href = element.getAttribute('href');
+
             e.preventDefault();
-
             window.registrarClick(element, e);
 
-            setTimeout(() => {
+            setTimeout(function() {
                 window.location.href = href;
             }, 100);
-        } else {
-            window.registrarClick(element, e);
+
+            return;
         }
-    });
+
+        window.registrarClick(element, e);
+    }, true);
 });
 </script>
 <!-- ==============>>header section end here<<================ -->
