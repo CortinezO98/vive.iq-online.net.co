@@ -197,12 +197,12 @@
         </ul>
     </div>
 </div>
-<!-- Script de tracking general de clics -->
+<!-- Script de tracking general de clics (VERSIÓN CORREGIDA) -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
     // Función para registrar click
-    window.registrarClick = async function(element) {
+    window.registrarClick = function(element) {
         const tipo = element.getAttribute('data-click-tipo') || 'elemento';
         const clave = element.getAttribute('data-click-clave') || '';
         const label = element.getAttribute('data-click-label') || element.textContent.trim() || 'sin_etiqueta';
@@ -227,26 +227,24 @@ document.addEventListener('DOMContentLoaded', function() {
             entidad_tipo: entidadTipo
         };
 
-        try {
-            const formData = new FormData();
-            Object.keys(payload).forEach(function(key) {
-                if (payload[key] !== null && payload[key] !== '') {
-                    formData.append(key, payload[key]);
-                }
-            });
+        console.log('Enviando tracking:', payload); // 👈 PARA DEBUG
 
-            // Enviar de forma asíncrona (no bloqueante)
-            await fetch('<?php echo URL; ?>?uri=analytics/registrar_click', {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-        } catch (error) {
+        // Enviar de forma asíncrona (no bloqueante)
+        fetch('<?php echo URL; ?>?uri=analytics/registrar_click', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams(payload),
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Respuesta tracking:', data); // 👈 PARA DEBUG
+        })
+        .catch(error => {
             console.error('Error enviando tracking:', error);
-        }
+        });
 
         return true; // Continuar con la navegación
     };
@@ -262,14 +260,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
 
             // Registrar click y luego navegar
-            registrarClick(element).then(() => {
+            window.registrarClick(element);
+            
+            // Dar tiempo para que se envíe el tracking (100ms es suficiente)
+            setTimeout(() => {
                 window.location.href = href;
-            }).catch(() => {
-                window.location.href = href; // Navegar incluso si hay error
-            });
+            }, 100);
         } else {
             // Si no es un link, solo registrar
-            registrarClick(element);
+            window.registrarClick(element);
         }
     });
 });

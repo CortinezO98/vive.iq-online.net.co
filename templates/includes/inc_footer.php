@@ -3,7 +3,11 @@
     <!-- ==============>>Footer section end here<<================ -->
 
     <!-- Libs JS -->
-    <script src="<?php echo LIBS; ?>jquery/dist/jquery.min.js"></script>
+    <script>
+    if (typeof window.jQuery === 'undefined') {
+        document.write('<script src="<?php echo LIBS; ?>jquery/dist/jquery.min.js"><\/script>');
+    }
+    </script>
     <script src="<?php echo LIBS; ?>bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo LIBS; ?>feather-icons/dist/feather.min.js"></script>
     <script src="<?php echo LIBS; ?>simplebar/dist/simplebar.min.js"></script>
