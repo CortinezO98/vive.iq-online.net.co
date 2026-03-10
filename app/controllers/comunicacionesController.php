@@ -1005,24 +1005,42 @@ class comunicacionesController extends Controller {
         exit;
     }
 
+
     /**
      * Registra un clic en un item (llamada AJAX)
      */
     public function registrar_click_item() {
-        // Respuesta por defecto
-        $response = ['success' => false, 'message' => 'Error al procesar la solicitud'];
+        $response = [
+            'success' => false,
+            'message' => 'Solicitud inválida'
+        ];
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['itm_id'])) {
-            $itm_id = (int)$_POST['itm_id'];
+        try {
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                throw new Exception('Método no permitido');
+            }
+
+            $itm_id = isset($_POST['itm_id']) ? (int)$_POST['itm_id'] : 0;
             $user_id = isset($_SESSION[APP_SESSION . 'usu_id']) ? (int)$_SESSION[APP_SESSION . 'usu_id'] : null;
             $ip = $_SERVER['REMOTE_ADDR'] ?? '';
             $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
             $referer = $_SERVER['HTTP_REFERER'] ?? '';
             $session_id = session_id() ?: '';
 
-            if ($itm_id > 0) {
-                require_once MODELS . 'ItemClickModel.php';
-                $clickModel = new ItemClickModel();
+            if ($itm_id <= 0) {
+                throw new Exception('ID de item inválido');
+            }
+
+            require_once MODELS . 'ItemClickModel.php';
+            $clickModel = new ItemClickModel();
+
+            // Evita doble registro por doble clic inmediato
+            if ($clickModel->existeClickReciente($itm_id, $session_id, 2)) {
+                $response = [
+                    'success' => true,
+                    'message' => 'Click ya registrado recientemente'
+                ];
+            } else {
                 $clickModel->itm_id = $itm_id;
                 $clickModel->user_id = $user_id;
                 $clickModel->click_ip = $ip;
@@ -1031,16 +1049,23 @@ class comunicacionesController extends Controller {
                 $clickModel->click_session_id = $session_id;
 
                 if ($clickModel->registrarClick()) {
-                    $response = ['success' => true, 'message' => 'Click registrado'];
+                    $response = [
+                        'success' => true,
+                        'message' => 'Click registrado correctamente'
+                    ];
                 } else {
-                    $response = ['success' => false, 'message' => 'Error al guardar en BD'];
+                    throw new Exception('No fue posible guardar el click en base de datos');
                 }
-            } else {
-                $response = ['success' => false, 'message' => 'ID de item inválido'];
             }
+        } catch (Exception $e) {
+            error_log('Error registrar_click_item: ' . $e->getMessage());
+            $response = [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
         }
 
-        header('Content-Type: application/json');
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($response);
         exit;
     }

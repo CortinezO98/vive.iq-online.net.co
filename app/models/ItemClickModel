@@ -1,5 +1,6 @@
 <?php
 class ItemClickModel extends Model {
+
     public $itm_id;
     public $user_id;
     public $click_ip;
@@ -7,57 +8,350 @@ class ItemClickModel extends Model {
     public $click_referer;
     public $click_session_id;
 
+    /**
+     * Registrar clic individual
+     */
     public function registrarClick() {
-        $sql = "INSERT INTO com_item_click (itm_id, user_id, click_ip, click_user_agent, click_referer, click_session_id, click_fecha) 
-                VALUES (:itm_id, :user_id, :click_ip, :click_user_agent, :click_referer, :click_session_id, NOW())";
-        
+        $sql = "INSERT INTO com_item_click
+                    (itm_id, user_id, click_ip, click_user_agent, click_referer, click_session_id, click_fecha)
+                VALUES
+                    (:itm_id, :user_id, :click_ip, :click_user_agent, :click_referer, :click_session_id, NOW())";
+
         $params = [
-            'itm_id' => $this->itm_id,
-            'user_id' => $this->user_id,
-            'click_ip' => $this->click_ip,
-            'click_user_agent' => $this->click_user_agent,
-            'click_referer' => $this->click_referer,
-            'click_session_id' => $this->click_session_id
+            'itm_id'           => (int)$this->itm_id,
+            'user_id'          => !empty($this->user_id) ? (int)$this->user_id : null,
+            'click_ip'         => !empty($this->click_ip) ? trim((string)$this->click_ip) : null,
+            'click_user_agent' => !empty($this->click_user_agent) ? trim((string)$this->click_user_agent) : null,
+            'click_referer'    => !empty($this->click_referer) ? trim((string)$this->click_referer) : null,
+            'click_session_id' => !empty($this->click_session_id) ? trim((string)$this->click_session_id) : null,
         ];
 
         try {
             return parent::query($sql, $params) ? true : false;
         } catch (Exception $e) {
-            error_log("Error al registrar click: " . $e->getMessage());
+            error_log('Error al registrar click: ' . $e->getMessage());
             return false;
         }
     }
 
+    /**
+     * Evitar doble clic inmediato de la misma sesión sobre el mismo item
+     */
+    public function existeClickReciente($itm_id, $session_id, $segundos = 2) {
+        $sql = "SELECT click_id
+                FROM com_item_click
+                WHERE itm_id = :itm_id
+                  AND click_session_id = :click_session_id
+                  AND click_fecha >= (NOW() - INTERVAL :segundos SECOND)
+                ORDER BY click_id DESC
+                LIMIT 1";
+
+        $params = [
+            'itm_id' => (int)$itm_id,
+            'click_session_id' => (string)$session_id,
+            'segundos' => (int)$segundos
+        ];
+
+        try {
+            $res = parent::query($sql, $params);
+            return !empty($res);
+        } catch (Exception $e) {
+            error_log('Error al validar click reciente: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Detalle completo para tabla
+     */
     public function obtenerReporte($fecha_inicio = null, $fecha_fin = null) {
-        $sql = "SELECT 
-                    c.`click_id`, c.`click_fecha`, c.`click_ip`, c.`click_user_agent`, c.`click_referer`,
-                    i.`itm_id`, i.`itm_titulo`, i.`itm_url`,
-                    s.`sec_id`, s.`sec_titulo` as seccion_titulo,
-                    p.`pag_id`, p.`pag_titulo` as pagina_titulo,
-                    u.`usu_id`, u.`usu_nombres_apellidos` as usuario_nombre
-                FROM `com_item_click` c
-                INNER JOIN `com_item` i ON c.`itm_id` = i.`itm_id`
-                LEFT JOIN `com_seccion` s ON i.`sec_id` = s.`sec_id`
-                LEFT JOIN `com_pagina` p ON s.`pag_id` = p.`pag_id`
-                LEFT JOIN `app_usuario` u ON c.`user_id` = u.`usu_id`
-                WHERE 1=1 ";
+        $sql = "SELECT
+                    c.click_id,
+                    c.click_fecha,
+                    c.click_ip,
+                    c.click_user_agent,
+                    c.click_referer,
+                    i.itm_id,
+                    i.itm_titulo,
+                    i.itm_url,
+                    s.sec_id,
+                    s.sec_titulo AS seccion_titulo,
+                    p.pag_id,
+                    p.pag_titulo AS pagina_titulo,
+                    u.usu_id,
+                    u.usu_nombres_apellidos AS usuario_nombre
+                FROM com_item_click c
+                INNER JOIN com_item i
+                    ON c.itm_id = i.itm_id
+                LEFT JOIN com_seccion s
+                    ON i.sec_id = s.sec_id
+                LEFT JOIN com_pagina p
+                    ON s.pag_id = p.pag_id
+                LEFT JOIN app_usuario u
+                    ON c.user_id = u.usu_id
+                WHERE 1=1";
 
         $params = [];
-        if ($fecha_inicio) {
-            $sql .= " AND DATE(c.`click_fecha`) >= :fecha_inicio";
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
             $params['fecha_inicio'] = $fecha_inicio;
         }
-        if ($fecha_fin) {
-            $sql .= " AND DATE(c.`click_fecha`) <= :fecha_fin";
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
             $params['fecha_fin'] = $fecha_fin;
         }
 
-        $sql .= " ORDER BY c.`click_fecha` DESC";
+        $sql .= " ORDER BY c.click_fecha DESC";
 
         try {
-            return parent::query($sql, $params);
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
         } catch (Exception $e) {
-            error_log("Error al obtener reporte de clics: " . $e->getMessage());
+            error_log('Error al obtener reporte de clics: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Resumen general de métricas
+     */
+    public function obtenerResumenGeneral($fecha_inicio = null, $fecha_fin = null) {
+        $sql = "SELECT
+                    COUNT(*) AS total_clics,
+                    COUNT(DISTINCT c.itm_id) AS items_clicados,
+                    COUNT(DISTINCT c.user_id) AS usuarios_unicos,
+                    COUNT(DISTINCT c.click_session_id) AS sesiones_unicas
+                FROM com_item_click c
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        try {
+            $res = parent::query($sql, $params);
+            return isset($res[0]) ? $res[0] : [
+                'total_clics' => 0,
+                'items_clicados' => 0,
+                'usuarios_unicos' => 0,
+                'sesiones_unicas' => 0
+            ];
+        } catch (Exception $e) {
+            error_log('Error al obtener resumen general: ' . $e->getMessage());
+            return [
+                'total_clics' => 0,
+                'items_clicados' => 0,
+                'usuarios_unicos' => 0,
+                'sesiones_unicas' => 0
+            ];
+        }
+    }
+
+    /**
+     * Top items más clicados
+     */
+    public function obtenerTopItems($fecha_inicio = null, $fecha_fin = null, $limite = 10) {
+        $sql = "SELECT
+                    i.itm_id,
+                    i.itm_titulo,
+                    i.itm_url,
+                    s.sec_titulo AS seccion_titulo,
+                    p.pag_titulo AS pagina_titulo,
+                    COUNT(*) AS total_clics,
+                    COUNT(DISTINCT c.user_id) AS usuarios_unicos,
+                    COUNT(DISTINCT c.click_session_id) AS sesiones_unicas
+                FROM com_item_click c
+                INNER JOIN com_item i
+                    ON c.itm_id = i.itm_id
+                LEFT JOIN com_seccion s
+                    ON i.sec_id = s.sec_id
+                LEFT JOIN com_pagina p
+                    ON s.pag_id = p.pag_id
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        $sql .= " GROUP BY i.itm_id, i.itm_titulo, i.itm_url, s.sec_titulo, p.pag_titulo
+                  ORDER BY total_clics DESC
+                  LIMIT " . (int)$limite;
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener top items: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Top secciones
+     */
+    public function obtenerTopSecciones($fecha_inicio = null, $fecha_fin = null) {
+        $sql = "SELECT
+                    s.sec_id,
+                    s.sec_titulo,
+                    COUNT(*) AS total_clics
+                FROM com_item_click c
+                INNER JOIN com_item i
+                    ON c.itm_id = i.itm_id
+                LEFT JOIN com_seccion s
+                    ON i.sec_id = s.sec_id
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        $sql .= " GROUP BY s.sec_id, s.sec_titulo
+                  ORDER BY total_clics DESC";
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener top secciones: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Top páginas
+     */
+    public function obtenerTopPaginas($fecha_inicio = null, $fecha_fin = null) {
+        $sql = "SELECT
+                    p.pag_id,
+                    p.pag_titulo,
+                    COUNT(*) AS total_clics
+                FROM com_item_click c
+                INNER JOIN com_item i
+                    ON c.itm_id = i.itm_id
+                LEFT JOIN com_seccion s
+                    ON i.sec_id = s.sec_id
+                LEFT JOIN com_pagina p
+                    ON s.pag_id = p.pag_id
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        $sql .= " GROUP BY p.pag_id, p.pag_titulo
+                  ORDER BY total_clics DESC";
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener top páginas: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Serie de clics por día
+     */
+    public function obtenerClicsPorDia($fecha_inicio = null, $fecha_fin = null) {
+        $sql = "SELECT
+                    DATE(c.click_fecha) AS fecha,
+                    COUNT(*) AS total_clics
+                FROM com_item_click c
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        $sql .= " GROUP BY DATE(c.click_fecha)
+                  ORDER BY DATE(c.click_fecha) ASC";
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener clics por día: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Usuarios con más interacción
+     */
+    public function obtenerTopUsuarios($fecha_inicio = null, $fecha_fin = null, $limite = 10) {
+        $sql = "SELECT
+                    c.user_id,
+                    COALESCE(u.usu_nombres_apellidos, 'Anónimo') AS usuario_nombre,
+                    COUNT(*) AS total_clics
+                FROM com_item_click c
+                LEFT JOIN app_usuario u
+                    ON c.user_id = u.usu_id
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($fecha_inicio)) {
+            $sql .= " AND DATE(c.click_fecha) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+
+        if (!empty($fecha_fin)) {
+            $sql .= " AND DATE(c.click_fecha) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        $sql .= " GROUP BY c.user_id, u.usu_nombres_apellidos
+                  ORDER BY total_clics DESC
+                  LIMIT " . (int)$limite;
+
+        try {
+            $res = parent::query($sql, $params);
+            return is_array($res) ? $res : [];
+        } catch (Exception $e) {
+            error_log('Error al obtener top usuarios: ' . $e->getMessage());
             return [];
         }
     }
