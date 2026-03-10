@@ -14,6 +14,19 @@ class ClickEventModel extends Model
     public $click_user_agent;
     public $click_session_id;
 
+    // Nuevos campos enriquecidos
+    public $click_dom_path;
+    public $click_texto_visible;
+    public $click_x;
+    public $click_y;
+    public $viewport_w;
+    public $viewport_h;
+    public $page_url;
+    public $page_slug;
+    public $seccion_nombre;
+    public $click_contexto;
+    public $click_posicion;
+
     /**
      * Registrar un click genérico
      */
@@ -33,6 +46,17 @@ class ClickEventModel extends Model
                     click_ip,
                     click_user_agent,
                     click_session_id,
+                    click_dom_path,
+                    click_texto_visible,
+                    click_x,
+                    click_y,
+                    viewport_w,
+                    viewport_h,
+                    page_url,
+                    page_slug,
+                    seccion_nombre,
+                    click_contexto,
+                    click_posicion,
                     click_fecha
                 )
                 VALUES
@@ -49,22 +73,45 @@ class ClickEventModel extends Model
                     :click_ip,
                     :click_user_agent,
                     :click_session_id,
+                    :click_dom_path,
+                    :click_texto_visible,
+                    :click_x,
+                    :click_y,
+                    :viewport_w,
+                    :viewport_h,
+                    :page_url,
+                    :page_slug,
+                    :seccion_nombre,
+                    :click_contexto,
+                    :click_posicion,
                     NOW()
                 )";
 
         $params = [
-            'click_tipo'        => $this->normalizarTexto($this->click_tipo, 50),
-            'click_clave'       => $this->normalizarTexto($this->click_clave, 150),
-            'click_label'       => $this->normalizarTexto($this->click_label, 255),
-            'click_modulo'      => $this->normalizarNullableTexto($this->click_modulo, 100),
-            'click_url_destino' => $this->normalizarNullableTextoLargo($this->click_url_destino),
-            'click_url_origen'  => $this->normalizarNullableTextoLargo($this->click_url_origen),
-            'entidad_id'        => $this->normalizarNullableEntero($this->entidad_id),
-            'entidad_tipo'      => $this->normalizarNullableTexto($this->entidad_tipo, 50),
-            'user_id'           => $this->normalizarNullableEntero($this->user_id),
-            'click_ip'          => $this->normalizarNullableTexto($this->click_ip, 45),
-            'click_user_agent'  => $this->normalizarNullableTextoLargo($this->click_user_agent),
-            'click_session_id'  => $this->normalizarNullableTexto($this->click_session_id, 255),
+            'click_tipo'          => $this->normalizarTexto($this->click_tipo, 50),
+            'click_clave'         => $this->normalizarTexto($this->click_clave, 150),
+            'click_label'         => $this->normalizarTexto($this->click_label, 255),
+            'click_modulo'        => $this->normalizarNullableTexto($this->click_modulo, 100),
+            'click_url_destino'   => $this->normalizarNullableTextoLargo($this->click_url_destino),
+            'click_url_origen'    => $this->normalizarNullableTextoLargo($this->click_url_origen),
+            'entidad_id'          => $this->normalizarNullableEntero($this->entidad_id),
+            'entidad_tipo'        => $this->normalizarNullableTexto($this->entidad_tipo, 50),
+            'user_id'             => $this->normalizarNullableEntero($this->user_id),
+            'click_ip'            => $this->normalizarNullableTexto($this->click_ip, 45),
+            'click_user_agent'    => $this->normalizarNullableTextoLargo($this->click_user_agent),
+            'click_session_id'    => $this->normalizarNullableTexto($this->click_session_id, 255),
+
+            'click_dom_path'      => $this->normalizarNullableTexto($this->click_dom_path, 1000),
+            'click_texto_visible' => $this->normalizarNullableTexto($this->click_texto_visible, 500),
+            'click_x'             => $this->normalizarNullableEntero($this->click_x),
+            'click_y'             => $this->normalizarNullableEntero($this->click_y),
+            'viewport_w'          => $this->normalizarNullableEntero($this->viewport_w),
+            'viewport_h'          => $this->normalizarNullableEntero($this->viewport_h),
+            'page_url'            => $this->normalizarNullableTexto($this->page_url, 1000),
+            'page_slug'           => $this->normalizarNullableTexto($this->page_slug, 255),
+            'seccion_nombre'      => $this->normalizarNullableTexto($this->seccion_nombre, 255),
+            'click_contexto'      => $this->normalizarNullableTexto($this->click_contexto, 255),
+            'click_posicion'      => $this->normalizarNullableEntero($this->click_posicion),
         ];
 
         try {

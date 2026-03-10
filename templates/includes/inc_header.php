@@ -29,7 +29,7 @@
                             <div class="border-bottom px-3 pt-2 pb-3 d-flex justify-content-between align-items-center">
                                 <p class="mb-0 text-dark fw-medium fs-4">Notificaciones</p>
                             </div>
-                            
+
                             <div data-simplebar style="height: 250px;">
                                 <ul class="list-group list-group-flush notification-list-scroll"></ul>
                             </div>
@@ -111,85 +111,86 @@
             </li>
 
             <?php
-            // Ver Comunicaciones: cualquier usuario logueado
             $puedeVerComunicaciones = isset($_SESSION[APP_SESSION.'usu_id']);
 
-            // Admin Comunicaciones: solo perfiles autorizados
             $perfil = $_SESSION[APP_SESSION.'usu_perfil'] ?? '';
             $puedeAdminComunicaciones = in_array($perfil, ['ADMIN','Administrador','SUPERADMIN'], true);
             ?>
 
-            <?php if($puedeVerComunicaciones): ?>
+            <?php if ($puedeVerComunicaciones): ?>
             <li class="nav-item mt-2">
                 <a class="nav-link has-arrow" href="#!"
-                data-bs-toggle="collapse" data-bs-target="#navComunicaciones"
-                aria-expanded="false" aria-controls="navComunicaciones">
-                <i class="fa-solid fa-bullhorn nav-icon me-2 icon-xxs"></i> Comunicaciones
+                   data-bs-toggle="collapse" data-bs-target="#navComunicaciones"
+                   aria-expanded="false" aria-controls="navComunicaciones">
+                    <i class="fa-solid fa-bullhorn nav-icon me-2 icon-xxs"></i> Comunicaciones
                 </a>
 
                 <div id="navComunicaciones" class="collapse" data-bs-parent="#sideNavbar">
-                <ul class="nav flex-column">
+                    <ul class="nav flex-column">
 
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/inicio">Inicio</a>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/identidad-corporativa">Identidad corporativa</a>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/contacto">Contacto</a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/inicio">Inicio</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/identidad-corporativa">Identidad corporativa</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/contacto">Contacto</a>
+                        </li>
 
-                    <li class="nav-item mt-2"><div class="navbar-heading">Sobre iQ</div></li>
+                        <li class="nav-item mt-2"><div class="navbar-heading">Sobre iQ</div></li>
 
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compania">Compañía</a>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/cultura-iq">Cultura iQ</a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compania">Compañía</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/cultura-iq">Cultura iQ</a>
+                        </li>
 
-                    <li class="nav-item mt-2"><div class="navbar-heading">Lo que necesitas</div></li>
+                        <li class="nav-item mt-2"><div class="navbar-heading">Lo que necesitas</div></li>
 
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/bienestar-formacion">Bienestar y formación</a>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/atraccion-personal">Atracción de personal</a>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/sst">SST</a>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compensacion-beneficios">Compensación y beneficios</a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/bienestar-formacion">Bienestar y formación</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/atraccion-personal">Atracción de personal</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/sst">SST</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/ver/compensacion-beneficios">Compensación y beneficios</a>
+                        </li>
 
-                    <?php if($puedeAdminComunicaciones): ?>
-                    <li class="nav-item mt-3"><div class="navbar-heading">Administración</div></li>
+                        <?php if ($puedeAdminComunicaciones): ?>
+                        <li class="nav-item mt-3"><div class="navbar-heading">Administración</div></li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/admin_paginas">
-                        <i class="fa-solid fa-gear nav-icon me-2 icon-xxs"></i> Administrar páginas
-                        </a>
-                    </li>
-                    <li class="nav-item"> 
-                        <a class="nav-link" href="<?php echo URL; ?>?uri=reporte_clics">
-                            <i class="fa-solid fa-chart-line nav-icon me-2 icon-xxs"></i> Reporte de clics
-                        </a>
-                    </li>
-                    <li class="nav-item"> 
-                        <a class="nav-link js-track-click" 
-                        href="<?php echo URL; ?>?uri=analytics/index"
-                        data-click-tipo="menu"
-                        data-click-clave="analytics_general"
-                        data-click-label="Analytics General"
-                        data-click-modulo="reportes">
-                            <i class="fa-solid fa-chart-pie nav-icon me-2 icon-xxs"></i> Analytics General
-                        </a>
-                    </li>
-                    <?php endif; ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=comunicaciones/admin_paginas">
+                                <i class="fa-solid fa-gear nav-icon me-2 icon-xxs"></i> Administrar páginas
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URL; ?>?uri=reporte_clics">
+                                <i class="fa-solid fa-chart-line nav-icon me-2 icon-xxs"></i> Reporte de clics
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link js-track-click"
+                               href="<?php echo URL; ?>?uri=analytics/index"
+                               data-click-tipo="menu"
+                               data-click-clave="analytics_general"
+                               data-click-label="Analytics General"
+                               data-click-modulo="reportes"
+                               data-seccion="menu_lateral"
+                               data-contexto="acceso_dashboard_analytics"
+                               data-posicion="3">
+                                <i class="fa-solid fa-chart-pie nav-icon me-2 icon-xxs"></i> Analytics General
+                            </a>
+                        </li>
+                        <?php endif; ?>
 
-                </ul>
+                    </ul>
                 </div>
             </li>
             <?php endif; ?>
@@ -197,39 +198,99 @@
         </ul>
     </div>
 </div>
-<!-- Script de tracking general de clics (VERSIÓN CORREGIDA) -->
+
+<!-- Script de tracking general de clics enriquecido -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // Función para registrar click
-    window.registrarClick = function(element) {
+
+    function construirDomPath(element) {
+        if (!element) return '';
+
+        const path = [];
+        let current = element;
+
+        while (current && current.nodeType === 1 && current.tagName.toLowerCase() !== 'html') {
+            let selector = current.tagName.toLowerCase();
+
+            if (current.id) {
+                selector += '#' + current.id;
+                path.unshift(selector);
+                break;
+            }
+
+            if (typeof current.className === 'string' && current.className.trim() !== '') {
+                const classes = current.className.trim().split(/\s+/).slice(0, 3).join('.');
+                if (classes) {
+                    selector += '.' + classes;
+                }
+            }
+
+            path.unshift(selector);
+            current = current.parentElement;
+        }
+
+        return path.join(' > ');
+    }
+
+    function obtenerPageSlug() {
+        try {
+            const url = new URL(window.location.href);
+            return url.searchParams.get('uri') || window.location.pathname || '';
+        } catch (e) {
+            return window.location.pathname || '';
+        }
+    }
+
+    window.registrarClick = function(element, originalEvent = null) {
         const tipo = element.getAttribute('data-click-tipo') || 'elemento';
         const clave = element.getAttribute('data-click-clave') || '';
-        const label = element.getAttribute('data-click-label') || element.textContent.trim() || 'sin_etiqueta';
+        const label = element.getAttribute('data-click-label') || (element.textContent || '').trim() || 'sin_etiqueta';
         const modulo = element.getAttribute('data-click-modulo') || '';
         const destino = element.getAttribute('href') || element.getAttribute('data-url') || '';
         const entidadId = element.getAttribute('data-entidad-id') || '';
         const entidadTipo = element.getAttribute('data-entidad-tipo') || '';
 
-        // Validar datos mínimos
+        const seccionNombre = element.getAttribute('data-seccion') || '';
+        const clickContexto = element.getAttribute('data-contexto') || '';
+        const clickPosicion = element.getAttribute('data-posicion') || '';
+
         if (!clave) {
             console.warn('Elemento sin data-click-clave, no se trackeará');
-            return true; // Permitir navegación
+            return true;
+        }
+
+        const rect = element.getBoundingClientRect();
+
+        let clickX = Math.round(rect.left + (rect.width / 2));
+        let clickY = Math.round(rect.top + (rect.height / 2));
+
+        if (originalEvent && typeof originalEvent.clientX === 'number' && typeof originalEvent.clientY === 'number') {
+            clickX = Math.round(originalEvent.clientX);
+            clickY = Math.round(originalEvent.clientY);
         }
 
         const payload = {
             click_tipo: tipo,
             click_clave: clave,
-            click_label: label.substring(0, 250), // Limitar longitud
+            click_label: label.substring(0, 250),
             click_modulo: modulo,
             click_url_destino: destino,
             entidad_id: entidadId,
-            entidad_tipo: entidadTipo
+            entidad_tipo: entidadTipo,
+
+            click_dom_path: construirDomPath(element).substring(0, 1000),
+            click_texto_visible: ((element.innerText || element.textContent || '').trim()).substring(0, 500),
+            click_x: clickX,
+            click_y: clickY,
+            viewport_w: window.innerWidth || document.documentElement.clientWidth || 0,
+            viewport_h: window.innerHeight || document.documentElement.clientHeight || 0,
+            page_url: window.location.href.substring(0, 1000),
+            page_slug: obtenerPageSlug().substring(0, 255),
+            seccion_nombre: seccionNombre.substring(0, 255),
+            click_contexto: clickContexto.substring(0, 255),
+            click_posicion: clickPosicion
         };
 
-        console.log('Enviando tracking:', payload); // 👈 PARA DEBUG
-
-        // Enviar de forma asíncrona (no bloqueante)
         fetch('<?php echo URL; ?>?uri=analytics/registrar_click', {
             method: 'POST',
             headers: {
@@ -240,35 +301,31 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Respuesta tracking:', data); // 👈 PARA DEBUG
+            console.log('Respuesta tracking:', data);
         })
         .catch(error => {
             console.error('Error enviando tracking:', error);
         });
 
-        return true; // Continuar con la navegación
+        return true;
     };
 
-    // Delegación de eventos para todos los elementos con clase 'js-track-click'
     document.addEventListener('click', function(e) {
         const element = e.target.closest('.js-track-click');
         if (!element) return;
 
-        // Prevenir navegación temporalmente para asegurar el tracking
         const href = element.getAttribute('href');
+
         if (href && href !== '#') {
             e.preventDefault();
 
-            // Registrar click y luego navegar
-            window.registrarClick(element);
-            
-            // Dar tiempo para que se envíe el tracking (100ms es suficiente)
+            window.registrarClick(element, e);
+
             setTimeout(() => {
                 window.location.href = href;
             }, 100);
         } else {
-            // Si no es un link, solo registrar
-            window.registrarClick(element);
+            window.registrarClick(element, e);
         }
     });
 });

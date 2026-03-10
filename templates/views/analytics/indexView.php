@@ -101,7 +101,7 @@
                     </div>
                 </div>
 
-                <!-- Gráficas -->
+                <!-- Gráficas actuales -->
                 <div class="row mb-4">
                     <div class="col-lg-6 mb-4">
                         <div class="card shadow-sm border-0 h-100">
@@ -158,6 +158,12 @@
                                     <th>Etiqueta</th>
                                     <th>Módulo</th>
                                     <th>Clave</th>
+                                    <th>Página</th>
+                                    <th>Sección</th>
+                                    <th>Contexto</th>
+                                    <th>Posición</th>
+                                    <th>Coordenadas</th>
+                                    <th>Texto visible</th>
                                     <th>URL Destino</th>
                                     <th>Usuario</th>
                                     <th>IP</th>
@@ -175,7 +181,6 @@
 </main>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -440,6 +445,44 @@ $(document).ready(function () {
             },
             { data: 'click_clave', defaultContent: '' },
             {
+                data: 'page_slug',
+                render: function (data) {
+                    return data && String(data).trim() !== '' ? data : 'Sin página';
+                }
+            },
+            {
+                data: 'seccion_nombre',
+                render: function (data) {
+                    return data && String(data).trim() !== '' ? data : 'Sin sección';
+                }
+            },
+            {
+                data: 'click_contexto',
+                render: function (data) {
+                    return data && String(data).trim() !== '' ? data : 'Sin contexto';
+                }
+            },
+            {
+                data: 'click_posicion',
+                render: function (data) {
+                    return data !== null && data !== undefined && String(data).trim() !== '' ? data : '';
+                }
+            },
+            {
+                data: null,
+                render: function (data, type, row) {
+                    const x = row.click_x ?? '';
+                    const y = row.click_y ?? '';
+                    return (x !== '' && y !== '') ? (x + ', ' + y) : '';
+                }
+            },
+            {
+                data: 'click_texto_visible',
+                render: function (data) {
+                    return data && String(data).trim() !== '' ? data : '';
+                }
+            },
+            {
                 data: 'click_url_destino',
                 render: function (data, type) {
                     if (!data) {
@@ -477,6 +520,7 @@ $(document).ready(function () {
         order: [[0, 'desc']],
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        scrollX: true,
         dom: "<'row align-items-center mb-3'<'col-md-6'B><'col-md-6'f>>" +
              "<'row'<'col-sm-12'tr>>" +
              "<'row align-items-center mt-3'<'col-md-5'i><'col-md-7'p>>",

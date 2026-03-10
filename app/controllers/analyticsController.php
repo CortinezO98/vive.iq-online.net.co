@@ -33,6 +33,19 @@ class analyticsController extends Controller
             $entidad_id        = isset($_POST['entidad_id']) && $_POST['entidad_id'] !== '' ? (int)$_POST['entidad_id'] : null;
             $entidad_tipo      = isset($_POST['entidad_tipo']) ? trim((string)$_POST['entidad_tipo']) : null;
 
+            // Nuevos campos enriquecidos
+            $click_dom_path      = isset($_POST['click_dom_path']) ? trim((string)$_POST['click_dom_path']) : null;
+            $click_texto_visible = isset($_POST['click_texto_visible']) ? trim((string)$_POST['click_texto_visible']) : null;
+            $click_x             = isset($_POST['click_x']) && $_POST['click_x'] !== '' ? (int)$_POST['click_x'] : null;
+            $click_y             = isset($_POST['click_y']) && $_POST['click_y'] !== '' ? (int)$_POST['click_y'] : null;
+            $viewport_w          = isset($_POST['viewport_w']) && $_POST['viewport_w'] !== '' ? (int)$_POST['viewport_w'] : null;
+            $viewport_h          = isset($_POST['viewport_h']) && $_POST['viewport_h'] !== '' ? (int)$_POST['viewport_h'] : null;
+            $page_url            = isset($_POST['page_url']) ? trim((string)$_POST['page_url']) : null;
+            $page_slug           = isset($_POST['page_slug']) ? trim((string)$_POST['page_slug']) : null;
+            $seccion_nombre      = isset($_POST['seccion_nombre']) ? trim((string)$_POST['seccion_nombre']) : null;
+            $click_contexto      = isset($_POST['click_contexto']) ? trim((string)$_POST['click_contexto']) : null;
+            $click_posicion      = isset($_POST['click_posicion']) && $_POST['click_posicion'] !== '' ? (int)$_POST['click_posicion'] : null;
+
             if ($click_tipo === '' || $click_clave === '' || $click_label === '') {
                 throw new Exception('Faltan datos obligatorios del evento');
             }
@@ -67,6 +80,19 @@ class analyticsController extends Controller
                     ? trim((string)$_SERVER['HTTP_USER_AGENT'])
                     : null;
                 $model->click_session_id = $session_id !== '' ? $session_id : null;
+
+                // Asignación de nuevos campos enriquecidos
+                $model->click_dom_path = ($click_dom_path !== null && $click_dom_path !== '') ? $click_dom_path : null;
+                $model->click_texto_visible = ($click_texto_visible !== null && $click_texto_visible !== '') ? $click_texto_visible : null;
+                $model->click_x = $click_x;
+                $model->click_y = $click_y;
+                $model->viewport_w = $viewport_w;
+                $model->viewport_h = $viewport_h;
+                $model->page_url = ($page_url !== null && $page_url !== '') ? $page_url : null;
+                $model->page_slug = ($page_slug !== null && $page_slug !== '') ? $page_slug : null;
+                $model->seccion_nombre = ($seccion_nombre !== null && $seccion_nombre !== '') ? $seccion_nombre : null;
+                $model->click_contexto = ($click_contexto !== null && $click_contexto !== '') ? $click_contexto : null;
+                $model->click_posicion = $click_posicion;
 
                 if ($model->registrarClick()) {
                     $response = [
