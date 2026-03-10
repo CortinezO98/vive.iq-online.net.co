@@ -1,6 +1,32 @@
 <?php
 require_once __DIR__ . '/_helpers.php';
 
+// ============================================================
+// SCRIPT PARA REGISTRO DE CLICS (NUEVO)
+// ============================================================
+?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Selecciona todos los enlaces que son items clickeables
+    const clickableItems = document.querySelectorAll('[data-item-id]');
+
+    clickableItems.forEach(item => {
+        item.addEventListener('click', function(event) {
+            const itemId = this.dataset.itemId;
+            
+            if (itemId) {
+                const formData = new FormData();
+                formData.append('itm_id', itemId);
+                
+                // Usar sendBeacon para asegurar que la solicitud se envíe incluso si la página se cierra
+                navigator.sendBeacon('<?= URL ?>?uri=comunicaciones/registrar_click_item', formData);
+            }
+        });
+    });
+});
+</script>
+<?php
+
 /**
  * ============================================================
  * Helpers
@@ -1040,7 +1066,7 @@ if (!function_exists('render_section_inner_close')) {
 
 /**
  * ============================================================
- * CARRUSEL
+ * CARRUSEL - MODIFICADO PARA AÑADIR DATA-ITEM-ID
  * ============================================================
  */
 if (!function_exists('render_carousel')) {
@@ -1093,7 +1119,8 @@ if (!function_exists('render_carousel')) {
                                         <a class="btn"
                                            href="<?= e(safe_url($url)) ?>"
                                            target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                                           rel="noopener">
+                                           rel="noopener"
+                                           data-item-id="<?= (int)$it->itm_id ?>"> <!-- NUEVO ATRIBUTO -->
                                             <span>Ver más</span>
                                             <i class="fas fa-arrow-right"></i>
                                         </a>
@@ -1131,7 +1158,7 @@ if (!function_exists('render_carousel')) {
 
 /**
  * ============================================================
- * CARDS
+ * CARDS - MODIFICADO PARA AÑADIR DATA-ITEM-ID
  * ============================================================
  */
 if (!function_exists('render_cards')) {
@@ -1184,7 +1211,8 @@ if (!function_exists('render_cards')) {
                             <a href="<?= e(safe_url($url)) ?>"
                                class="com-card-btn"
                                target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                               rel="noopener">
+                               rel="noopener"
+                               data-item-id="<?= (int)$it->itm_id ?>"> <!-- NUEVO ATRIBUTO -->
                                 <span>Conocer más</span>
                                 <i class="fas fa-arrow-right"></i>
                             </a>
@@ -1200,7 +1228,7 @@ if (!function_exists('render_cards')) {
 
 /**
  * ============================================================
- * LINKS
+ * LINKS - MODIFICADO PARA AÑADIR DATA-ITEM-ID
  * ============================================================
  */
 if (!function_exists('render_links')) {
@@ -1219,7 +1247,8 @@ if (!function_exists('render_links')) {
                 <a href="<?= e(safe_url($url)) ?>"
                    class="com-link-item"
                    target="<?= e(safe_target($it->itm_target ?? '_blank')) ?>"
-                   rel="noopener">
+                   rel="noopener"
+                   data-item-id="<?= (int)$it->itm_id ?>"> <!-- NUEVO ATRIBUTO -->
                     <div class="link-content">
                         <div class="link-title"><?= e($it->itm_titulo ?? '') ?></div>
                         <?php if (!empty($it->itm_descripcion)): ?>

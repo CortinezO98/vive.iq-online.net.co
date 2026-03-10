@@ -1,0 +1,64 @@
+<?php
+class ItemClickModel extends Model {
+    public $itm_id;
+    public $user_id;
+    public $click_ip;
+    public $click_user_agent;
+    public $click_referer;
+    public $click_session_id;
+
+    public function registrarClick() {
+        $sql = "INSERT INTO com_item_click (itm_id, user_id, click_ip, click_user_agent, click_referer, click_session_id, click_fecha) 
+                VALUES (:itm_id, :user_id, :click_ip, :click_user_agent, :click_referer, :click_session_id, NOW())";
+        
+        $params = [
+            'itm_id' => $this->itm_id,
+            'user_id' => $this->user_id,
+            'click_ip' => $this->click_ip,
+            'click_user_agent' => $this->click_user_agent,
+            'click_referer' => $this->click_referer,
+            'click_session_id' => $this->click_session_id
+        ];
+
+        try {
+            return parent::query($sql, $params) ? true : false;
+        } catch (Exception $e) {
+            error_log("Error al registrar click: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function obtenerReporte($fecha_inicio = null, $fecha_fin = null) {
+        $sql = "SELECT 
+                    c.`click_id`, c.`click_fecha`, c.`click_ip`, c.`click_user_agent`, c.`click_referer`,
+                    i.`itm_id`, i.`itm_titulo`, i.`itm_url`,
+                    s.`sec_id`, s.`sec_titulo` as seccion_titulo,
+                    p.`pag_id`, p.`pag_titulo` as pagina_titulo,
+                    u.`usu_id`, u.`usu_nombres_apellidos` as usuario_nombre
+                FROM `com_item_click` c
+                INNER JOIN `com_item` i ON c.`itm_id` = i.`itm_id`
+                LEFT JOIN `com_seccion` s ON i.`sec_id` = s.`sec_id`
+                LEFT JOIN `com_pagina` p ON s.`pag_id` = p.`pag_id`
+                LEFT JOIN `app_usuario` u ON c.`user_id` = u.`usu_id`
+                WHERE 1=1 ";
+
+        $params = [];
+        if ($fecha_inicio) {
+            $sql .= " AND DATE(c.`click_fecha`) >= :fecha_inicio";
+            $params['fecha_inicio'] = $fecha_inicio;
+        }
+        if ($fecha_fin) {
+            $sql .= " AND DATE(c.`click_fecha`) <= :fecha_fin";
+            $params['fecha_fin'] = $fecha_fin;
+        }
+
+        $sql .= " ORDER BY c.`click_fecha` DESC";
+
+        try {
+            return parent::query($sql, $params);
+        } catch (Exception $e) {
+            error_log("Error al obtener reporte de clics: " . $e->getMessage());
+            return [];
+        }
+    }
+}

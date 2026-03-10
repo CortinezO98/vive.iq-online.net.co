@@ -683,3 +683,10 @@ render_com_styles_once();
 </div>
 
 <?php require_once INCLUDES.'inc_footer.php'; ?>
+
+<?php
+
+if (function_exists('render_event_modals')) {
+    render_event_modals();
+}
+?>

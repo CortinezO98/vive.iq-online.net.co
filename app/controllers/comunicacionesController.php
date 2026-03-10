@@ -1004,4 +1004,46 @@ class comunicacionesController extends Controller {
         Redirect::to('?uri=comunicaciones/admin_items/' . $secId);
         exit;
     }
+
+    /**
+     * Registra un clic en un item (llamada AJAX)
+     */
+    public function registrar_click_item() {
+        // Respuesta por defecto
+        $response = ['success' => false, 'message' => 'Error al procesar la solicitud'];
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['itm_id'])) {
+            $itm_id = (int)$_POST['itm_id'];
+            $user_id = isset($_SESSION[APP_SESSION . 'usu_id']) ? (int)$_SESSION[APP_SESSION . 'usu_id'] : null;
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+            $referer = $_SERVER['HTTP_REFERER'] ?? '';
+            $session_id = session_id() ?: '';
+
+            if ($itm_id > 0) {
+                require_once MODELS . 'ItemClickModel.php';
+                $clickModel = new ItemClickModel();
+                $clickModel->itm_id = $itm_id;
+                $clickModel->user_id = $user_id;
+                $clickModel->click_ip = $ip;
+                $clickModel->click_user_agent = $user_agent;
+                $clickModel->click_referer = $referer;
+                $clickModel->click_session_id = $session_id;
+
+                if ($clickModel->registrarClick()) {
+                    $response = ['success' => true, 'message' => 'Click registrado'];
+                } else {
+                    $response = ['success' => false, 'message' => 'Error al guardar en BD'];
+                }
+            } else {
+                $response = ['success' => false, 'message' => 'ID de item inválido'];
+            }
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit;
+    }
+
+
 }

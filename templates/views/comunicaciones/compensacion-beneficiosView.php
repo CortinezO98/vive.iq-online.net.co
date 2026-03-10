@@ -35,3 +35,9 @@ $GLOBALS['anio_agenda'] = $d->anio_agenda ?? (int)($_GET['y'] ?? date('Y'));
 </main>
 
 <?php require_once INCLUDES.'inc_footer.php'; ?>
+<?php
+// Renderizar modales para eventos del calendario
+if (function_exists('render_event_modals')) {
+    render_event_modals();
+}
+?>

@@ -172,6 +172,11 @@
                         <i class="fa-solid fa-gear nav-icon me-2 icon-xxs"></i> Administrar páginas
                         </a>
                     </li>
+                    <li class="nav-item"> 
+                        <a class="nav-link" href="<?php echo URL; ?>?uri=reporte_clics">
+                            <i class="fa-solid fa-chart-line nav-icon me-2 icon-xxs"></i> Reporte de clics
+                        </a>
+                    </li>
                     <?php endif; ?>
 
                 </ul>
