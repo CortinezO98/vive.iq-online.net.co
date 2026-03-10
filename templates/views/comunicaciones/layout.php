@@ -411,14 +411,6 @@ if (!function_exists('render_com_styles_once')) {
                 height: 100%;
                 min-height: 380px;
                 max-height: 420px;
-                background: linear-gradient(135deg, var(--iq-primary), var(--iq-secondary));
-                overflow: hidden;
-            }
-
-            .com-carousel-media {
-                height: 100%;
-                min-height: 380px;
-                max-height: 420px;
                 background: #fff;
                 overflow: hidden;
                 display: flex;
@@ -592,6 +584,7 @@ if (!function_exists('render_com_styles_once')) {
                 display: flex;
                 gap: 0.5rem;
                 flex-wrap: wrap;
+                align-items: center;
             }
 
             .com-schedule-nav .btn,
@@ -711,7 +704,7 @@ if (!function_exists('render_com_styles_once')) {
 
             .com-calendar-grid {
                 display: grid;
-                grid-template-columns: repeat(7, 1fr);
+                grid-template-columns: repeat(7, minmax(0, 1fr));
                 gap: 0.5rem;
                 margin-top: 1rem;
             }
@@ -731,9 +724,11 @@ if (!function_exists('render_com_styles_once')) {
                 background: var(--iq-light);
                 border-radius: var(--iq-border-radius-sm);
                 padding: 0.75rem;
-                min-height: 120px;
+                min-height: 145px;
                 border: 2px solid transparent;
                 transition: var(--iq-transition);
+                position: relative;
+                overflow: hidden;
             }
 
             .com-calendar-day:hover {
@@ -759,6 +754,7 @@ if (!function_exists('render_com_styles_once')) {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                gap: 0.4rem;
             }
 
             .com-calendar-events {
@@ -775,6 +771,7 @@ if (!function_exists('render_com_styles_once')) {
                 font-size: 0.78rem;
                 transition: var(--iq-transition);
                 box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                overflow: hidden;
             }
 
             .com-calendar-event.all-day {
@@ -791,6 +788,27 @@ if (!function_exists('render_com_styles_once')) {
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+            }
+
+            .add-event-btn {
+                width: 26px;
+                height: 26px;
+                border: none;
+                border-radius: 50%;
+                background: var(--iq-primary);
+                color: #fff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: var(--iq-transition);
+                padding: 0;
+                flex: 0 0 auto;
+            }
+
+            .add-event-btn:hover {
+                background: var(--iq-secondary);
+                transform: scale(1.08);
             }
 
             .com-video-wrapper {
@@ -868,32 +886,34 @@ if (!function_exists('render_com_styles_once')) {
                 .com-carousel-content h3 {
                     font-size: 1.5rem;
                 }
+                .com-calendar-day {
+                    min-height: 120px;
+                }
             }
 
             @media (max-width: 768px) {
                 .com-header-content h1 { font-size: 2.2rem; }
                 .com-header-content .lead { font-size: 1rem; }
                 .com-section { padding: 2.4rem 0; }
-                .com-schedule-table thead { display: none; }
-
-                .com-schedule-table tbody td {
-                    display: block;
-                    width: 100%;
-                    text-align: left;
-                    padding: 0.8rem;
-                }
-
-                .com-schedule-table tbody td:before {
-                    content: attr(data-label);
-                    font-weight: 600;
-                    color: var(--iq-primary);
-                    display: block;
-                    margin-bottom: 0.3rem;
-                }
 
                 .com-calendar-day {
                     min-height: 95px;
                     padding: 0.5rem;
+                }
+
+                .com-calendar-weekday {
+                    font-size: 0.74rem;
+                    padding: 0.55rem;
+                }
+
+                .com-calendar-event {
+                    padding: 0.25rem 0.35rem;
+                    font-size: 0.7rem;
+                }
+
+                .com-schedule-nav,
+                .com-calendar-nav {
+                    width: 100%;
                 }
             }
 
@@ -904,8 +924,17 @@ if (!function_exists('render_com_styles_once')) {
                     min-height: 160px;
                     max-height: 180px;
                 }
-                .com-calendar-weekday { display: none; }
-                .com-calendar-event { display: none; }
+                .com-calendar-weekday {
+                    display: block;
+                    font-size: 0.68rem;
+                    padding: 0.45rem 0.2rem;
+                }
+                .com-calendar-day {
+                    min-height: 88px;
+                }
+                .com-calendar-event {
+                    font-size: 0.66rem;
+                }
                 .com-cta-section { padding: 2rem 1.2rem; }
             }
         </style>
@@ -1254,7 +1283,7 @@ if (!function_exists('render_calendar')) {
 
 /**
  * ============================================================
- * SCHEDULE
+ * SCHEDULE (PARRILLA MENSUAL)
  * ============================================================
  */
 if (!function_exists('render_schedule')) {
@@ -1265,6 +1294,15 @@ if (!function_exists('render_schedule')) {
         $anio = (int)($GLOBALS['anio_agenda'] ?? date('Y'));
         $eventosPorDia = normalize_eventos_por_dia($GLOBALS['eventosPorDia'] ?? []);
         $slug = $GLOBALS['slug'] ?? 'inicio';
+        $puedeEditar = is_admin_comunicaciones();
+
+        $mesesNombre = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+        ];
+
+        $diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
         $mesAnterior = $mes - 1;
         $anioAnterior = $anio;
@@ -1279,10 +1317,17 @@ if (!function_exists('render_schedule')) {
             $mesSiguiente = 1;
             $anioSiguiente++;
         }
+
+        $primerDia = new DateTimeImmutable(sprintf('%04d-%02d-01', $anio, $mes));
+        $inicioSemana = (int)$primerDia->format('N');
+        $fechaInicioGrid = $primerDia->modify('-' . ($inicioSemana - 1) . ' days');
         ?>
         <div class="com-schedule-container">
             <div class="com-schedule-header">
-                <h3><?= !empty($sec->sec_titulo) ? e($sec->sec_titulo) : 'Agenda de eventos' ?></h3>
+                <div>
+                    <h3><?= !empty($sec->sec_titulo) ? e($sec->sec_titulo) : 'Agenda de eventos' ?></h3>
+                    <small class="text-muted d-block mt-1"><?= e($mesesNombre[$mes] ?? 'Mes') ?> <?= (int)$anio ?></small>
+                </div>
 
                 <div class="com-schedule-nav">
                     <a href="?uri=comunicaciones/ver/<?= e($slug) ?>&m=<?= $mesAnterior ?>&y=<?= $anioAnterior ?>"
@@ -1299,6 +1344,14 @@ if (!function_exists('render_schedule')) {
                        class="btn btn-outline-primary">
                         Siguiente<i class="fas fa-chevron-right ms-2"></i>
                     </a>
+
+                    <?php if ($puedeEditar): ?>
+                        <button type="button"
+                                class="btn btn-primary"
+                                onclick="abrirFormularioEvento('<?= e(date('Y-m-d')) ?>')">
+                            <i class="fas fa-plus me-2"></i>Agregar evento
+                        </button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -1306,74 +1359,67 @@ if (!function_exists('render_schedule')) {
                 <p class="text-muted mb-4"><?= nl2br(e($sec->sec_descripcion)) ?></p>
             <?php endif; ?>
 
-            <?php if (empty($eventosPorDia)): ?>
-                <div class="text-center py-5">
-                    <i class="fas fa-calendar-times fa-4x mb-3" style="color: var(--iq-gray);"></i>
-                    <h4 class="text-muted">No hay eventos programados para este mes</h4>
-                </div>
-            <?php else: ?>
-                <div class="table-responsive">
-                    <table class="com-schedule-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha y Hora</th>
-                                <th>Evento</th>
-                                <th>Enlace</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($eventosPorDia as $dia => $lista): ?>
-                                <?php foreach ($lista as $ev): ?>
+            <div class="com-calendar-grid">
+                <?php foreach ($diasSemana as $dia): ?>
+                    <div class="com-calendar-weekday"><?= e($dia) ?></div>
+                <?php endforeach; ?>
+
+                <?php
+                $fecha = $fechaInicioGrid;
+
+                for ($i = 0; $i < 42; $i++):
+                    $fechaKey = $fecha->format('Y-m-d');
+                    $esMesActual = ((int)$fecha->format('n') === $mes && (int)$fecha->format('Y') === $anio);
+                    $esHoy = ($fechaKey === date('Y-m-d'));
+                    $eventosDia = $eventosPorDia[$fechaKey] ?? [];
+
+                    $clase = 'com-calendar-day';
+                    if (!$esMesActual) $clase .= ' other-month';
+                    if ($esHoy) $clase .= ' today';
+                    ?>
+                    <div class="<?= e($clase) ?>">
+                        <div class="com-calendar-day-number">
+                            <span><?= (int)$fecha->format('d') ?></span>
+
+                            <?php if ($puedeEditar && $esMesActual): ?>
+                                <button type="button"
+                                        class="add-event-btn"
+                                        onclick="abrirFormularioEvento('<?= e($fechaKey) ?>')"
+                                        title="Agregar evento">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="com-calendar-events">
+                            <?php if (!empty($eventosDia)): ?>
+                                <?php foreach (array_slice($eventosDia, 0, 3) as $ev): ?>
                                     <?php
-                                    $fecha = $ev['event_date'] ?? '';
-                                    $title = $ev['title'] ?? 'Sin título';
+                                    $titulo = $ev['title'] ?? 'Evento';
                                     $desc = $ev['description'] ?? '';
-                                    $loc = $ev['location'] ?? '';
-                                    $url = $ev['meet_url'] ?? '';
                                     $allDay = (int)($ev['is_all_day'] ?? 0) === 1;
-
-                                    $start = isset($ev['start_time']) ? substr((string)$ev['start_time'], 0, 5) : '';
-                                    $end = isset($ev['end_time']) ? substr((string)$ev['end_time'], 0, 5) : '';
-
-                                    $horaTxt = $allDay ? 'Todo el día' : trim($start . ($end ? ' - ' . $end : ''));
-                                    $fechaFormateada = $fecha ? date('d/m/Y', strtotime($fecha)) : '';
+                                    $color = $ev['color'] ?? '#1C2262';
+                                    $hora = $allDay ? 'Todo el día' : (!empty($ev['start_time']) ? substr((string)$ev['start_time'], 0, 5) : 'Sin hora');
                                     ?>
-                                    <tr>
-                                        <td data-label="Fecha y Hora">
-                                            <span class="event-time"><?= e($fechaFormateada) ?></span>
-                                            <small class="d-block text-muted"><?= e($horaTxt ?: 'Sin hora') ?></small>
-                                        </td>
-                                        <td data-label="Evento">
-                                            <div class="event-title"><?= e($title) ?></div>
-
-                                            <?php if ($loc): ?>
-                                                <div class="event-location">
-                                                    <i class="fas fa-map-marker-alt"></i>
-                                                    <span><?= e($loc) ?></span>
-                                                </div>
-                                            <?php endif; ?>
-
-                                            <?php if ($desc): ?>
-                                                <div class="event-desc"><?= nl2br(e(mb_strimwidth((string)$desc, 0, 180, '...'))) ?></div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td data-label="Enlace">
-                                            <?php if ($url && $url !== '#!' && $url !== '#'): ?>
-                                                <a href="<?= e(safe_url($url)) ?>" target="_blank" rel="noopener" class="btn-event">
-                                                    <i class="fas fa-video"></i>
-                                                    <span>Unirse</span>
-                                                </a>
-                                            <?php else: ?>
-                                                <span class="text-muted">Sin enlace</span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
+                                    <div class="com-calendar-event <?= $allDay ? 'all-day' : '' ?>"
+                                         style="border-left-color: <?= e($color) ?>;"
+                                         title="<?= e($titulo . ($desc ? ' - ' . $desc : '')) ?>">
+                                        <div class="event-time"><?= e($hora) ?></div>
+                                        <div class="event-title"><?= e($titulo) ?></div>
+                                    </div>
                                 <?php endforeach; ?>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+
+                                <?php if (count($eventosDia) > 3): ?>
+                                    <small class="text-muted">+<?= count($eventosDia) - 3 ?> más</small>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php
+                    $fecha = $fecha->modify('+1 day');
+                endfor;
+                ?>
+            </div>
         </div>
         <?php
     }
