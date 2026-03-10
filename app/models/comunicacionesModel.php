@@ -393,15 +393,34 @@ class comunicacionesModel extends Model {
         return $newId > 0 ? $newId : (int)($this->queryOneObj("SELECT MAX(itm_id) AS id FROM com_item")?->id ?? 0);
     }
 
-
     /**
- * Actualizar solo la imagen de fondo del hero
- */
+     * Actualizar solo la imagen de fondo del hero
+     */
     public function actualizarHeroBg($pagId, $heroBg) {
         $sql = "UPDATE com_pagina SET pag_hero_bg = :hero_bg WHERE pag_id = :pag_id";
         return $this->exec($sql, [
             'pag_id' => $pagId,
             'hero_bg' => $heroBg
         ]);
+    }
+
+    /* ======================================================
+     * ELIMINAR SECCIÓN
+     * ====================================================== */
+    
+    /**
+     * Eliminar una sección y todos sus items asociados
+     * 
+     * @param int $id ID de la sección a eliminar
+     * @return bool True si se eliminó correctamente
+     */
+    public function eliminarSeccion(int $id): bool {
+        // Primero eliminar todos los items de la sección
+        $sqlItems = "DELETE FROM com_item WHERE sec_id = :sec_id";
+        $this->exec($sqlItems, ['sec_id' => $id]);
+        
+        // Luego eliminar la sección
+        $sqlSeccion = "DELETE FROM com_seccion WHERE sec_id = :sec_id";
+        return $this->exec($sqlSeccion, ['sec_id' => $id]);
     }
 }

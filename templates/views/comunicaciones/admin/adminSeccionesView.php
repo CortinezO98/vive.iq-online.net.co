@@ -189,6 +189,20 @@ function getTipoDescripcion($tipo) {
   transform: translateY(-2px);
 }
 
+.btn-action.danger {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.btn-action.danger:hover {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+}
+
 /* Tarjeta de información de la página */
 .page-info-card {
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
@@ -489,7 +503,7 @@ function getTipoDescripcion($tipo) {
                       <th style="width: 100px;">Layout</th>
                       <th style="width: 100px;">Estado</th>
                       <th style="width: 80px;">Orden</th>
-                      <th style="width: 200px;">Acciones</th>
+                      <th style="width: 280px;">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -559,6 +573,13 @@ function getTipoDescripcion($tipo) {
                               <i class="fas fa-pen"></i>
                               Editar
                             </a>
+                            <a href="javascript:void(0);" 
+                               class="btn-action danger"
+                               onclick="confirmarEliminar(<?= (int)$s->sec_id ?>, '<?= h(addslashes($s->sec_titulo ?: 'Sin título')) ?>')"
+                               data-tooltip="Eliminar sección">
+                              <i class="fas fa-trash"></i>
+                              Eliminar
+                            </a>
                           </div>
                         </td>
                       </tr>
@@ -610,6 +631,26 @@ function getTipoDescripcion($tipo) {
     </div>
   </div>
 </main>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de eliminar la sección <strong id="deleteItemTitle"></strong>?</p>
+        <p class="text-danger small">Esta acción no se puede deshacer. Se eliminarán también todos los items asociados a esta sección.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <a href="#" id="deleteConfirmBtn" class="btn btn-danger">Eliminar</a>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 // Función para filtrar secciones por estado
@@ -668,6 +709,13 @@ document.getElementById('searchInput')?.addEventListener('keyup', function() {
   const mostrandoElem = document.getElementById('mostrandoCount');
   if (mostrandoElem) mostrandoElem.textContent = contador;
 });
+
+// Función para confirmar eliminación
+function confirmarEliminar(id, titulo) {
+  document.getElementById('deleteItemTitle').textContent = titulo;
+  document.getElementById('deleteConfirmBtn').href = '<?= URL ?>?uri=comunicaciones/admin_seccion_eliminar/' + id;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
 
 // Ordenar por orden (funcionalidad extra)
 let ordenAscendente = true;

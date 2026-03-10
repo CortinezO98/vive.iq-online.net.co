@@ -812,6 +812,9 @@ class comunicacionesController extends Controller {
         ]);
     }
 
+
+
+
     public function admin_seccion_guardar() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
@@ -850,6 +853,38 @@ class comunicacionesController extends Controller {
         $this->model->guardarSeccion($d);
 
         Redirect::to('?uri=comunicaciones/admin_secciones/' . $d['pag_id']);
+        exit;
+    }
+
+    public function admin_seccion_eliminar($id) {
+        $this->requireLogin();
+        $this->requireAdminComunicaciones();
+        
+        $id = (int)$id;
+        if ($id <= 0) {
+            Flasher::new('ID de sección inválido', 'danger');
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
+        }
+        
+        // Obtener la sección para conocer el ID de la página
+        $seccion = $this->model->getSeccion($id);
+        if (!$seccion) {
+            Flasher::new('La sección no existe', 'danger');
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
+        }
+        
+        $pagId = (int)$seccion->pag_id;
+        
+        // Ejecutar la eliminación
+        if ($this->model->eliminarSeccion($id)) {
+            Flasher::new('Sección eliminada exitosamente', 'success');
+        } else {
+            Flasher::new('Error al eliminar la sección', 'danger');
+        }
+        
+        Redirect::to('?uri=comunicaciones/admin_secciones/' . $pagId);
         exit;
     }
 

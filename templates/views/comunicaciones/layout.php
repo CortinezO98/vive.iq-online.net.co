@@ -729,6 +729,7 @@ if (!function_exists('render_com_styles_once')) {
                 transition: var(--iq-transition);
                 position: relative;
                 overflow: hidden;
+                cursor: pointer;
             }
 
             .com-calendar-day:hover {
@@ -761,6 +762,7 @@ if (!function_exists('render_com_styles_once')) {
                 display: flex;
                 flex-direction: column;
                 gap: 0.3rem;
+                pointer-events: none;
             }
 
             .com-calendar-event {
@@ -772,6 +774,13 @@ if (!function_exists('render_com_styles_once')) {
                 transition: var(--iq-transition);
                 box-shadow: 0 2px 5px rgba(0,0,0,0.05);
                 overflow: hidden;
+                cursor: pointer;
+                pointer-events: auto;
+            }
+
+            .com-calendar-event:hover {
+                transform: translateX(3px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             }
 
             .com-calendar-event.all-day {
@@ -804,6 +813,7 @@ if (!function_exists('render_com_styles_once')) {
                 transition: var(--iq-transition);
                 padding: 0;
                 flex: 0 0 auto;
+                pointer-events: auto;
             }
 
             .add-event-btn:hover {
@@ -1377,21 +1387,23 @@ if (!function_exists('render_schedule')) {
                     if (!$esMesActual) $clase .= ' other-month';
                     if ($esHoy) $clase .= ' today';
                     ?>
-                    <div class="<?= e($clase) ?>">
+                    <div class="<?= e($clase) ?>" 
+                         data-fecha="<?= e($fechaKey) ?>"
+                         onclick="verEventosDelDia('<?= e($fechaKey) ?>')">
                         <div class="com-calendar-day-number">
                             <span><?= (int)$fecha->format('d') ?></span>
 
                             <?php if ($puedeEditar && $esMesActual): ?>
                                 <button type="button"
                                         class="add-event-btn"
-                                        onclick="abrirFormularioEvento('<?= e($fechaKey) ?>')"
+                                        onclick="event.stopPropagation(); abrirFormularioEvento('<?= e($fechaKey) ?>')"
                                         title="Agregar evento">
                                     <i class="fas fa-plus"></i>
                                 </button>
                             <?php endif; ?>
                         </div>
 
-                        <div class="com-calendar-events">
+                        <div class="com-calendar-events" onclick="event.stopPropagation();">
                             <?php if (!empty($eventosDia)): ?>
                                 <?php foreach (array_slice($eventosDia, 0, 3) as $ev): ?>
                                     <?php
@@ -1403,6 +1415,8 @@ if (!function_exists('render_schedule')) {
                                     ?>
                                     <div class="com-calendar-event <?= $allDay ? 'all-day' : '' ?>"
                                          style="border-left-color: <?= e($color) ?>;"
+                                         data-evento='<?= htmlspecialchars(json_encode($ev, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>'
+                                         onclick='event.stopPropagation(); verEvento(<?= htmlspecialchars(json_encode($ev, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>)'
                                          title="<?= e($titulo . ($desc ? ' - ' . $desc : '')) ?>">
                                         <div class="event-time"><?= e($hora) ?></div>
                                         <div class="event-title"><?= e($titulo) ?></div>
@@ -1412,6 +1426,8 @@ if (!function_exists('render_schedule')) {
                                 <?php if (count($eventosDia) > 3): ?>
                                     <small class="text-muted">+<?= count($eventosDia) - 3 ?> más</small>
                                 <?php endif; ?>
+                            <?php else: ?>
+                                <div class="no-events" style="height: 20px;"></div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -1532,6 +1548,595 @@ if (!function_exists('render_section')) {
 
         echo render_section_inner_close($layout);
         echo render_container_close();
+    }
+}
+
+/**
+ * ============================================================
+ * MODALES PARA EVENTOS DEL CALENDARIO
+ * ============================================================
+ */
+if (!function_exists('render_event_modals')) {
+    function render_event_modals() {
+        static $modalsRendered = false;
+        if ($modalsRendered) return;
+        $modalsRendered = true;
+        
+        $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION.'usu_perfil'] ?? '')));
+        $puedeEditar = in_array($perfil, ['ADMIN','ADMINISTRADOR','SUPERADMIN'], true);
+        
+        // Token CSRF
+        if (empty($_SESSION['iqvive_token'])) {
+            $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
+        }
+        $csrfToken = (string)($_SESSION['iqvive_token'] ?? '');
+        ?>
+        
+        <!-- Modal de eventos del día -->
+        <div class="modal fade event-modal" id="eventosDiaModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-white"><i class="fas fa-calendar-day me-2"></i>Eventos del día <span id="fechaEventosDia"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="eventosDiaModalBody">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Cargando eventos...
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <?php if ($puedeEditar): ?>
+                            <button type="button" class="btn btn-primary" id="btnAgregarEventoDesdeDia">
+                                <i class="fas fa-plus me-2"></i>Agregar evento
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de detalle de evento -->
+        <div class="modal fade event-modal" id="eventoModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-white"><i class="fas fa-calendar-check me-2"></i>Detalle del evento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="eventoModalBody">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Cargando...
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <?php if ($puedeEditar): ?>
+                            <button type="button" class="btn btn-outline-danger" onclick="eliminarEvento()">
+                                <i class="fas fa-trash me-1"></i>Eliminar
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="editarEvento()">
+                                <i class="fas fa-pen me-1"></i>Editar
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de formulario de evento -->
+        <div class="modal fade event-modal" id="eventoFormModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-white" id="eventoFormTitle">
+                            <i class="fas fa-plus-circle me-2"></i>Nuevo evento
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <form id="eventoForm">
+                        <div class="modal-body">
+                            <input type="hidden" name="id" id="eventoId" value="0">
+                            <input type="hidden" name="token" value="<?= htmlspecialchars($csrfToken) ?>">
+
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label fw-semibold">Título <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="title" id="eventoTitulo" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Color</label>
+                                    <select class="form-select" name="color" id="eventoColor">
+                                        <option value="#1C2262">Azul</option>
+                                        <option value="#09A28E">Verde</option>
+                                        <option value="#dc3545">Rojo</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="event_date" id="eventoFecha" required>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Hora inicio</label>
+                                    <input type="time" class="form-control" name="start_time" id="eventoHoraInicio">
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Hora fin</label>
+                                    <input type="time" class="form-control" name="end_time" id="eventoHoraFin">
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="is_all_day" id="eventoAllDay" value="1">
+                                        <label class="form-check-label" for="eventoAllDay">Todo el día</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Ubicación</label>
+                                    <input type="text" class="form-control" name="location" id="eventoLocation">
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Enlace (Meet/Teams/Zoom)</label>
+                                    <input type="url" class="form-control" name="meet_url" id="eventoMeetUrl" placeholder="https://...">
+                                </div>
+                                
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Descripción</label>
+                                    <textarea class="form-control" name="description" id="eventoDescripcion" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar evento</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <style>
+        /* Estilos para los modales de eventos */
+        .event-modal .modal-content {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .event-modal .modal-header {
+            background: #1C2262;
+            color: white;
+            border-radius: 20px 20px 0 0;
+            padding: 1.5rem;
+        }
+
+        .event-modal .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .event-detail-label {
+            font-weight: 600;
+            color: #1C2262;
+            margin-bottom: 0.25rem;
+        }
+
+        .event-detail-value {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .loading-spinner .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: #1C2262;
+        }
+        
+        /* Estilos para la lista de eventos en el modal del día */
+        .evento-dia-item {
+            background: #f8f9fa;
+            border-left: 4px solid #1C2262;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .evento-dia-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #ffffff;
+        }
+        
+        .evento-dia-item.all-day {
+            border-left-color: #09A28E;
+        }
+        
+        .evento-dia-titulo {
+            font-weight: 700;
+            color: #1C2262;
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .evento-dia-hora {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 0.5rem;
+        }
+        
+        .evento-dia-descripcion {
+            color: #495057;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        
+        .evento-dia-enlace {
+            margin-top: 0.5rem;
+        }
+        
+        .evento-dia-enlace a {
+            color: #1C2262;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .evento-dia-enlace a:hover {
+            text-decoration: underline;
+        }
+        
+        .sin-eventos-dia {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        
+        .sin-eventos-dia i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        </style>
+
+        <script>
+        // Variables globales
+        let eventoActual = null;
+        let fechaSeleccionada = null;
+
+        // Función para ver eventos del día
+        function verEventosDelDia(fecha) {
+            fechaSeleccionada = fecha;
+            
+            // Formatear fecha para mostrar
+            const fechaObj = new Date(fecha + 'T12:00:00');
+            const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
+            const fechaFormateada = fechaObj.toLocaleDateString('es-ES', opciones);
+            document.getElementById('fechaEventosDia').textContent = fechaFormateada;
+            
+            // Obtener eventos del día desde el DOM o desde el servidor
+            const eventos = window.eventosPorDiaGlobal ? (window.eventosPorDiaGlobal[fecha] || []) : [];
+            
+            renderEventosDia(eventos);
+            
+            // Configurar botón de agregar evento
+            const btnAgregar = document.getElementById('btnAgregarEventoDesdeDia');
+            if (btnAgregar) {
+                btnAgregar.onclick = function() {
+                    bootstrap.Modal.getInstance(document.getElementById('eventosDiaModal')).hide();
+                    setTimeout(() => {
+                        abrirFormularioEvento(fecha);
+                    }, 300);
+                };
+            }
+            
+            // Abrir modal
+            try {
+                const modal = new bootstrap.Modal(document.getElementById('eventosDiaModal'));
+                modal.show();
+            } catch (e) {
+                console.error('Error al abrir modal:', e);
+            }
+        }
+        
+        // Función para renderizar eventos del día
+        function renderEventosDia(eventos) {
+            const container = document.getElementById('eventosDiaModalBody');
+            
+            if (!eventos || eventos.length === 0) {
+                container.innerHTML = `
+                    <div class="sin-eventos-dia">
+                        <i class="fas fa-calendar-times"></i>
+                        <h5>No hay eventos para este día</h5>
+                        <p class="text-muted">Haz clic en "Agregar evento" para crear uno nuevo.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="eventos-lista">';
+            
+            eventos.forEach(ev => {
+                const allDay = ev.is_all_day == 1;
+                const hora = allDay ? 'Todo el día' : (ev.start_time ? ev.start_time.substring(0,5) + (ev.end_time ? ' - ' + ev.end_time.substring(0,5) : '') : 'Sin hora');
+                const descripcion = ev.description ? ev.description.substring(0, 150) + (ev.description.length > 150 ? '...' : '') : '';
+                
+                html += `
+                    <div class="evento-dia-item ${allDay ? 'all-day' : ''}" 
+                         onclick="verEventoDesdeLista(${JSON.stringify(ev).replace(/"/g, '&quot;')})"
+                         style="border-left-color: ${ev.color || '#1C2262'};">
+                        <div class="evento-dia-titulo">${ev.title || 'Evento sin título'}</div>
+                        <div class="evento-dia-hora"><i class="far fa-clock me-1"></i> ${hora}</div>
+                        ${descripcion ? `<div class="evento-dia-descripcion">${descripcion}</div>` : ''}
+                        ${ev.location ? `<div class="evento-dia-descripcion"><i class="fas fa-map-marker-alt me-1"></i> ${ev.location}</div>` : ''}
+                        ${ev.meet_url ? `
+                            <div class="evento-dia-enlace">
+                                <a href="${ev.meet_url}" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                                    <i class="fas fa-video me-1"></i> Abrir reunión
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // Función para ver evento desde la lista
+        function verEventoDesdeLista(evento) {
+            bootstrap.Modal.getInstance(document.getElementById('eventosDiaModal')).hide();
+            setTimeout(() => {
+                verEvento(evento);
+            }, 300);
+        }
+
+        // Función para abrir formulario de evento (nuevo o editar)
+        function abrirFormularioEvento(fecha, evento = null) {
+            console.log('Abriendo formulario para fecha:', fecha);
+
+            if (evento) {
+                // Modo edición
+                document.getElementById('eventoFormTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Editar evento';
+                document.getElementById('eventoId').value = evento.id || 0;
+                document.getElementById('eventoTitulo').value = evento.title || '';
+                document.getElementById('eventoFecha').value = evento.event_date || fecha;
+                document.getElementById('eventoHoraInicio').value = evento.start_time || '';
+                document.getElementById('eventoHoraFin').value = evento.end_time || '';
+                document.getElementById('eventoAllDay').checked = (evento.is_all_day == 1);
+                document.getElementById('eventoLocation').value = evento.location || '';
+                document.getElementById('eventoMeetUrl').value = evento.meet_url || '';
+                document.getElementById('eventoDescripcion').value = evento.description || '';
+                document.getElementById('eventoColor').value = evento.color || '#1C2262';
+            } else {
+                // Modo nuevo
+                document.getElementById('eventoFormTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuevo evento';
+                document.getElementById('eventoId').value = '0';
+                document.getElementById('eventoTitulo').value = '';
+                document.getElementById('eventoFecha').value = fecha;
+                document.getElementById('eventoHoraInicio').value = '';
+                document.getElementById('eventoHoraFin').value = '';
+                document.getElementById('eventoAllDay').checked = false;
+                document.getElementById('eventoLocation').value = '';
+                document.getElementById('eventoMeetUrl').value = '';
+                document.getElementById('eventoDescripcion').value = '';
+                document.getElementById('eventoColor').value = '#1C2262';
+            }
+
+            // Habilitar/deshabilitar campos de hora según allDay
+            const allDay = document.getElementById('eventoAllDay').checked;
+            document.getElementById('eventoHoraInicio').disabled = allDay;
+            document.getElementById('eventoHoraFin').disabled = allDay;
+
+            // Abrir modal
+            try {
+                const modal = new bootstrap.Modal(document.getElementById('eventoFormModal'));
+                modal.show();
+            } catch (e) {
+                console.error('Error al abrir modal:', e);
+                alert('Error al abrir el formulario. Verifica que Bootstrap esté cargado.');
+            }
+        }
+
+        // Función para ver detalle de evento
+        function verEvento(evento) {
+            if (!evento) return;
+
+            eventoActual = evento;
+            console.log('Viendo evento:', evento);
+
+            // Construir HTML del detalle
+            let html = '<div class="event-detail">' +
+                       '<div class="event-detail-label">Título</div>' +
+                       '<div class="event-detail-value">' + (evento.title || '') + '</div>' +
+                       '</div>';
+
+            if (evento.description) {
+                html += '<div class="event-detail">' +
+                        '<div class="event-detail-label">Descripción</div>' +
+                        '<div class="event-detail-value">' + (evento.description.replace(/\n/g,'<br>') || '') + '</div>' +
+                        '</div>';
+            }
+
+            html += '<div class="event-detail">' +
+                    '<div class="event-detail-label">Fecha</div>' +
+                    '<div class="event-detail-value">' + (evento.event_date || '') + '</div>' +
+                    '</div>';
+
+            if (evento.start_time) {
+                html += '<div class="event-detail">' +
+                        '<div class="event-detail-label">Hora</div>' +
+                        '<div class="event-detail-value">' + (evento.start_time || '') + 
+                        (evento.end_time ? ' - ' + evento.end_time : '') + '</div>' +
+                        '</div>';
+            }
+
+            if (evento.location) {
+                html += '<div class="event-detail">' +
+                        '<div class="event-detail-label">Ubicación</div>' +
+                        '<div class="event-detail-value">' + evento.location + '</div>' +
+                        '</div>';
+            }
+
+            if (evento.meet_url) {
+                html += '<div class="event-detail">' +
+                        '<div class="event-detail-label">Enlace</div>' +
+                        '<div class="event-detail-value">' +
+                        '<a href="' + evento.meet_url + '" target="_blank" rel="noopener">' + 
+                        evento.meet_url + '</a>' +
+                        '</div></div>';
+            }
+
+            document.getElementById('eventoModalBody').innerHTML = html;
+
+            try {
+                const modal = new bootstrap.Modal(document.getElementById('eventoModal'));
+                modal.show();
+            } catch (e) {
+                console.error('Error al abrir modal:', e);
+            }
+        }
+
+        // Función para editar evento
+        function editarEvento() {
+            if (!eventoActual) return;
+
+            // Cerrar modal de detalle
+            try {
+                bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
+            } catch (e) {}
+
+            // Abrir formulario con datos del evento actual
+            setTimeout(() => {
+                abrirFormularioEvento(eventoActual.event_date, eventoActual);
+            }, 300);
+        }
+
+        // Función para eliminar evento
+        function eliminarEvento() {
+            if (!eventoActual) return;
+            if (!confirm('¿Estás seguro de eliminar este evento?')) return;
+
+            const params = new URLSearchParams();
+            params.append('id', eventoActual.id);
+            params.append('token', '<?= htmlspecialchars($csrfToken) ?>');
+
+            fetch('<?= URL ?>?uri=comunicaciones/evento_eliminar_ajax', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params.toString()
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Cerrar modal
+                    try {
+                        bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
+                    } catch (e) {}
+
+                    // Recargar página para mostrar cambios
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo eliminar'));
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error de conexión');
+            });
+        }
+
+        // Función para guardar evento
+        document.addEventListener('DOMContentLoaded', function() {
+            const eventoForm = document.getElementById('eventoForm');
+            if (eventoForm) {
+                eventoForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    // Mostrar indicador de carga
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+                    submitBtn.disabled = true;
+
+                    const formData = new FormData(this);
+
+                    fetch('<?= URL ?>?uri=comunicaciones/evento_guardar_ajax', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(async response => {
+                        const text = await response.text();
+                        console.log('Respuesta del servidor:', text);
+
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error('No es JSON válido:', text);
+                            throw new Error('El servidor no devolvió JSON válido');
+                        }
+                    })
+                    .then(data => {
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+
+                        if (data.success) {
+                            // Cerrar modal
+                            try {
+                                bootstrap.Modal.getInstance(document.getElementById('eventoFormModal')).hide();
+                            } catch (e) {}
+
+                            // Recargar página para mostrar cambios
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.message || 'No se pudo guardar'));
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error:', err);
+                        alert('Error al guardar: ' + err.message);
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    });
+                });
+            }
+
+            // Manejar checkbox "Todo el día"
+            const allDayCheckbox = document.getElementById('eventoAllDay');
+            if (allDayCheckbox) {
+                allDayCheckbox.addEventListener('change', function() {
+                    const hi = document.getElementById('eventoHoraInicio');
+                    const hf = document.getElementById('eventoHoraFin');
+
+                    if (hi && hf) {
+                        hi.disabled = this.checked;
+                        hf.disabled = this.checked;
+
+                        if (this.checked) {
+                            hi.value = '';
+                            hf.value = '';
+                        }
+                    }
+                });
+            }
+        });
+        </script>
+        <?php
     }
 }
 ?>
