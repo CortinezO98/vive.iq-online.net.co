@@ -177,6 +177,16 @@
                             <i class="fa-solid fa-chart-line nav-icon me-2 icon-xxs"></i> Reporte de clics
                         </a>
                     </li>
+                    <li class="nav-item"> 
+                        <a class="nav-link js-track-click" 
+                        href="<?php echo URL; ?>?uri=analytics/index"
+                        data-click-tipo="menu"
+                        data-click-clave="analytics_general"
+                        data-click-label="Analytics General"
+                        data-click-modulo="reportes">
+                            <i class="fa-solid fa-chart-pie nav-icon me-2 icon-xxs"></i> Analytics General
+                        </a>
+                    </li>
                     <?php endif; ?>
 
                 </ul>
@@ -187,4 +197,81 @@
         </ul>
     </div>
 </div>
+<!-- Script de tracking general de clics -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Función para registrar click
+    window.registrarClick = async function(element) {
+        const tipo = element.getAttribute('data-click-tipo') || 'elemento';
+        const clave = element.getAttribute('data-click-clave') || '';
+        const label = element.getAttribute('data-click-label') || element.textContent.trim() || 'sin_etiqueta';
+        const modulo = element.getAttribute('data-click-modulo') || '';
+        const destino = element.getAttribute('href') || element.getAttribute('data-url') || '';
+        const entidadId = element.getAttribute('data-entidad-id') || '';
+        const entidadTipo = element.getAttribute('data-entidad-tipo') || '';
+
+        // Validar datos mínimos
+        if (!clave) {
+            console.warn('Elemento sin data-click-clave, no se trackeará');
+            return true; // Permitir navegación
+        }
+
+        const payload = {
+            click_tipo: tipo,
+            click_clave: clave,
+            click_label: label.substring(0, 250), // Limitar longitud
+            click_modulo: modulo,
+            click_url_destino: destino,
+            entidad_id: entidadId,
+            entidad_tipo: entidadTipo
+        };
+
+        try {
+            const formData = new FormData();
+            Object.keys(payload).forEach(function(key) {
+                if (payload[key] !== null && payload[key] !== '') {
+                    formData.append(key, payload[key]);
+                }
+            });
+
+            // Enviar de forma asíncrona (no bloqueante)
+            await fetch('<?php echo URL; ?>?uri=analytics/registrar_click', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        } catch (error) {
+            console.error('Error enviando tracking:', error);
+        }
+
+        return true; // Continuar con la navegación
+    };
+
+    // Delegación de eventos para todos los elementos con clase 'js-track-click'
+    document.addEventListener('click', function(e) {
+        const element = e.target.closest('.js-track-click');
+        if (!element) return;
+
+        // Prevenir navegación temporalmente para asegurar el tracking
+        const href = element.getAttribute('href');
+        if (href && href !== '#') {
+            e.preventDefault();
+
+            // Registrar click y luego navegar
+            registrarClick(element).then(() => {
+                window.location.href = href;
+            }).catch(() => {
+                window.location.href = href; // Navegar incluso si hay error
+            });
+        } else {
+            // Si no es un link, solo registrar
+            registrarClick(element);
+        }
+    });
+});
+</script>
 <!-- ==============>>header section end here<<================ -->
