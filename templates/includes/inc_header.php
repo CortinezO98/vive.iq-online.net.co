@@ -20,10 +20,17 @@
                 </li>
 
                 <li class="dropdown stopevent ms-2">
-                    <a class="btn btn-ghost btn-icon rounded-circle" href="#!" role="button" id="dropdownNotification"
-                       data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-icon rounded-circle border-0 no-track"
+                        id="dropdownNotification"
+                        data-bs-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                    >
                         <span class="fas fa-bell"></span>
-                    </a>
+                    </button>
+
                     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" aria-labelledby="dropdownNotification">
                         <div>
                             <div class="border-bottom px-3 pt-2 pb-3 d-flex justify-content-between align-items-center">
@@ -34,19 +41,30 @@
                                 <ul class="list-group list-group-flush notification-list-scroll"></ul>
                             </div>
                             <div class="border-top px-3 py-2 text-center">
-                                <a href="#!" class="text-inherit">Ver todo</a>
+                                <a href="#!" class="text-inherit no-track">Ver todo</a>
                             </div>
                         </div>
                     </div>
                 </li>
 
                 <li class="dropdown ms-2">
-                    <a class="rounded-circle" href="#!" role="button" id="dropdownUser" data-bs-toggle="dropdown"
-                       aria-haspopup="true" aria-expanded="false">
+                    <button
+                        type="button"
+                        class="rounded-circle border-0 bg-transparent p-0 no-track"
+                        id="dropdownUser"
+                        data-bs-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                    >
                         <div class="avatar avatar-md avatar-indicators avatar-online">
-                            <img alt="avatar" src="<?php echo IMAGES; ?><?php echo ($_SESSION[APP_SESSION.'usu_avatar']!="") ? $_SESSION[APP_SESSION.'usu_avatar'] : ''; ?>" class="rounded-circle">
+                            <img
+                                alt="avatar"
+                                src="<?php echo IMAGES; ?><?php echo ($_SESSION[APP_SESSION.'usu_avatar'] != "") ? $_SESSION[APP_SESSION.'usu_avatar'] : ''; ?>"
+                                class="rounded-circle"
+                            >
                         </div>
-                    </a>
+                    </button>
+
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
                         <div class="px-4 pb-0 pt-2">
                             <div class="lh-1">
@@ -54,9 +72,9 @@
                             </div>
                             <div class="dropdown-divider mt-3 mb-2"></div>
                         </div>
-                        <ul class="list-unstyled">
+                        <ul class="list-unstyled mb-0">
                             <li>
-                                <a class="dropdown-item" href="<?php echo URL; ?>logout">
+                                <a class="dropdown-item no-track" href="<?php echo URL; ?>logout">
                                     <i class="me-2 icon-xxs dropdown-item-icon" data-feather="power"></i>Cerrar sesión
                                 </a>
                             </li>
@@ -92,7 +110,7 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link has-arrow" href="#!" data-bs-toggle="collapse" data-bs-target="#navDocsManual"
+                <a class="nav-link has-arrow no-track" href="#!" data-bs-toggle="collapse" data-bs-target="#navDocsManual"
                    aria-expanded="false" aria-controls="navDocsManual">
                     <i class="fas fa-book nav-icon me-2 icon-xxs"></i> Manual de Usuario
                 </a>
@@ -116,7 +134,7 @@
 
             <?php if ($puedeVerComunicaciones): ?>
             <li class="nav-item mt-2">
-                <a class="nav-link has-arrow" href="#!"
+                <a class="nav-link has-arrow no-track" href="#!"
                    data-bs-toggle="collapse" data-bs-target="#navComunicaciones"
                    aria-expanded="false" aria-controls="navComunicaciones">
                     <i class="fa-solid fa-bullhorn nav-icon me-2 icon-xxs"></i> Comunicaciones
@@ -192,6 +210,26 @@
     </div>
 </div>
 
+<style>
+#dropdownUser,
+#dropdownNotification {
+    cursor: pointer;
+    position: relative;
+    z-index: 1055;
+}
+
+#dropdownUser .avatar,
+#dropdownUser img,
+#dropdownNotification span {
+    pointer-events: none;
+}
+
+.dropdown-menu[aria-labelledby="dropdownUser"],
+.dropdown-menu[aria-labelledby="dropdownNotification"] {
+    z-index: 2000;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -252,9 +290,24 @@ document.addEventListener('DOMContentLoaded', function() {
     function detectarElementoTrackeable(target) {
         if (!target) return null;
 
-        return target.closest(
-            '.js-track-click, a[href], button, [role="button"], [data-url], [onclick]'
-        );
+        return target.closest('.js-track-click, a[href], button, [role="button"], [data-url], [onclick]');
+    }
+
+    function esElementoExcluido(element) {
+        if (!element) return true;
+
+        if (element.classList.contains('no-track')) return true;
+        if (element.closest('.no-track')) return true;
+
+        if (element.hasAttribute('data-bs-toggle')) return true;
+        if (element.closest('[data-bs-toggle]')) return true;
+
+        const href = (element.getAttribute('href') || '').trim().toLowerCase();
+
+        if (href === '#!' || href === '#') return true;
+        if (href.indexOf('logout') !== -1) return true;
+
+        return false;
     }
 
     function inferirTipo(element) {
@@ -317,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return limpiarTexto(contenedor.id).substring(0, 255);
         }
 
-        const clases = typeof contenedor.className === 'string' ? limpiarTexto(contenedor.className) : '';
+        const clases = typeof contenedor.className === 'string' ? limpiarTexto(contenor.className) : '';
         return clases.substring(0, 255);
     }
 
@@ -413,10 +466,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
+        if (href.toLowerCase().indexOf('logout') !== -1) {
+            return false;
+        }
+
+        if (element.hasAttribute('data-bs-toggle') || element.closest('[data-bs-toggle]')) {
+            return false;
+        }
+
         return true;
     }
 
     window.registrarClick = function(element, originalEvent = null) {
+        if (!element || esElementoExcluido(element)) {
+            return true;
+        }
+
         const tipo = element.getAttribute('data-click-tipo') || 'elemento';
         const clave = element.getAttribute('data-click-clave') || '';
         const label = element.getAttribute('data-click-label') || limpiarTexto(element.textContent) || 'sin_etiqueta';
@@ -450,7 +515,6 @@ document.addEventListener('DOMContentLoaded', function() {
             click_url_destino: destino,
             entidad_id: entidadId,
             entidad_tipo: entidadTipo,
-
             click_dom_path: construirDomPath(element).substring(0, 1000),
             click_texto_visible: limpiarTexto(element.innerText || element.textContent || '').substring(0, 500),
             click_x: clickX,
@@ -490,6 +554,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const element = detectarElementoTrackeable(e.target);
         if (!element) return;
 
+        if (esElementoExcluido(element)) {
+            return;
+        }
+
         autocompletarTracking(element);
 
         if (debeInterceptarNavegacion(element)) {
@@ -506,7 +574,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         window.registrarClick(element, e);
-    }, true);
+    }, false);
+
+    const dropdownUserBtn = document.getElementById('dropdownUser');
+    if (dropdownUserBtn) {
+        dropdownUserBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+
+            if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+                const instance = bootstrap.Dropdown.getOrCreateInstance(dropdownUserBtn);
+                instance.toggle();
+            }
+        });
+    }
+
+    const dropdownNotificationBtn = document.getElementById('dropdownNotification');
+    if (dropdownNotificationBtn) {
+        dropdownNotificationBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+
+            if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+                const instance = bootstrap.Dropdown.getOrCreateInstance(dropdownNotificationBtn);
+                instance.toggle();
+            }
+        });
+    }
 });
 </script>
 <!-- ==============>>header section end here<<================ -->
