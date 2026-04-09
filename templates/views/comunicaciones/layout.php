@@ -1471,7 +1471,7 @@ if (!function_exists('render_cards')) {
                         <h3 class="com-card-title"><?= e($it->itm_titulo ?? '') ?></h3>
 
                         <?php if (!empty($it->itm_descripcion)): ?>
-                            <p class="com-card-text"><?= nl2br(e(mb_strimwidth((string)$it->itm_descripcion, 0, 140, '...'))) ?></p>
+                            <p class="com-card-text"><?= nl2br(e($it->itm_descripcion)) ?></p>
                         <?php endif; ?>
 
                         <?php if ($url !== '#'): ?>
