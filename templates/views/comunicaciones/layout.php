@@ -2046,6 +2046,40 @@ if (!function_exists('render_feature')) {
     }
 }
 
+if (!function_exists('render_image')) {
+    function render_image($sec, $items) {
+        render_com_styles_once();
+
+        if (empty($items)) {
+            echo '<p class="text-muted text-center">No hay imagen configurada.</p>';
+            return;
+        }
+
+        $it  = $items[0];
+        $img = !empty($it->itm_imagen) ? asset_upload($it->itm_imagen) : '';
+        $url = !empty($it->itm_url)    ? $it->itm_url                  : '';
+        ?>
+        <div class="text-center">
+            <?php if ($img): ?>
+                <?php if ($url): ?>
+                    <a href="<?= e($url) ?>" target="<?= e(safe_target($it->itm_target ?? '_self')) ?>" rel="noopener">
+                <?php endif; ?>
+                    <img src="<?= e($img) ?>"
+                         alt="<?= e($it->itm_titulo ?? '') ?>"
+                         class="img-fluid"
+                         style="max-width: 100%; height: auto; border-radius: 12px;"
+                         loading="lazy">
+                <?php if ($url): ?>
+                    </a>
+                <?php endif; ?>
+            <?php else: ?>
+                <p class="text-muted">No hay imagen cargada.</p>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+}
+
 /**
  * ============================================================
  * RENDER PRINCIPAL
@@ -2073,6 +2107,9 @@ if (!function_exists('render_section')) {
                 break;
             case 'FEATURE':
                 render_feature($sec, $items);
+                break;
+            case 'IMAGE':
+                render_image($sec, $items);
                 break;
             case 'LINKS':
                 render_links($sec, $items);

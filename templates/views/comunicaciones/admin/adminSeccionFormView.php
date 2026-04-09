@@ -17,7 +17,8 @@ function getTipoIcono($tipo) {
     'CTA' => 'bullhorn',
     'TEXT' => 'align-left',
     'SCHEDULE' => 'clock',
-    'FEATURE' => 'columns' 
+    'FEATURE' => 'columns',
+    'IMAGE' => 'image' 
   ];
   return $iconos[$tipo] ?? 'file';
 }
@@ -33,7 +34,8 @@ function getTipoDescripcion($tipo) {
     'CTA' => 'Llamado a la acción con botón',
     'TEXT' => 'Texto enriquecido',
     'SCHEDULE' => 'Horario tipo parrilla con eventos',
-    'FEATURE' => 'Imagen y texto alternado' 
+    'FEATURE' => 'Imagen y texto alternado',
+    'IMAGE' => 'Sección con imagen destacada' 
   ];
   return $descripciones[$tipo] ?? 'Sección personalizada';
 }
@@ -386,7 +388,7 @@ function getTipoDescripcion($tipo) {
                   <?php
                     $tp = strtoupper(trim((string)($sec->sec_tipo ?? 'CAROUSEL')));
                     if ($tp === '' || $tp === 'GRID') $tp = 'CARDS';
-                    $allowed = ['TEXT', 'CAROUSEL', 'CARDS', 'LINKS', 'CALENDAR', 'VIDEO', 'CTA', 'SCHEDULE', 'FEATURE'];
+                    $allowed = ['TEXT', 'CAROUSEL', 'CARDS', 'LINKS', 'CALENDAR', 'VIDEO', 'CTA', 'SCHEDULE', 'FEATURE', 'IMAGE'];
                     if (!in_array($tp, $allowed, true)) $tp = 'CAROUSEL';
                   ?>
                   <input type="hidden" name="sec_tipo" id="sec_tipo_hidden" value="<?= $tp ?>">
@@ -724,6 +726,11 @@ function actualizarAyuda(tipo) {
       titulo: 'Imagen y texto alternado',
       desc: 'Items con imagen y texto lado a lado, alternando posición.',
       ejemplo: 'En el JSON del item usa {"imagen_pos":"left"} o {"imagen_pos":"right"} para controlar la posición.'
+    },
+    'IMAGE': {
+      titulo: 'Sección de imagen',
+      desc: 'Una imagen destacada con opción a texto superpuesto.',
+      ejemplo: 'Ideal para banners o secciones visuales impactantes.'
     }
     
   };
