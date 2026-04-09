@@ -745,6 +745,7 @@ class comunicacionesController extends Controller {
             'pag_id'              => $pagId,
             'pag_slug'            => $slug,
             'pag_titulo'          => $titulo,
+            'pag_mostrar_titulo_banner'   => (int)($_POST['pag_mostrar_titulo_banner'] ?? 1),
             'pag_subtitulo'       => trim((string)($_POST['pag_subtitulo'] ?? '')),
             'pag_hero_bg'         => $heroBg,
             'pag_hero_overlay'    => (int)($_POST['pag_hero_overlay'] ?? 1),

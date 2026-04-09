@@ -188,6 +188,7 @@ class comunicacionesModel extends Model {
                 UPDATE com_pagina SET
                     pag_slug = :pag_slug,
                     pag_titulo = :pag_titulo,
+                    pag_mostrar_titulo_banner = :pag_mostrar_titulo_banner,
                     pag_subtitulo = :pag_subtitulo,
                     pag_hero_bg = :pag_hero_bg,
                     pag_hero_overlay = :pag_hero_overlay,
@@ -201,6 +202,7 @@ class comunicacionesModel extends Model {
                 'pag_id' => $id,
                 'pag_slug' => $d['pag_slug'],
                 'pag_titulo' => $d['pag_titulo'],
+                'pag_mostrar_titulo_banner' => (int)($d['pag_mostrar_titulo_banner'] ?? 1),
                 'pag_subtitulo' => $d['pag_subtitulo'],
                 'pag_hero_bg' => $d['pag_hero_bg'],
                 'pag_hero_overlay' => (int)$d['pag_hero_overlay'],
@@ -214,13 +216,14 @@ class comunicacionesModel extends Model {
 
         $sql = "
             INSERT INTO com_pagina
-                (pag_slug, pag_titulo, pag_subtitulo, pag_hero_bg, pag_hero_overlay, pag_hero_alineacion, pag_descripcion, pag_estado, pag_orden)
+                (pag_slug, pag_titulo, pag_mostrar_titulo_banner, pag_subtitulo, pag_hero_bg, pag_hero_overlay, pag_hero_alineacion, pag_descripcion, pag_estado, pag_orden)
             VALUES
-                (:pag_slug, :pag_titulo, :pag_subtitulo, :pag_hero_bg, :pag_hero_overlay, :pag_hero_alineacion, :pag_descripcion, :pag_estado, :pag_orden)
+                (:pag_slug, :pag_titulo, :pag_mostrar_titulo_banner, :pag_subtitulo, :pag_hero_bg, :pag_hero_overlay, :pag_hero_alineacion, :pag_descripcion, :pag_estado, :pag_orden)
         ";
         $this->exec($sql, [
             'pag_slug' => $d['pag_slug'],
             'pag_titulo' => $d['pag_titulo'],
+            'pag_mostrar_titulo_banner' => (int)($d['pag_mostrar_titulo_banner'] ?? 1),
             'pag_subtitulo' => $d['pag_subtitulo'],
             'pag_hero_bg' => $d['pag_hero_bg'],
             'pag_hero_overlay' => (int)$d['pag_hero_overlay'],

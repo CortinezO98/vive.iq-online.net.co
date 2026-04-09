@@ -1013,26 +1013,40 @@ if (!function_exists('render_hero')) {
         $bg = !empty($pagina->pag_hero_bg) ? asset_upload($pagina->pag_hero_bg) : '';
         $align = $pagina->pag_hero_alineacion ?? 'center';
         $alignClass = $align === 'left' ? 'text-start' : ($align === 'right' ? 'text-end' : 'text-center');
-        $title = $pagina->pag_titulo ?? '';
-        $subtitle = $pagina->pag_subtitulo ?? '';
+
+        $title        = trim((string)($pagina->pag_titulo    ?? ''));
+        $subtitle     = trim((string)($pagina->pag_subtitulo ?? ''));
+        $mostrarTitulo = (int)($pagina->pag_mostrar_titulo_banner ?? 1) === 1;
         ?>
         <header id="com-hero" class="com-dynamic-header">
             <?php if ($bg): ?>
                 <div class="com-header-bg" style="background-image:url('<?= e($bg) ?>');"></div>
+            <?php endif; ?>
+
+            <?php if ((int)($pagina->pag_hero_overlay ?? 1) === 1): ?>
                 <div class="com-header-overlay"></div>
             <?php endif; ?>
 
             <div class="com-header-content <?= e($alignClass) ?>">
-                <h1 class="com-text-white"><?= e($title) ?></h1>
-                <?php if (!empty($subtitle)): ?>
-                    <p class="lead com-text-white"><?= e($subtitle) ?></p>
+
+                <?php if ($mostrarTitulo && $title !== ''): ?>
+                    <!-- Tiene título → h1 grande + subtítulo como párrafo -->
+                    <h1 class="com-text-white com-hero-title"><?= e($title) ?></h1>
+                    <?php if ($subtitle !== ''): ?>
+                        <p class="lead com-text-white"><?= e($subtitle) ?></p>
+                    <?php endif; ?>
+
+                <?php elseif ($subtitle !== ''): ?>
+                    <!-- Sin título → mostrar subtítulo como h2 más contenido -->
+                    <h2 class="com-text-white com-hero-subtitle-only"><?= e($subtitle) ?></h2>
+
                 <?php endif; ?>
+
             </div>
         </header>
         <?php
     }
 }
-
 /**
  * ============================================================
  * SECCIÓN
@@ -1096,98 +1110,253 @@ if (!function_exists('render_carousel')) {
     function render_carousel($sec, $items) {
         render_com_styles_once();
 
-        if (empty($items)) {
-            echo '<p class="text-muted text-center">No hay contenido disponible.</p>';
-            return;
+        $carouselId = 'carousel_' . (int)$sec->sec_id;
+        $cols       = (int)cfg_get($sec, 'cols', 3);
+        if (!in_array($cols, [2, 3, 4])) $cols = 3;
+        $autoplay   = cfg_get($sec, 'autoplay', false);
+        $interval   = (int)cfg_get($sec, 'interval', 5000);
+        $layout     = strtoupper(trim((string)($sec->sec_layout ?? 'CONTAINER')));
+        $isNarrow   = ($layout === 'NARROW');
+
+        // Agrupar items en slides de $cols tarjetas
+        $chunks = !empty($items) ? array_chunk($items, $cols) : [];
+        $total  = count($chunks);
+        ?>
+
+        <?php if (empty($items)): ?>
+            <p class="text-muted text-center">No hay contenido disponible.</p>
+            <?php return; ?>
+        <?php endif; ?>
+
+        <style>
+        /* ── Carrusel de noticias (multi-tarjeta) ── */
+        .news-carousel-wrap { position: relative; padding: 0 52px; }
+
+        .news-slide         { display: none; }
+        .news-slide.active  {
+            display: flex;
+            gap: 1.25rem;
+            animation: newsFadeIn .35s ease;
+        }
+        @keyframes newsFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0);   }
         }
 
-        $carouselId = 'carousel_' . (int)$sec->sec_id;
-        $autoplay = cfg_get($sec, 'autoplay', true);
-        $interval = (int)cfg_get($sec, 'interval', 5000);
-        ?>
-        <div id="<?= e($carouselId) ?>" class="carousel slide com-carousel"
-             data-bs-ride="<?= $autoplay ? 'carousel' : 'false' ?>"
-             data-bs-interval="<?= (int)$interval ?>">
+        .news-card          {
+            flex: 1; min-width: 0;
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 6px 22px rgba(0,0,0,.08);
+            display: flex; flex-direction: column;
+            transition: transform .3s, box-shadow .3s;
+        }
+        .news-card:hover    { transform: translateY(-7px); box-shadow: 0 18px 38px rgba(28,34,98,.15); }
 
-            <div class="carousel-inner">
-                <?php foreach ($items as $i => $it): ?>
-                    <?php
-                    $img = !empty($it->itm_imagen) ? asset_upload($it->itm_imagen) : '';
-                    $url = !empty($it->itm_url) ? $it->itm_url : '#';
-                    $badge = !empty($it->itm_badge) ? $it->itm_badge : '';
+        /* Imagen de la tarjeta */
+        .news-card-img-wrap { width: 100%; aspect-ratio: 3/4; overflow: hidden; }
+        .news-card-img-wrap img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform .45s;
+        }
+        .news-card:hover .news-card-img-wrap img { transform: scale(1.06); }
+        .news-card-img-ph   {
+            width: 100%; aspect-ratio: 3/4;
+            background: linear-gradient(135deg,#e9ecef,#dee2e6);
+            display: flex; align-items: center; justify-content: center;
+            color: #adb5bd; font-size: 2.5rem;
+        }
 
-                    $trackingAttrs = build_tracking_attrs([
-                        'class'             => 'btn js-track-click',
-                        'href'              => safe_url($url),
-                        'target'            => safe_target($it->itm_target ?? '_blank'),
-                        'rel'               => 'noopener',
-                        'data-item-id'      => (int)$it->itm_id,
-                        'data-click-tipo'   => 'carousel',
-                        'data-click-clave'  => 'carousel_item_' . (int)$it->itm_id,
-                        'data-click-label'  => $it->itm_titulo ?? 'Ver más',
-                        'data-click-modulo' => 'comunicaciones',
-                        'data-entidad-id'   => (int)$it->itm_id,
-                        'data-entidad-tipo' => 'com_item',
-                        'data-seccion'      => 'carousel',
-                        'data-contexto'     => 'boton_ver_mas',
-                        'data-posicion'     => (int)($i + 1),
-                    ]);
-                    ?>
-                    <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                        <div class="row g-0 align-items-stretch">
-                            <div class="col-12 col-lg-6">
-                                <div class="com-carousel-media <?= $img ? '' : 'com-bg-gradient' ?>">
-                                    <?php if ($img): ?>
-                                        <img src="<?= e($img) ?>" alt="<?= e($it->itm_titulo ?? '') ?>" loading="lazy">
-                                    <?php endif; ?>
-                                </div>
-                            </div>
+        /* Cuerpo de la tarjeta */
+        .news-card-body     { padding: 1.1rem 1.25rem 1.4rem; flex: 1; display: flex; flex-direction: column; }
+        .news-card-badge    {
+            display: inline-block; font-size: .7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .5px;
+            margin-bottom: .55rem;
+        }
+        .news-card-title    {
+            font-size: 1rem; font-weight: 700;
+            color: #1C2262; margin-bottom: .5rem; line-height: 1.35;
+        }
+        .news-card-text     {
+            font-size: .875rem; color: #6c757d; line-height: 1.55;
+            margin-bottom: .8rem; flex: 1;
+            display: -webkit-box; -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .news-card-link     {
+            font-size: .85rem; font-weight: 600; color: #09A28E;
+            text-decoration: none; display: inline-flex; align-items: center; gap: .35rem;
+            margin-top: auto;
+        }
+        .news-card-link:hover { color: #1C2262; }
 
-                            <div class="col-12 col-lg-6">
-                                <div class="com-carousel-content">
+        /* Flechas laterales */
+        .news-arrow         {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 40px; height: 40px; border-radius: 50%;
+            background: #1C2262; color: #fff; border: none;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; cursor: pointer; z-index: 10;
+            box-shadow: 0 4px 14px rgba(0,0,0,.2);
+            transition: background .2s, transform .2s;
+        }
+        .news-arrow:hover   { background: #09A28E; transform: translateY(-50%) scale(1.08); }
+        .news-arrow.prev    { left: 0; }
+        .news-arrow.next    { right: 0; }
+        .news-arrow:disabled{ opacity: .3; pointer-events: none; }
+
+        /* Layout NARROW → cards más compactas */
+        .news-carousel-wrap.is-narrow .news-card-img-wrap,
+        .news-carousel-wrap.is-narrow .news-card-img-ph {
+            aspect-ratio: 4/3;
+        }
+        .news-carousel-wrap.is-narrow .news-card-body {
+            padding: .75rem 1rem 1rem;
+        }
+        .news-carousel-wrap.is-narrow .news-card-title {
+            font-size: .9rem;
+        }
+        .news-carousel-wrap.is-narrow .news-card-text {
+            font-size: .8rem;
+            -webkit-line-clamp: 2;
+        }
+
+        @media (max-width: 767px) {
+            .news-carousel-wrap { padding: 0 40px; }
+            .news-slide.active  { flex-wrap: wrap; }
+            .news-card          { flex: 0 0 calc(50% - .625rem); }
+        }
+        @media (max-width: 480px) {
+            .news-card { flex: 0 0 100%; }
+        }
+        </style>
+
+        <div class="news-carousel-wrap <?= $isNarrow ? 'is-narrow' : '' ?>">
+
+            <!-- Flecha ANTERIOR -->
+            <button class="news-arrow prev"
+                    id="<?= e($carouselId) ?>_prev"
+                    aria-label="Anterior">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <!-- Slides -->
+            <div id="<?= e($carouselId) ?>_inner">
+                <?php foreach ($chunks as $ci => $chunk): ?>
+                    <div class="news-slide <?= $ci === 0 ? 'active' : '' ?>"
+                         data-slide="<?= $ci ?>">
+                        <?php foreach ($chunk as $i => $it): ?>
+                            <?php
+                            $img   = !empty($it->itm_imagen) ? asset_upload($it->itm_imagen) : '';
+                            $url   = !empty($it->itm_url)    ? $it->itm_url                  : '';
+                            $badge = !empty($it->itm_badge)  ? $it->itm_badge                : '';
+
+                            $trackingAttrs = build_tracking_attrs([
+                                'class'             => 'news-card-link js-track-click',
+                                'href'              => safe_url($url),
+                                'target'            => safe_target($it->itm_target ?? '_blank'),
+                                'rel'               => 'noopener',
+                                'data-item-id'      => (int)$it->itm_id,
+                                'data-click-tipo'   => 'carousel',
+                                'data-click-clave'  => 'carousel_item_' . (int)$it->itm_id,
+                                'data-click-label'  => $it->itm_titulo ?? 'Ver más',
+                                'data-click-modulo' => 'comunicaciones',
+                                'data-entidad-id'   => (int)$it->itm_id,
+                                'data-entidad-tipo' => 'com_item',
+                                'data-seccion'      => 'carousel',
+                                'data-contexto'     => 'boton_ver_mas',
+                                'data-posicion'     => (int)($i + 1),
+                            ]);
+                            ?>
+                            <div class="news-card">
+                                <!-- Imagen -->
+                                <?php if ($img): ?>
+                                    <div class="news-card-img-wrap">
+                                        <img src="<?= e($img) ?>"
+                                             alt="<?= e($it->itm_titulo ?? '') ?>"
+                                             loading="lazy">
+                                    </div>
+                                <?php else: ?>
+                                    <div class="news-card-img-ph">
+                                        <i class="fas fa-newspaper"></i>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Cuerpo -->
+                                <div class="news-card-body">
                                     <?php if ($badge): ?>
-                                        <span class="com-card-badge"><?= e($badge) ?></span>
+                                        <span class="badge bg-primary news-card-badge">
+                                            <?= e($badge) ?>
+                                        </span>
                                     <?php endif; ?>
 
-                                    <h3><?= e($it->itm_titulo ?? '') ?></h3>
+                                    <div class="news-card-title">
+                                        <?= e($it->itm_titulo ?? '') ?>
+                                    </div>
 
                                     <?php if (!empty($it->itm_descripcion)): ?>
-                                        <p><?= nl2br(e($it->itm_descripcion)) ?></p>
+                                        <div class="news-card-text">
+                                            <?= nl2br(e($it->itm_descripcion)) ?>
+                                        </div>
                                     <?php endif; ?>
 
-                                    <?php if ($url !== '#'): ?>
+                                    <?php if ($url): ?>
                                         <a <?= $trackingAttrs ?>>
-                                            <span>Ver más</span>
-                                            <i class="fas fa-arrow-right"></i>
+                                            Ver más <i class="fas fa-arrow-right"></i>
                                         </a>
                                     <?php endif; ?>
                                 </div>
                             </div>
-                        </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endforeach; ?>
-            </div>
+            </div><!-- /#inner -->
 
-            <button class="carousel-control-prev" type="button" data-bs-target="#<?= e($carouselId) ?>" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Anterior</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#<?= e($carouselId) ?>" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Siguiente</span>
+            <!-- Flecha SIGUIENTE -->
+            <button class="news-arrow next"
+                    id="<?= e($carouselId) ?>_next"
+                    aria-label="Siguiente">
+                <i class="fas fa-chevron-right"></i>
             </button>
 
-            <div class="carousel-indicators">
-                <?php foreach ($items as $i => $it): ?>
-                    <button type="button"
-                            data-bs-target="#<?= e($carouselId) ?>"
-                            data-bs-slide-to="<?= $i ?>"
-                            class="<?= $i === 0 ? 'active' : '' ?>"
-                            aria-current="<?= $i === 0 ? 'true' : 'false' ?>"
-                            aria-label="Slide <?= $i + 1 ?>"></button>
-                <?php endforeach; ?>
-            </div>
-        </div>
+        </div><!-- /.news-carousel-wrap -->
+
+        <script>
+        (function () {
+            var id     = '<?= e($carouselId) ?>';
+            var inner  = document.getElementById(id + '_inner');
+            var slides = inner ? inner.querySelectorAll('.news-slide') : [];
+            var btnP   = document.getElementById(id + '_prev');
+            var btnN   = document.getElementById(id + '_next');
+            var cur    = 0;
+            var total  = slides.length;
+
+            function go(n) {
+                if (total < 2) return;
+                slides[cur].classList.remove('active');
+                cur = ((n % total) + total) % total;
+                slides[cur].classList.add('active');
+                btnP.disabled = (cur === 0);
+                btnN.disabled = (cur === total - 1);
+            }
+
+            // Estado inicial de los botones
+            if (btnP) btnP.disabled = true;
+            if (btnN) btnN.disabled = (total <= 1);
+
+            if (btnP) btnP.addEventListener('click', function () { go(cur - 1); });
+            if (btnN) btnN.addEventListener('click', function () { go(cur + 1); });
+
+            <?php if ($autoplay && $total > 1): ?>
+            setInterval(function () {
+                if (cur < total - 1) go(cur + 1);
+            }, <?= (int)$interval ?>);
+            <?php endif; ?>
+        })();
+        </script>
+
         <?php
     }
 }

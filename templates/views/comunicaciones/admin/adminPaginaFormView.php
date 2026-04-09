@@ -323,6 +323,17 @@ function getEstadoColor($estado) {
                              placeholder="Ej: Nuestra compañía, Cultura iQ..." required
                              onkeyup="actualizarPreview()">
                     </div>
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">
+                        Mostrar título en el banner
+                        <i class="fas fa-question-circle info-tooltip" title="Define si el título se mostrará en el banner principal"></i>
+                      </label>
+                      <select class="form-select" name="pag_mostrar_titulo_banner" onchange="actualizarPreview()">
+                        <option value="1" <?= ((int)($edit->pag_mostrar_titulo_banner ?? 1) === 1) ? 'selected' : '' ?>>Sí</option>
+                        <option value="0" <?= ((int)($edit->pag_mostrar_titulo_banner ?? 1) === 0) ? 'selected' : '' ?>>No</option>
+                      </select>
+                    </div>
+                    
 
                     <div class="col-md-6">
                       <label class="form-label fw-semibold">
@@ -585,10 +596,18 @@ function actualizarPreview() {
   const overlay = document.getElementById('heroOverlay').checked;
   const alignment = document.getElementById('heroAlignment').value;
   const slug = document.querySelector('[name="pag_slug"]').value;
+  const mostrarTitulo = document.querySelector('[name="pag_mostrar_titulo_banner"]').value;
+  const previewTitle = document.getElementById('previewTitle');
 
   // Actualizar título y subtítulo
   document.getElementById('previewTitle').textContent = titulo || 'Título de la página';
   document.getElementById('previewSubtitle').textContent = subtitulo || 'Subtítulo opcional';
+
+  if (mostrarTitulo == "0") {
+    previewTitle.style.display = 'none';
+  } else {
+    previewTitle.style.display = 'block';
+  }
   
   // Actualizar alineación
   document.getElementById('previewContent').style.textAlign = alignment;
