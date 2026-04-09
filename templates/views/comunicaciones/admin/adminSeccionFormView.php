@@ -16,7 +16,8 @@ function getTipoIcono($tipo) {
     'VIDEO' => 'video',
     'CTA' => 'bullhorn',
     'TEXT' => 'align-left',
-    'SCHEDULE' => 'clock'
+    'SCHEDULE' => 'clock',
+    'FEATURE' => 'columns' 
   ];
   return $iconos[$tipo] ?? 'file';
 }
@@ -31,7 +32,8 @@ function getTipoDescripcion($tipo) {
     'VIDEO' => 'Video embebido',
     'CTA' => 'Llamado a la acción con botón',
     'TEXT' => 'Texto enriquecido',
-    'SCHEDULE' => 'Horario tipo parrilla con eventos'
+    'SCHEDULE' => 'Horario tipo parrilla con eventos',
+    'FEATURE' => 'Imagen y texto alternado' 
   ];
   return $descripciones[$tipo] ?? 'Sección personalizada';
 }
@@ -384,7 +386,7 @@ function getTipoDescripcion($tipo) {
                   <?php
                     $tp = strtoupper(trim((string)($sec->sec_tipo ?? 'CAROUSEL')));
                     if ($tp === '' || $tp === 'GRID') $tp = 'CARDS';
-                    $allowed = ['TEXT', 'CAROUSEL', 'CARDS', 'LINKS', 'CALENDAR', 'VIDEO', 'CTA', 'SCHEDULE'];
+                    $allowed = ['TEXT', 'CAROUSEL', 'CARDS', 'LINKS', 'CALENDAR', 'VIDEO', 'CTA', 'SCHEDULE', 'FEATURE'];
                     if (!in_array($tp, $allowed, true)) $tp = 'CAROUSEL';
                   ?>
                   <input type="hidden" name="sec_tipo" id="sec_tipo_hidden" value="<?= $tp ?>">
@@ -717,7 +719,13 @@ function actualizarAyuda(tipo) {
       titulo: 'Horario',
       desc: 'Tabla de horarios tipo parrilla.',
       ejemplo: 'Cada item es un evento con hora, título y enlace.'
+    },
+    'FEATURE': {
+      titulo: 'Imagen y texto alternado',
+      desc: 'Items con imagen y texto lado a lado, alternando posición.',
+      ejemplo: 'En el JSON del item usa {"imagen_pos":"left"} o {"imagen_pos":"right"} para controlar la posición.'
     }
+    
   };
   
   const info = ayudas[tipo] || ayudas['TEXT'];
