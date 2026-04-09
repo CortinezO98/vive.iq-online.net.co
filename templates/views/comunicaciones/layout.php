@@ -620,6 +620,45 @@ if (!function_exists('render_com_styles_once')) {
                 gap: 1rem;
             }
 
+            /* Mes como título principal */
+            .com-schedule-mes-titulo {
+                font-size: clamp(1.6rem, 3vw, 2.4rem);
+                font-weight: 800;
+                color: var(--iq-primary);
+                margin: 0;
+                letter-spacing: -0.02em;
+            }
+
+            /* Calendario más compacto */
+            .com-calendar-grid {
+                gap: 0.3rem;
+                margin-top: 0.75rem;
+            }
+
+            .com-calendar-day {
+                min-height: 100px;
+                padding: 0.5rem;
+            }
+
+            .com-calendar-weekday {
+                padding: 0.5rem;
+                font-size: 0.78rem;
+            }
+
+            .com-calendar-day-number {
+                font-size: 0.85rem;
+                margin-bottom: 0.35rem;
+            }
+
+            .com-calendar-event {
+                padding: 0.2rem 0.4rem;
+                font-size: 0.7rem;
+            }
+
+            .com-schedule-container {
+                padding: 1rem;
+            }
+
             .com-schedule-header h3,
             .com-calendar-header h3 {
                 font-size: 1.7rem;
@@ -815,37 +854,42 @@ if (!function_exists('render_com_styles_once')) {
             }
 
             .com-calendar-event {
-                background: #FFFFFF;
-                border-left: 4px solid var(--iq-primary);
-                border-radius: 8px;
-                padding: 0.35rem 0.5rem;
-                font-size: 0.78rem;
+                background: var(--iq-primary);
+                border-left: none;
+                border-radius: 6px;
+                padding: 0.3rem 0.5rem;
+                font-size: 0.75rem;
                 transition: var(--iq-transition);
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
                 overflow: hidden;
                 cursor: pointer;
                 pointer-events: auto;
+                color: #fff !important;
             }
 
             .com-calendar-event:hover {
-                transform: translateX(3px);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                transform: translateX(2px) scale(1.02);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                filter: brightness(1.1);
             }
 
             .com-calendar-event.all-day {
-                border-left-color: var(--iq-secondary);
+                border-left: none;
             }
 
             .com-calendar-event .event-time {
-                font-size: 0.7rem;
-                opacity: 0.75;
+                font-size: 0.68rem;
+                opacity: 0.85;
+                color: #fff !important;
             }
+
 
             .com-calendar-event .event-title {
                 font-weight: 600;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                color: #fff !important;
             }
 
             .add-event-btn {
@@ -1599,8 +1643,7 @@ if (!function_exists('render_schedule')) {
         <div class="com-schedule-container">
             <div class="com-schedule-header">
                 <div>
-                    <h3><?= !empty($sec->sec_titulo) ? e($sec->sec_titulo) : 'Agenda de eventos' ?></h3>
-                    <small class="text-muted d-block mt-1"><?= e($mesesNombre[$mes] ?? 'Mes') ?> <?= (int)$anio ?></small>
+                    <h2 class="com-schedule-mes-titulo"><?= e($mesesNombre[$mes] ?? 'Mes') ?> <?= (int)$anio ?></h2>
                 </div>
 
                 <div class="com-schedule-nav">
@@ -1656,10 +1699,6 @@ if (!function_exists('render_schedule')) {
                     <?php endif; ?>
                 </div>
             </div>
-
-            <?php if (!empty($sec->sec_descripcion)): ?>
-                <p class="text-muted mb-4"><?= nl2br(e($sec->sec_descripcion)) ?></p>
-            <?php endif; ?>
 
             <div class="com-calendar-grid">
                 <?php foreach ($diasSemana as $dia): ?>
@@ -1720,7 +1759,7 @@ if (!function_exists('render_schedule')) {
                                     $hora = $allDay ? 'Todo el día' : (!empty($ev['start_time']) ? substr((string)$ev['start_time'], 0, 5) : 'Sin hora');
                                     ?>
                                     <div class="com-calendar-event <?= $allDay ? 'all-day' : '' ?> js-track-click"
-                                         style="border-left-color: <?= e($color) ?>;"
+                                         style="background-color: <?= e($color) ?>;"
                                          data-evento='<?= htmlspecialchars(json_encode($ev, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>'
                                          data-click-tipo="evento"
                                          data-click-clave="evento_<?= e($fechaKey) ?>_<?= (int)($evIndex + 1) ?>"
@@ -1840,9 +1879,7 @@ if (!function_exists('render_section')) {
         echo render_container_open($layout);
         echo render_section_inner_open($layout);
 
-        if ($tipo !== 'SCHEDULE') {
-            render_section_header($sec);
-        }
+        render_section_header($sec);
 
         switch ($tipo) {
             case 'CAROUSEL':
@@ -1996,9 +2033,16 @@ if (!function_exists('render_event_modals')) {
                                 <div class="col-md-4">
                                     <label class="form-label fw-semibold">Color</label>
                                     <select class="form-select" name="color" id="eventoColor">
-                                        <option value="#1C2262">Azul</option>
-                                        <option value="#09A28E">Verde</option>
-                                        <option value="#dc3545">Rojo</option>
+                                        <option value="#1C2262">🔵 Azul corporativo</option>
+                                        <option value="#09A28E">🟢 Verde</option>
+                                        <option value="#dc3545">🔴 Rojo</option>
+                                        <option value="#fd7e14">🟠 Naranja</option>
+                                        <option value="#ffc107">🟡 Amarillo</option>
+                                        <option value="#6f42c1">🟣 Morado</option>
+                                        <option value="#0dcaf0">🩵 Cian</option>
+                                        <option value="#20c997">🩶 Turquesa</option>
+                                        <option value="#d63384">🩷 Rosa</option>
+                                        <option value="#6c757d">⚫ Gris</option>
                                     </select>
                                 </div>
 
