@@ -407,6 +407,17 @@ class comunicacionesModel extends Model {
         ]);
     }
 
+    /**
+     * Eliminar un item por su ID
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function eliminarItem(int $id): bool {
+        $sql = "DELETE FROM com_item WHERE itm_id = :itm_id";
+        return $this->exec($sql, ['itm_id' => $id]);
+    }
+
     /* ======================================================
      * ELIMINAR SECCIÓN
      * ====================================================== */
