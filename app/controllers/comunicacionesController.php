@@ -51,7 +51,6 @@ class comunicacionesController extends Controller {
             return null;
         }
 
-        // Acepta HH:MM o HH:MM:SS y guarda HH:MM
         if (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $time)) {
             return substr($time, 0, 5);
         }
@@ -205,7 +204,6 @@ class comunicacionesController extends Controller {
         echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         exit;
     }
-
 
 
     // =========================
@@ -813,9 +811,6 @@ class comunicacionesController extends Controller {
         ]);
     }
 
-
-
-
     public function admin_seccion_guardar() {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
@@ -860,31 +855,29 @@ class comunicacionesController extends Controller {
     public function admin_seccion_eliminar($id) {
         $this->requireLogin();
         $this->requireAdminComunicaciones();
-        
+
         $id = (int)$id;
         if ($id <= 0) {
             Flasher::new('ID de sección inválido', 'danger');
             Redirect::to('?uri=comunicaciones/admin_paginas');
             exit;
         }
-        
-        // Obtener la sección para conocer el ID de la página
+
         $seccion = $this->model->getSeccion($id);
         if (!$seccion) {
             Flasher::new('La sección no existe', 'danger');
             Redirect::to('?uri=comunicaciones/admin_paginas');
             exit;
         }
-        
+
         $pagId = (int)$seccion->pag_id;
-        
-        // Ejecutar la eliminación
+
         if ($this->model->eliminarSeccion($id)) {
             Flasher::new('Sección eliminada exitosamente', 'success');
         } else {
             Flasher::new('Error al eliminar la sección', 'danger');
         }
-        
+
         Redirect::to('?uri=comunicaciones/admin_secciones/' . $pagId);
         exit;
     }
@@ -963,7 +956,6 @@ class comunicacionesController extends Controller {
     }
 
     public function admin_item_guardar() {
-
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 
@@ -1007,10 +999,36 @@ class comunicacionesController extends Controller {
         exit;
     }
 
+    public function admin_item_eliminar($itmId = 0) {
+        $this->requireLogin();
+        $this->requireAdminComunicaciones();
 
-    /**
-     * Registra un clic en un item (llamada AJAX)
-     */
+        $itmId = (int)$itmId;
+        if ($itmId <= 0) {
+            Flasher::new('ID de item inválido', 'danger');
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
+        }
+
+        $item = $this->model->getItem($itmId);
+        if (!$item) {
+            Flasher::new('El item no existe', 'danger');
+            Redirect::to('?uri=comunicaciones/admin_paginas');
+            exit;
+        }
+
+        $secId = (int)$item->sec_id;
+
+        if ($this->model->eliminarItem($itmId)) {
+            Flasher::new('Item eliminado exitosamente', 'success');
+        } else {
+            Flasher::new('Error al eliminar el item', 'danger');
+        }
+
+        Redirect::to('?uri=comunicaciones/admin_items/' . $secId);
+        exit;
+    }
+
     public function registrar_click_item() {
         $response = [
             'success' => false,
@@ -1036,7 +1054,6 @@ class comunicacionesController extends Controller {
             require_once MODELS . 'ItemClickModel.php';
             $clickModel = new ItemClickModel();
 
-            // Evita doble registro por doble clic inmediato
             if ($clickModel->existeClickReciente($itm_id, $session_id, 2)) {
                 $response = [
                     'success' => true,
@@ -1071,6 +1088,5 @@ class comunicacionesController extends Controller {
         echo json_encode($response);
         exit;
     }
-
 
 }
