@@ -2080,6 +2080,80 @@ if (!function_exists('render_image')) {
     }
 }
 
+
+if (!function_exists('render_buttons')) {
+    function render_buttons($sec, $items) {
+        render_com_styles_once();
+
+        if (empty($items)) {
+            echo '<p class="text-muted text-center">No hay botones configurados.</p>';
+            return;
+        }
+        ?>
+        <style>
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        .btn-grid-item {
+            display: block;
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: var(--iq-primary);
+            color: #fff !important;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-align: center;
+            text-decoration: none;
+            transition: background .2s, transform .2s;
+        }
+        .btn-grid-item:hover {
+            background: var(--iq-secondary);
+            color: #fff !important;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        @media (max-width: 768px) {
+            .btn-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .btn-grid { grid-template-columns: 1fr; }
+        }
+        </style>
+
+        <div class="btn-grid">
+            <?php foreach ($items as $i => $it): ?>
+                <?php
+                $url   = !empty($it->itm_url) ? $it->itm_url : '#';
+                $trackingAttrs = build_tracking_attrs([
+                    'href'              => safe_url($url),
+                    'class'             => 'btn-grid-item js-track-click',
+                    'target'            => safe_target($it->itm_target ?? '_blank'),
+                    'rel'               => 'noopener',
+                    'data-item-id'      => (int)$it->itm_id,
+                    'data-click-tipo'   => 'boton',
+                    'data-click-clave'  => 'btn_item_' . (int)$it->itm_id,
+                    'data-click-label'  => $it->itm_titulo ?? 'Botón',
+                    'data-click-modulo' => 'comunicaciones',
+                    'data-entidad-id'   => (int)$it->itm_id,
+                    'data-entidad-tipo' => 'com_item',
+                    'data-seccion'      => 'buttons',
+                    'data-contexto'     => 'boton_grid',
+                    'data-posicion'     => (int)($i + 1),
+                ]);
+                ?>
+                <a <?= $trackingAttrs ?>>
+                    <?= e($it->itm_titulo ?? 'Botón') ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+        <?php
+    }
+}
+
 /**
  * ============================================================
  * RENDER PRINCIPAL
@@ -2110,6 +2184,9 @@ if (!function_exists('render_section')) {
                 break;
             case 'IMAGE':
                 render_image($sec, $items);
+                break;
+            case 'BUTTONS':
+                render_buttons($sec, $items);
                 break;
             case 'LINKS':
                 render_links($sec, $items);
