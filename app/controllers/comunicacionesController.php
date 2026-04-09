@@ -963,6 +963,7 @@ class comunicacionesController extends Controller {
     }
 
     public function admin_item_guardar() {
+
         $this->requireLogin();
         $this->requireAdminComunicaciones();
 

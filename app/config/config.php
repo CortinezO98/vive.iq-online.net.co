@@ -36,15 +36,15 @@
 
     //Rutas de directorios y archivos
     define('DS', DIRECTORY_SEPARATOR);
-    define('ROOT', getcwd().DS);
+    define('ROOT', dirname(dirname(__DIR__)).DS);
     
     if (IS_LOCAL) {
-        define('BASEPATH_IMAGE', 'C:\xampp\htdocs\vive.iq-online.net.co\assets\images/');
-        define('MAILER_ROOT', 'C:\xampp\htdocs\vive.iq-online.net.co\app\plugins\PHPMailer-master'.DS);
+        define('BASEPATH_IMAGE', ROOT.'assets'.DS.'images'.DS);
+        define('MAILER_ROOT', ROOT.'app'.DS.'plugins'.DS.'PHPMailer-master'.DS);
 
     } else {
-        define('BASEPATH_IMAGE', '/var/www/vive.iq-online.net.co/assets/images/');
-        define('MAILER_ROOT', '/var/www/vive.iq-online.net.co/app/plugins/PHPMailer-master'.DS);
+        define('BASEPATH_IMAGE', ROOT.'assets'.DS.'images'.DS);
+        define('MAILER_ROOT', ROOT.'app'.DS.'plugins'.DS.'PHPMailer-master'.DS);
         
         // define('BASEPATH_IMAGE', '/var/www/html/assets/images');
         // define('MAILER_ROOT', '/var/www/html/app/plugins/PHPMailer-master'.DS);

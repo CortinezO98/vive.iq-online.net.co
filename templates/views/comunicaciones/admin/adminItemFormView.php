@@ -170,18 +170,19 @@ $pagina = $d->pagina ?? null;
           </div>
         </div>
 
-        <!-- Formulario principal -->
-        <div class="row">
-          <div class="col-lg-8 col-xl-9">
-            <div class="card shadow-sm border-0">
-              <div class="card-body p-4">
+        <!-- ✅ FORM abre aquí, envuelve AMBOS paneles -->
+        <form method="post" enctype="multipart/form-data" id="itemForm"
+              action="<?= URL ?>comunicaciones/admin_item_guardar">
 
-                <form method="post" enctype="multipart/form-data" id="itemForm"
-                      action="<?= URL ?>?uri=comunicaciones/admin_item_guardar">
+          <input type="hidden" name="itm_id" value="<?= (int)($item->itm_id ?? 0) ?>">
+          <input type="hidden" name="sec_id" value="<?= (int)($d->seccion->sec_id ?? 0) ?>">
+          <input type="hidden" name="itm_imagen" id="itm_imagen_hidden" value="<?= h($item->itm_imagen ?? '') ?>">
 
-                  <input type="hidden" name="itm_id" value="<?= (int)($item->itm_id ?? 0) ?>">
-                  <input type="hidden" name="sec_id" value="<?= (int)($d->seccion->sec_id ?? 0) ?>">
-                  <input type="hidden" name="itm_imagen" id="itm_imagen_hidden" value="<?= h($item->itm_imagen ?? '') ?>">
+          <!-- Formulario principal -->
+          <div class="row">
+            <div class="col-lg-8 col-xl-9">
+              <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
 
                   <!-- Información básica -->
                   <div class="form-section-title">
@@ -307,76 +308,79 @@ $pagina = $d->pagina ?? null;
                       <i class="fas fa-save me-1"></i> Guardar
                     </button>
                   </div>
-                </form>
 
+                </div>
               </div>
-            </div>
-          </div>
+            </div><!-- /col-lg-8 -->
 
-          <!-- Panel lateral para imagen -->
-          <div class="col-lg-4 col-xl-3">
-            <div class="card shadow-sm border-0 sticky-top" style="top: 90px; z-index: 1020;">
-              <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-semibold">
-                  <i class="fas fa-image me-2" style="color: #1C2262;"></i>
-                  Imagen del item
-                </h5>
-              </div>
-              <div class="card-body">
-                
-                <!-- Previsualización de imagen actual -->
-                <div class="mb-4 text-center">
-                  <label class="form-label fw-semibold d-block">Imagen actual</label>
-                  <?php $src = !empty($item->itm_imagen) ? upload_src($item->itm_imagen) : ''; ?>
+            <!-- Panel lateral para imagen -->
+            <div class="col-lg-4 col-xl-3">
+              <div class="card shadow-sm border-0 sticky-top" style="top: 90px; z-index: 1020;">
+                <div class="card-header bg-white py-3">
+                  <h5 class="mb-0 fw-semibold">
+                    <i class="fas fa-image me-2" style="color: #1C2262;"></i>
+                    Imagen del item
+                  </h5>
+                </div>
+                <div class="card-body">
                   
-                  <div class="image-preview-container" id="currentImageContainer" style="<?= $src ? '' : 'display: none;' ?>">
-                    <img src="<?= h($src) ?>" class="img-fluid rounded shadow-sm" style="max-height: 180px;" alt="Imagen actual" id="currentImage">
-                    <button type="button" class="btn-remove-image" id="removeImageBtn" title="Eliminar imagen">
-                      <i class="fas fa-times"></i>
+                  <!-- Previsualización de imagen actual -->
+                  <div class="mb-4 text-center">
+                    <label class="form-label fw-semibold d-block">Imagen actual</label>
+                    <?php $src = !empty($item->itm_imagen) ? upload_src($item->itm_imagen) : ''; ?>
+                    
+                    <div class="image-preview-container" id="currentImageContainer" style="<?= $src ? '' : 'display: none;' ?>">
+                      <img src="<?= h($src) ?>" class="img-fluid rounded shadow-sm" style="max-height: 180px;" alt="Imagen actual" id="currentImage">
+                      <button type="button" class="btn-remove-image" id="removeImageBtn" title="Eliminar imagen">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                    
+                    <?php if ($src): ?>
+                      <div class="small text-muted mt-2">
+                        <code class="text-wrap"><?= h($item->itm_imagen) ?></code>
+                      </div>
+                    <?php else: ?>
+                      <div class="text-muted small" id="noImageText">No hay imagen actual</div>
+                    <?php endif; ?>
+                  </div>
+
+                  <!-- Subir nueva imagen -->
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold">Subir nueva imagen</label>
+                    
+                    <div class="custom-file-upload" id="fileUploadArea">
+                      <i class="fas fa-cloud-upload-alt"></i>
+                      <div class="mt-2">Haz clic o arrastra una imagen</div>
+                      <div class="small text-muted mt-1">PNG, JPG, WEBP o GIF (max. 5MB)</div>
+                      <div class="file-name d-none" id="fileName"></div>
+                      <!-- ✅ input DENTRO del form ahora -->
+                      <input type="file" name="itm_imagen_file" id="itm_imagen_file" 
+                             accept=".jpg,.jpeg,.png,.webp,.gif" style="display: none;">
+                    </div>
+                    
+                    <div class="field-hint mt-2">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Si subes una imagen, reemplazará la actual automáticamente.
+                    </div>
+                  </div>
+
+                  <!-- Vista previa de la nueva imagen -->
+                  <div id="newImagePreview" class="text-center d-none">
+                    <label class="form-label fw-semibold d-block mt-3">Vista previa</label>
+                    <img src="" class="img-fluid rounded shadow-sm" style="max-height: 150px;" alt="Vista previa" id="preview">
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="cancelNewImage">
+                      <i class="fas fa-times me-1"></i> Cancelar nueva imagen
                     </button>
                   </div>
-                  
-                  <?php if ($src): ?>
-                    <div class="small text-muted mt-2">
-                      <code class="text-wrap"><?= h($item->itm_imagen) ?></code>
-                    </div>
-                  <?php else: ?>
-                    <div class="text-muted small" id="noImageText">No hay imagen actual</div>
-                  <?php endif; ?>
-                </div>
 
-                <!-- Subir nueva imagen -->
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Subir nueva imagen</label>
-                  
-                  <div class="custom-file-upload" id="fileUploadArea">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <div class="mt-2">Haz clic o arrastra una imagen</div>
-                    <div class="small text-muted mt-1">PNG, JPG, WEBP o GIF (max. 5MB)</div>
-                    <div class="file-name d-none" id="fileName"></div>
-                    <input type="file" name="itm_imagen_file" id="itm_imagen_file" 
-                           accept=".jpg,.jpeg,.png,.webp,.gif" style="display: none;">
-                  </div>
-                  
-                  <div class="field-hint mt-2">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Si subes una imagen, reemplazará la actual automáticamente.
-                  </div>
                 </div>
-
-                <!-- Vista previa de la nueva imagen -->
-                <div id="newImagePreview" class="text-center d-none">
-                  <label class="form-label fw-semibold d-block mt-3">Vista previa</label>
-                  <img src="" class="img-fluid rounded shadow-sm" style="max-height: 150px;" alt="Vista previa" id="preview">
-                  <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="cancelNewImage">
-                    <i class="fas fa-times me-1"></i> Cancelar nueva imagen
-                  </button>
-                </div>
-
               </div>
-            </div>
-          </div>
-        </div>
+            </div><!-- /col-lg-4 panel lateral -->
+
+          </div><!-- /row -->
+
+        </form><!-- ✅ FORM cierra aquí, después de ambos paneles -->
 
       </div>
     </div>

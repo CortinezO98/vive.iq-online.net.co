@@ -1111,8 +1111,8 @@ if (!function_exists('render_carousel')) {
         render_com_styles_once();
 
         $carouselId = 'carousel_' . (int)$sec->sec_id;
-        $cols       = (int)cfg_get($sec, 'cols', 3);
-        if (!in_array($cols, [2, 3, 4])) $cols = 3;
+        $cols       = (int)cfg_get($sec, 'cols', 4);
+        if (!in_array($cols, [2, 3, 4])) $cols = 4;
         $autoplay   = cfg_get($sec, 'autoplay', false);
         $interval   = (int)cfg_get($sec, 'interval', 5000);
         $layout     = strtoupper(trim((string)($sec->sec_layout ?? 'CONTAINER')));
@@ -1135,7 +1135,7 @@ if (!function_exists('render_carousel')) {
         .news-slide         { display: none; }
         .news-slide.active  {
             display: flex;
-            gap: 1.25rem;
+            gap: 2rem;
             animation: newsFadeIn .35s ease;
         }
         @keyframes newsFadeIn {
@@ -1182,8 +1182,6 @@ if (!function_exists('render_carousel')) {
         .news-card-text     {
             font-size: .875rem; color: #6c757d; line-height: 1.55;
             margin-bottom: .8rem; flex: 1;
-            display: -webkit-box; -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical; overflow: hidden;
         }
         .news-card-link     {
             font-size: .85rem; font-weight: 600; color: #09A28E;
@@ -1210,7 +1208,7 @@ if (!function_exists('render_carousel')) {
         /* Layout NARROW → cards más compactas */
         .news-carousel-wrap.is-narrow .news-card-img-wrap,
         .news-carousel-wrap.is-narrow .news-card-img-ph {
-            aspect-ratio: 4/3;
+            aspect-ratio: 1/1.25;
         }
         .news-carousel-wrap.is-narrow .news-card-body {
             padding: .75rem 1rem 1rem;
