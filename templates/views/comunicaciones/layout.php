@@ -2095,10 +2095,14 @@ if (!function_exists('render_buttons')) {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
+            align-items: stretch;
         }
         .btn-grid-item {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             width: 100%;
+            min-height: 80px;
             padding: 1rem 1.5rem;
             background: var(--iq-primary);
             color: #fff !important;
