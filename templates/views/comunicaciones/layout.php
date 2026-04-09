@@ -1864,6 +1864,188 @@ if (!function_exists('render_text')) {
     }
 }
 
+
+if (!function_exists('render_feature')) {
+    function render_feature($sec, $items) {
+        render_com_styles_once();
+
+        if (empty($items)) {
+            echo '<p class="text-muted text-center">No hay contenido disponible.</p>';
+            return;
+        }
+        ?>
+        <style>
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+            padding: 2.5rem 0;
+            border-bottom: 1px solid var(--iq-border);
+        }
+        .feature-item:last-child { border-bottom: none; }
+
+        .feature-item.reverse { flex-direction: row-reverse; }
+
+        .feature-img-wrap {
+            flex: 0 0 40%;
+            max-width: 40%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--iq-shadow);
+        }
+        .feature-img-wrap img {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            display: block;
+            transition: transform .4s;
+        }
+        .feature-img-wrap:hover img { transform: scale(1.04); }
+
+        .feature-img-ph {
+            width: 100%;
+            height: 280px;
+            background: linear-gradient(135deg, var(--iq-primary), var(--iq-secondary));
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,.4); font-size: 4rem;
+        }
+
+        .feature-content { flex: 1; }
+
+        .feature-badge {
+            display: inline-block;
+            padding: .3rem .9rem;
+            background: linear-gradient(135deg, var(--iq-secondary), #0B8A7A);
+            color: white; border-radius: 50px;
+            font-size: .72rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .5px;
+            margin-bottom: 1rem;
+        }
+
+        .feature-title {
+            font-size: clamp(1.4rem, 2.5vw, 2rem);
+            font-weight: 700;
+            color: var(--iq-primary);
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .feature-title::after {
+            content: '';
+            display: block;
+            width: 50px; height: 4px;
+            background: var(--iq-secondary);
+            border-radius: 2px;
+            margin-top: .6rem;
+        }
+
+        .feature-text {
+            font-size: 1rem;
+            color: var(--iq-gray);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-btn {
+            display: inline-flex; align-items: center; gap: .5rem;
+            padding: .75rem 1.75rem;
+            background: var(--iq-primary); color: white;
+            border-radius: 50px; font-weight: 600;
+            text-decoration: none;
+            transition: var(--iq-transition);
+        }
+        .feature-btn:hover {
+            background: var(--iq-secondary);
+            color: white; text-decoration: none;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .feature-item,
+            .feature-item.reverse { flex-direction: column; gap: 1.5rem; }
+            .feature-img-wrap { flex: 0 0 100%; max-width: 100%; }
+            .feature-img-wrap img,
+            .feature-img-ph { height: 220px; }
+        }
+        </style>
+
+        <div class="feature-list">
+            <?php foreach ($items as $i => $it): ?>
+                <?php
+                $img   = !empty($it->itm_imagen) ? asset_upload($it->itm_imagen) : '';
+                $url   = !empty($it->itm_url)    ? $it->itm_url                  : '';
+                $badge = !empty($it->itm_badge)  ? $it->itm_badge                : '';
+
+                // imagen_pos en itm_extra_json: "left" o "right"
+                $extra = [];
+                if (!empty($it->itm_extra_json)) {
+                    $decoded = is_string($it->itm_extra_json)
+                        ? json_decode($it->itm_extra_json, true)
+                        : (array)$it->itm_extra_json;
+                    if (is_array($decoded)) $extra = $decoded;
+                }
+                // Por defecto alterna: par=imagen izq, impar=imagen der
+                $imgPos = $extra['imagen_pos'] ?? ($i % 2 === 0 ? 'left' : 'right');
+                $reverse = ($imgPos === 'right') ? 'reverse' : '';
+
+                $trackingAttrs = build_tracking_attrs([
+                    'href'              => safe_url($url),
+                    'class'             => 'feature-btn js-track-click',
+                    'target'            => safe_target($it->itm_target ?? '_blank'),
+                    'rel'               => 'noopener',
+                    'data-item-id'      => (int)$it->itm_id,
+                    'data-click-tipo'   => 'feature',
+                    'data-click-clave'  => 'feature_item_' . (int)$it->itm_id,
+                    'data-click-label'  => $it->itm_titulo ?? 'Ver más',
+                    'data-click-modulo' => 'comunicaciones',
+                    'data-entidad-id'   => (int)$it->itm_id,
+                    'data-entidad-tipo' => 'com_item',
+                    'data-seccion'      => 'feature',
+                    'data-contexto'     => 'boton_ver_mas',
+                    'data-posicion'     => (int)($i + 1),
+                ]);
+                ?>
+                <div class="feature-item <?= $reverse ?>">
+
+                    <!-- Imagen -->
+                    <div class="feature-img-wrap">
+                        <?php if ($img): ?>
+                            <img src="<?= e($img) ?>"
+                                 alt="<?= e($it->itm_titulo ?? '') ?>"
+                                 loading="lazy">
+                        <?php else: ?>
+                            <div class="feature-img-ph">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Texto -->
+                    <div class="feature-content">
+                        <?php if ($badge): ?>
+                            <span class="feature-badge"><?= e($badge) ?></span>
+                        <?php endif; ?>
+
+                        <h3 class="feature-title"><?= e($it->itm_titulo ?? '') ?></h3>
+
+                        <?php if (!empty($it->itm_descripcion)): ?>
+                            <p class="feature-text"><?= nl2br(e($it->itm_descripcion)) ?></p>
+                        <?php endif; ?>
+
+                        <?php if ($url): ?>
+                            <a <?= $trackingAttrs ?>>
+                                Ver más <i class="fas fa-arrow-right"></i>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+    }
+}
+
 /**
  * ============================================================
  * RENDER PRINCIPAL
@@ -1888,6 +2070,9 @@ if (!function_exists('render_section')) {
             case 'CARDS':
             case 'GRID':
                 render_cards($sec, $items);
+                break;
+            case 'FEATURE':
+                render_feature($sec, $items);
                 break;
             case 'LINKS':
                 render_links($sec, $items);
