@@ -166,12 +166,14 @@ class loginController extends Controller
                 $usuario  = checkInput($_POST['usuario'] ?? '');
                 $password = checkInput($_POST['password'] ?? '');
 
-                // ✅ CAPTCHA DESHABILITADO
-                $captchaOk = true;
+                $recaptchaResponse = checkInput($_POST['g-recaptcha-response'] ?? '');
+                $captchaOk = $this->recaptchaOk($recaptchaResponse);
 
                 try {
 
-                    if ($usuario === '' || $password === '') {
+                    if (!$captchaOk) {
+                        Flasher::new('¡Por favor valide el Captcha!', 'warning');
+                    } elseif ($usuario === '' || $password === '') {
                         Flasher::new('¡Debe ingresar usuario y contraseña!', 'warning');
 
                     } else {
@@ -535,7 +537,7 @@ class loginController extends Controller
 
                 $usuario = checkInput($_POST['usuario'] ?? '');
 
-                // ✅ CAPTCHA DESHABILITADO
+                $recaptchaResponse = checkInput($_POST['g-recaptcha-response'] ?? '');
                 if ($usuario === '') {
                     Flasher::new('¡Debe ingresar su usuario!', 'warning');
                 } else {
