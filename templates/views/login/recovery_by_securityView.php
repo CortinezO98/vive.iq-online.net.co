@@ -1,12 +1,13 @@
 <?php require_once INCLUDES.'inc_head.php'; ?>
+<!-- ✅ CAPTCHA DESHABILITADO
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-
 <style>
     @media (max-width: 1400px) { #gwd-reCAPTCHA_2 { transform: scale(0.84) !important; transform-origin: 0 0; } }
     @media (max-width: 1200px) { #gwd-reCAPTCHA_2 { transform: scale(0.64) !important; transform-origin: 0 0; } }
     @media (max-width: 992px)  { #gwd-reCAPTCHA_2 { transform: scale(0.76) !important; transform-origin: 0 0; } }
     @media (max-width: 768px)  { #gwd-reCAPTCHA_2 { transform: scale(1) !important; transform-origin: 0 0; } }
 </style>
+-->
 
 <main class="container d-flex flex-column">
     <div class="row align-items-center justify-content-center g-0 min-vh-100">
@@ -47,6 +48,7 @@
                             >
                         </div>
 
+                        <!-- ✅ CAPTCHA DESHABILITADO
                         <div class="col-md-12 my-2">
                             <center>
                                 <div class="g-recaptcha"
@@ -61,6 +63,7 @@
                                 </div>
                             <?php endif; ?>
                         </div>
+                        -->
 
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">

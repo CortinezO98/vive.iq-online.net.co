@@ -1,4 +1,5 @@
 <?php require_once INCLUDES.'inc_head.php'; ?>
+<!-- ✅ CAPTCHA DESHABILITADO
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <style>
     @media (max-width: 1400px) {
@@ -29,6 +30,7 @@
         }
     }
 </style>
+-->
 <!-- container -->
 <main class="container d-flex flex-column">
     <div class="row align-items-center justify-content-center g-0
@@ -66,12 +68,16 @@
                             <label for="password" class="form-label my-0">Contraseña</label>
                             <input type="password" id="password" class="form-control" name="password" placeholder="" required autocomplete="off">
                         </div>
+
+                        <!-- ✅ CAPTCHA DESHABILITADO
                         <div class="col-md-12 my-2">
                             <center><div class="g-recaptcha" id="gwd-reCAPTCHA_2" data-sitekey="6LftzogoAAAAALfVpbnOYd1LPzf2my7LyGAuVMEF" data-callback="correctCaptcha"></div></center>
                             <?php if(isset($_POST["form_recovery"]) AND $_POST["g-recaptcha-response"]==''): ?>
                                 <div id="response" class="col-md-12"><p class='alert alert-danger p-1 font-size-11 my-0'>¡Por favor valide el Captcha!</p></div>
                             <?php endif; ?>
                         </div>
+                        -->
+
                         <div>
                             <!-- Button -->
                             <div class="d-grid">

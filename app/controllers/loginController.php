@@ -5,7 +5,6 @@ class loginController extends Controller
     private const SECURITY_MAX_ATTEMPTS = 5;
     private const SECURITY_LOCK_MINUTES = 10;
 
-    // Rutas (tu router suele mapear password-update => password_update())
     private const ROUTE_HOME       = 'inicio';
     private const ROUTE_LOGIN      = 'login';
     private const ROUTE_SEC_SETUP  = 'login/security-setup';
@@ -33,7 +32,6 @@ class loginController extends Controller
         $response = checkInput($response);
         if ($response === '') return false;
 
-        // Buenas prácticas: si existe constante/config úsala; si no, cae al valor actual
         $secret = defined('RECAPTCHA_SECRET')
             ? (string)RECAPTCHA_SECRET
             : '6LftzogoAAAAAKT8XIuZaRDE3GJn0pFvv7YXNL2I';
@@ -75,12 +73,10 @@ class loginController extends Controller
         $storedHash = (string)$storedHash;
         if ($storedHash === '') return false;
 
-        // bcrypt / password_hash
         if (preg_match('/^\$2[aby]\$/', $storedHash)) {
             if (password_verify($plain, $storedHash)) return true;
         }
 
-        // legacy crypt
         return hash_equals(crypt($plain, $storedHash), $storedHash);
     }
 
@@ -108,7 +104,6 @@ class loginController extends Controller
         $hasSecurity = $this->hasSecurityQuestion($usuId);
         $mustUpdate  = $this->mustUpdatePassword();
 
-        // 1) Siempre prioriza SECURITY SETUP si falta
         if (!$hasSecurity) {
             $_SESSION[APP_SESSION.'_must_setup_security'] = 1;
             Redirect::to(self::ROUTE_SEC_SETUP);
@@ -117,13 +112,11 @@ class loginController extends Controller
 
         unset($_SESSION[APP_SESSION.'_must_setup_security']);
 
-        // 2) Si ya tiene pregunta, pero debe cambiar contraseña, manda a password-update
         if ($mustUpdate) {
             Redirect::to(self::ROUTE_PASS_UPD);
             exit;
         }
 
-        // 3) Si todo OK
         Redirect::to(self::ROUTE_HOME);
         exit;
     }
@@ -135,6 +128,13 @@ class loginController extends Controller
     public function index()
     {
         Controller::checkSesionIndex();
+
+
+        // ✅ Genera token CSRF si no existe
+        if (empty($_SESSION['iqvive_token'])) {
+            $_SESSION['iqvive_token'] = bin2hex(random_bytes(32));
+        }
+
 
         unset($_SESSION[APP_SESSION.'_forgot_registro_creado']);
         unset($_SESSION[APP_SESSION.'_recovery_registro_creado']);
@@ -151,6 +151,11 @@ class loginController extends Controller
         $parametro->app_id = 'inicio';
         $resparametroinicio = $parametro->listDetail();
 
+
+
+        // DEBUG TEMPORAL - quitar después
+        error_log('SESSION al entrar a index: ' . print_r($_SESSION, true));
+        error_log('POST keys: ' . implode(', ', array_keys($_POST)));
         if (isset($_POST["form_sing_in"])) {
 
             if (!$this->csrfOk()) {
@@ -161,15 +166,12 @@ class loginController extends Controller
                 $usuario  = checkInput($_POST['usuario'] ?? '');
                 $password = checkInput($_POST['password'] ?? '');
 
-                $recaptcha = (string)($_POST['g-recaptcha-response'] ?? '');
-                $captchaOk = $this->recaptchaOk($recaptcha);
+                // ✅ CAPTCHA DESHABILITADO
+                $captchaOk = true;
 
                 try {
 
-                    if (!$captchaOk) {
-                        Flasher::new('¡Por favor valide el Captcha!', 'warning');
-
-                    } elseif ($usuario === '' || $password === '') {
+                    if ($usuario === '' || $password === '') {
                         Flasher::new('¡Debe ingresar usuario y contraseña!', 'warning');
 
                     } else {
@@ -185,7 +187,6 @@ class loginController extends Controller
 
                         } else {
 
-                            // contador intentos (cookie cin)
                             if (!isset($_COOKIE['cin'])) {
                                 setcookie('cin', 0, time() + 365 * 24 * 60 * 60);
                             }
@@ -200,11 +201,9 @@ class loginController extends Controller
 
                             if ($this->passwordOk($password, (string)($res[0]['usu_contrasena'] ?? ''))) {
 
-                                // reset cin
                                 unset($_COOKIE['cin']);
                                 setcookie('cin', 0, 0);
 
-                                // ===== Sesiones (mantengo compat con tu sistema) =====
                                 $_SESSION[APP_SESSION.'usu_id'] = (int)$res[0]['usu_id'];
                                 $_SESSION[APP_SESSION.'usu_aspirante_id'] = (int)($res[0]['usu_aspirante_id'] ?? $res[0]['usu_id']);
                                 $_SESSION[APP_SESSION.'usu_documento'] = $res[0]['usu_documento'] ?? '';
@@ -246,18 +245,15 @@ class loginController extends Controller
                                     $_SESSION[APP_SESSION.'param_inicio_image'] = IMAGES.$resparametroinicio[0]['app_imagen'];
                                 }
 
-                                // update login timestamp
                                 $user->usu_id = (int)$res[0]['usu_id'];
                                 $user->usu_actualiza_login = date('Y-m-d H:i:s');
                                 $user->updateLogin();
 
-                                // log inicio sesion
                                 $log->clog_log_tipo = 'inicio_sesion';
                                 $log->clog_log_accion = 'Inicio de sesión';
                                 $log->clog_log_detalle = 'Inicio de sesión';
                                 $log->add();
 
-                                // Si expiró por 60 días, fuerza cambio
                                 $pass = new passwordModel();
                                 $pass->auc_usuario = (int)$_SESSION[APP_SESSION.'usu_id'];
                                 $respass = $pass->list();
@@ -275,7 +271,6 @@ class loginController extends Controller
                                     }
                                 }
 
-                                // ✅ Aquí aplicamos tu flujo completo (seguridad + password-update si toca)
                                 $this->redirectAfterLogin();
 
                             } else {
@@ -285,8 +280,14 @@ class loginController extends Controller
                     }
 
                 } catch (Exception $e) {
-                    Flasher::new('¡Error interno en autenticación!', 'warning');
+                    Flasher::new(
+                        'Error: ' . $e->getMessage() . 
+                        ' | Línea: ' . $e->getLine() . 
+                        ' | Archivo: ' . basename($e->getFile()), 
+                        'warning'
+                    );
                 }
+
             }
         }
 
@@ -300,7 +301,7 @@ class loginController extends Controller
     }
 
     /* =========================
-     * SECURITY SETUP (MISMA RUTA / MISMO POST de tu view)
+     * SECURITY SETUP
      * ========================= */
 
     public function security_setup()
@@ -310,7 +311,6 @@ class loginController extends Controller
         $usuId = (int)$_SESSION[APP_SESSION.'usu_id'];
         $hasSecurity = $this->hasSecurityQuestion($usuId);
 
-        // Si ya tiene, no re-inscribir (pero si debe cambiar contraseña, envíalo a password-update)
         if ($hasSecurity) {
             unset($_SESSION[APP_SESSION.'_must_setup_security']);
 
@@ -327,7 +327,6 @@ class loginController extends Controller
         $questions = $mQ->listActive();
         if (!is_array($questions)) $questions = [];
 
-        // Guarda (POST)
         if (isset($_POST['form_security_setup'])) {
 
             if (!$this->csrfOk()) {
@@ -353,7 +352,6 @@ class loginController extends Controller
 
                 } else {
 
-                    // Insert de pregunta personalizada
                     if ($questionId === -1) {
                         $customQuestionSafe = checkInput($customQuestion);
 
@@ -384,7 +382,6 @@ class loginController extends Controller
                             unset($_SESSION[APP_SESSION.'_must_setup_security']);
                             Flasher::new('¡Pregunta de seguridad configurada exitosamente!', 'success');
 
-                            // ✅ Si es primer inicio, ahora debe ir a cambiar contraseña
                             if ($this->mustUpdatePassword()) {
                                 Redirect::to(self::ROUTE_PASS_UPD);
                                 exit;
@@ -405,19 +402,16 @@ class loginController extends Controller
     }
 
     /* =========================
-     * PASSWORD UPDATE (RUTA: login/password-update)
-     * - Compatible con tu update_passwordView.php (submit: form_recovery)
+     * PASSWORD UPDATE
      * ========================= */
 
     public function password_update()
     {
         $this->requireLogin();
 
-        // control_login = muestra formulario cuando toca cambiar contraseña
         $control_login = $this->mustUpdatePassword();
         $control_login_sesion = !$control_login;
 
-        // Procesa submit de TU VIEW: name="form_recovery"
         if (isset($_POST["form_recovery"]) && $control_login) {
 
             if (!$this->csrfOk()) {
@@ -436,7 +430,6 @@ class loginController extends Controller
 
                 } else {
 
-                    // Política fuerte (igual a la que vienes manejando)
                     $ok = true;
 
                     if (strlen($password_1) < 8) $ok = false;
@@ -454,7 +447,6 @@ class loginController extends Controller
 
                         $usuId = (int)$_SESSION[APP_SESSION.'usu_id'];
 
-                        // Historial (si tu modelo/password table existe)
                         $pass = new passwordModel();
                         $pass->auc_usuario = $usuId;
                         $respass = $pass->listRecovery();
@@ -473,7 +465,6 @@ class loginController extends Controller
 
                         } else {
 
-                            // Hash compatible con tu sistema (crypt bcrypt)
                             $salt = substr(base64_encode(openssl_random_pseudo_bytes(30)), 0, 22);
                             $salt = strtr($salt, ['+' => '.']);
                             $hash = crypt($password_1, '$2y$10$' . $salt);
@@ -485,21 +476,17 @@ class loginController extends Controller
 
                             if ($u->updatePassword()) {
 
-                                // Marca que ya actualizó contraseña
                                 $_SESSION[APP_SESSION.'_update_registro_creado'] = 1;
 
-                                // Sube flag de inicio sesión
                                 $u->usu_inicio_sesion = 1;
                                 $u->updateSession();
                                 $_SESSION[APP_SESSION.'usu_inicio_sesion'] = 1;
 
-                                // Registrar historial
                                 $pass->auc_contrasena = $hash;
                                 $pass->add();
 
                                 Flasher::new('¡Contraseña actualizada exitosamente!', 'success');
 
-                                // ✅ Si aún falta pregunta, manda a setup; si no, al inicio
                                 if (!$this->hasSecurityQuestion($usuId)) {
                                     $_SESSION[APP_SESSION.'_must_setup_security'] = 1;
                                     Redirect::to(self::ROUTE_SEC_SETUP);
@@ -517,8 +504,6 @@ class loginController extends Controller
             }
         }
 
-        // IMPORTANTÍSIMO: tu archivo real es update_passwordView.php
-        // así que debe renderizar "update_password"
         $data = [
             'control_login' => $control_login,
             'control_login_sesion' => $control_login_sesion
@@ -528,7 +513,7 @@ class loginController extends Controller
     }
 
     /* =========================
-     * RECOVERY BY SECURITY (POR usu_acceso)
+     * RECOVERY BY SECURITY
      * ========================= */
 
     public function recovery_by_security()
@@ -549,13 +534,10 @@ class loginController extends Controller
             } else {
 
                 $usuario = checkInput($_POST['usuario'] ?? '');
-                $recaptcha = (string)($_POST['g-recaptcha-response'] ?? '');
-                $captchaOk = $this->recaptchaOk($recaptcha);
 
+                // ✅ CAPTCHA DESHABILITADO
                 if ($usuario === '') {
                     Flasher::new('¡Debe ingresar su usuario!', 'warning');
-                } elseif (!$captchaOk) {
-                    Flasher::new('¡Por favor valide el Captcha!', 'warning');
                 } else {
 
                     $u = new usuarioModel();
@@ -583,6 +565,10 @@ class loginController extends Controller
 
         View::render('recovery_by_security', $data);
     }
+
+    /* =========================
+     * SECURITY VERIFY
+     * ========================= */
 
     public function security_verify()
     {
@@ -676,6 +662,10 @@ class loginController extends Controller
         View::render('security_verify', $data);
     }
 
+    /* =========================
+     * RECOVERY PASSWORD SECURITY
+     * ========================= */
+
     public function recovery_password_security()
     {
         Controller::checkSesionIndex();
@@ -755,6 +745,10 @@ class loginController extends Controller
 
         View::render('recovery_password_security', $data);
     }
+
+    /* =========================
+     * FORGOT PASSWORD / LOGOUT
+     * ========================= */
 
     public function forgot_password()
     {
