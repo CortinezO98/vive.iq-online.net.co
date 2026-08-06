@@ -86,37 +86,11 @@
                                                         <?php echo $data['resultado_registros_parametros_cod_etica'][0]->app_descripcion; ?>
                                                     </p>
                                                     <div class="col-md-12 mb-3">
-                                                        <label class="form-label my-0 font-size-12 d-block">
-                                                            ¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?
-                                                        </label>
-                                                        <div class="d-flex flex-wrap gap-3 mt-1" role="radiogroup" aria-label="Declaración de familiares o personas relacionadas">
-                                                            <div class="form-check form-check-inline">
-                                                                <input
-                                                                    class="form-check-input"
-                                                                    type="radio"
-                                                                    name="hvp_poblaciones_familiares_iq"
-                                                                    id="hvp_poblaciones_familiares_iq_si"
-                                                                    value="Si"
-                                                                    required
-                                                                    onchange="valida_familiar();"
-                                                                    <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq=='Si') ? 'checked' : ''; ?>
-                                                                >
-                                                                <label class="form-check-label font-size-12" for="hvp_poblaciones_familiares_iq_si">Sí</label>
-                                                            </div>
-                                                            <div class="form-check form-check-inline">
-                                                                <input
-                                                                    class="form-check-input"
-                                                                    type="radio"
-                                                                    name="hvp_poblaciones_familiares_iq"
-                                                                    id="hvp_poblaciones_familiares_iq_no"
-                                                                    value="No"
-                                                                    required
-                                                                    onchange="valida_familiar();"
-                                                                    <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq=='No') ? 'checked' : ''; ?>
-                                                                >
-                                                                <label class="form-check-label font-size-12" for="hvp_poblaciones_familiares_iq_no">No</label>
-                                                            </div>
-                                                        </div>
+                                                        <label for="hvp_poblaciones_familiares_iq" class="form-label my-0 font-size-12">¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?</label>
+                                                        <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" name="hvp_poblaciones_familiares_iq" id="hvp_poblaciones_familiares_iq" data-container="body" title="Seleccione" onchange="valida_familiar();" required>
+                                                            <option value="Si" <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq=='Si') ? 'selected' : ''; ?>>Si</option>
+                                                            <option value="No" <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq=='No') ? 'selected' : ''; ?>>No</option>
+                                                        </select>
                                                     </div>
                                                     <div class="col-md-12 mb-3 d-none" id="hpr_tabla_div">
                                                         <p class="appoinment-content-text mt-0 mb-2">Por favor, proporcione el nombre completo, el cargo que ocupa y la campaña/cliente a la que pertenece su familiar.</p>
@@ -135,19 +109,13 @@
                                                             </div>
                                                             <div class="col-md-2">
                                                                 <label for="hpr_relacion_contractual" class="form-label my-0 font-size-12">Relación Contractual/Comercial</label>
-                                                                <select
-    class="form-control form-control-sm font-size-11 px-2 py-1"
-    id="hpr_relacion_contractual"
-    name="hpr_relacion_contractual"
-    aria-label="Relación Contractual/Comercial"
->
-    <option value="">Seleccione</option>
-    <option value="Trabajador">Trabajador</option>
-    <option value="Practicante">Practicante</option>
-    <option value="Aprendiz">Aprendiz</option>
-    <option value="Contratista">Contratista</option>
-    <option value="Cliente">Cliente</option>
-</select>
+                                                                <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" id="hpr_relacion_contractual" data-container="body" title="Seleccione">
+                                                                    <option value="Trabajador">Trabajador</option>
+                                                                    <option value="Practicante">Practicante</option>
+                                                                    <option value="Aprendiz">Aprendiz</option>
+                                                                    <option value="Contratista">Contratista</option>
+                                                                    <option value="Cliente">Cliente</option>
+                                                        </select>
                                                     </div>
                                                             <div class="col-md-2">
                                                                 <label for="hpr_parentesco" class="form-label my-0 font-size-12">Parentesco/Relación</label>
@@ -318,34 +286,13 @@
     }
 
     function valida_familiar() {
-        $("#hpr_tabla_div")
-            .removeClass('d-block')
-            .addClass('d-none');
-
-        var seleccionado = document.querySelector(
-            'input[name="hvp_poblaciones_familiares_iq"]:checked'
-        );
-
-        var respuesta = seleccionado ? seleccionado.value : '';
-
-        if (respuesta === "Si") {
-            $("#hpr_tabla_div")
-                .removeClass('d-none')
-                .addClass('d-block');
-
+        $("#hpr_tabla_div").removeClass('d-block').addClass('d-none');
+        var respuesta=document.getElementById("hvp_poblaciones_familiares_iq").value;
+        if (respuesta==="Si") {
+            $("#hpr_tabla_div").removeClass('d-none').addClass('d-block');
             persona_relacionada_list();
         }
     }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener(
-            'DOMContentLoaded',
-            valida_familiar
-        );
-    } else {
-        valida_familiar();
-    }
-
     // ===== RF-02: Personas relacionadas con GRUPO ASD S.A.S. =====
     function persona_relacionada_add() {
         var hpr_nombre_completo = document.getElementById("hpr_nombre_completo").value;
@@ -388,7 +335,7 @@
                         document.getElementById("hpr_nombre_completo").value='';
                         document.getElementById("hpr_cargo").value='';
                         document.getElementById("hpr_campana_cliente").value='';
-                        document.getElementById('hpr_relacion_contractual').value = '';
+                        $('#hpr_relacion_contractual').selectpicker('val', '');
                         document.getElementById("hpr_parentesco").value='';
                     } else {
                         alert("¡No se pudo agregar el registro, verifique que la relación contractual sea válida e intente nuevamente!");

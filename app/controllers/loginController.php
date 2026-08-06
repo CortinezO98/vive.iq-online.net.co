@@ -29,34 +29,91 @@ class loginController extends Controller
 
     private function recaptchaOk(string $response): bool
     {
-        $response = checkInput($response);
-        if ($response === '') return false;
+        if (defined('RECAPTCHA_ENABLED') && RECAPTCHA_ENABLED === false) {
+            return true;
+        }
+
+        $response = trim((string)$response);
+        if ($response === '') {
+            return false;
+        }
 
         $secret = defined('RECAPTCHA_SECRET')
-            ? (string)RECAPTCHA_SECRET
-            : '6LftzogoAAAAAKT8XIuZaRDE3GJn0pFvv7YXNL2I';
+            ? trim((string)RECAPTCHA_SECRET)
+            : '';
+
+        if ($secret === '') {
+            error_log('reCAPTCHA: RECAPTCHA_SECRET no esta configurada.');
+            return false;
+        }
 
         $url = 'https://www.google.com/recaptcha/api/siteverify';
         $data = [
             'secret'   => $secret,
-            'response' => $response
+            'response' => $response,
+            'remoteip' => $_SERVER['REMOTE_ADDR'] ?? null,
         ];
 
-        $options = [
-            'http' => [
-                'method'  => 'POST',
-                'content' => http_build_query($data),
-                'timeout' => 8,
-                'header'  => "Content-type: application/x-www-form-urlencoded\r\n"
-            ]
-        ];
+        $verify = false;
 
-        $context = stream_context_create($options);
-        $verify  = @file_get_contents($url, false, $context);
-        if ($verify === false) return false;
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => http_build_query($data),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
 
-        $captcha = json_decode($verify);
-        return (is_object($captcha) && !empty($captcha->success));
+            $verify = curl_exec($ch);
+
+            if ($verify === false) {
+                error_log('reCAPTCHA cURL: ' . curl_error($ch));
+            }
+
+            curl_close($ch);
+        }
+
+        if ($verify === false && filter_var(
+            ini_get('allow_url_fopen'),
+            FILTER_VALIDATE_BOOLEAN
+        )) {
+            $context = stream_context_create([
+                'http' => [
+                    'method'  => 'POST',
+                    'content' => http_build_query($data),
+                    'timeout' => 8,
+                    'header'  =>
+                        "Content-Type: application/x-www-form-urlencoded\r\n",
+                ],
+            ]);
+
+            $verify = @file_get_contents($url, false, $context);
+        }
+
+        if ($verify === false || trim((string)$verify) === '') {
+            error_log('reCAPTCHA: no fue posible comunicarse con Google.');
+            return false;
+        }
+
+        $captcha = json_decode((string)$verify, true);
+
+        if (!is_array($captcha) || empty($captcha['success'])) {
+            error_log(
+                'reCAPTCHA rechazado: ' .
+                json_encode(
+                    is_array($captcha)
+                        ? ($captcha['error-codes'] ?? [])
+                        : ['json-invalido'],
+                    JSON_UNESCAPED_UNICODE
+                )
+            );
+            return false;
+        }
+
+        return true;
     }
 
     private function requireLogin(): void

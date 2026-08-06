@@ -70,10 +70,51 @@
                                                     <hr class="my-3">
                                                     <div class="col-md-12 mb-3 mt-3">
                                                         <label for="hvae_familiar" class="form-label my-0 font-size-12">¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?</label>
-                                                        <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" name="hvae_familiar" id="hvae_familiar" data-container="body" title="Seleccione" required onchange="validar_etica();">
-                                                            <option value="Si" <?php echo ($data['resultado_registros'][0]->hvae_familiar=='Si') ? 'selected' : ''; ?>>Si</option>
-                                                            <option value="No" <?php echo ($data['resultado_registros'][0]->hvae_familiar=='No') ? 'selected' : ''; ?>>No</option>
-                                                        </select>
+                                                        <div
+    class="d-flex flex-wrap gap-3 mt-1"
+    role="radiogroup"
+    aria-label="Declaración de familiares o personas relacionadas"
+>
+    <div class="form-check form-check-inline">
+        <input
+            class="form-check-input"
+            type="radio"
+            name="hvae_familiar"
+            id="hvae_familiar_si"
+            value="Si"
+            required
+            onchange="validar_etica();"
+            <?php echo (
+                isset($data['resultado_registros'][0]->hvae_familiar)
+                && $data['resultado_registros'][0]->hvae_familiar === 'Si'
+            ) ? 'checked' : ''; ?>
+        >
+        <label
+            class="form-check-label font-size-12"
+            for="hvae_familiar_si"
+        >Sí</label>
+    </div>
+
+    <div class="form-check form-check-inline">
+        <input
+            class="form-check-input"
+            type="radio"
+            name="hvae_familiar"
+            id="hvae_familiar_no"
+            value="No"
+            required
+            onchange="validar_etica();"
+            <?php echo (
+                isset($data['resultado_registros'][0]->hvae_familiar)
+                && $data['resultado_registros'][0]->hvae_familiar === 'No'
+            ) ? 'checked' : ''; ?>
+        >
+        <label
+            class="form-check-label font-size-12"
+            for="hvae_familiar_no"
+        >No</label>
+    </div>
+</div>
                                                     </div>
                                                     <div class="col-md-12 mb-3 d-none" id="hpr_tabla_div">
                                                         <p class="appoinment-content-text mt-0 mb-2">Por favor, proporcione el nombre completo, el cargo que ocupa y la campaña/cliente a la que pertenece su familiar.</p>
@@ -92,13 +133,18 @@
                                                             </div>
                                                             <div class="col-md-2">
                                                                 <label for="hpr_relacion_contractual" class="form-label my-0 font-size-12">Relación Contractual/Comercial</label>
-                                                                <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" id="hpr_relacion_contractual" data-container="body" title="Seleccione">
-                                                                    <option value="Trabajador">Trabajador</option>
-                                                                    <option value="Practicante">Practicante</option>
-                                                                    <option value="Aprendiz">Aprendiz</option>
-                                                                    <option value="Contratista">Contratista</option>
-                                                                    <option value="Cliente">Cliente</option>
-                                                                </select>
+                                                                <select
+    class="form-control form-control-sm font-size-11 px-2 py-1"
+    id="hpr_relacion_contractual"
+    aria-label="Relación Contractual/Comercial"
+>
+    <option value="">Seleccione</option>
+    <option value="Trabajador">Trabajador</option>
+    <option value="Practicante">Practicante</option>
+    <option value="Aprendiz">Aprendiz</option>
+    <option value="Contratista">Contratista</option>
+    <option value="Cliente">Cliente</option>
+</select>
                                                             </div>
                                                             <div class="col-md-2">
                                                                 <label for="hpr_parentesco" class="form-label my-0 font-size-12">Parentesco/Relación</label>
@@ -161,25 +207,35 @@
 <?php require_once INCLUDES.'inc_footer_index.php'; ?>
 <script src="<?php echo JS; ?>valid-input.js"></script>
 <script type="text/javascript">
-    function validar_etica(){
-        var hvae_familiar = document.getElementById("hvae_familiar").value;
-        $("#hpr_tabla_div").removeClass('d-block').addClass('d-none');
+    function validar_etica() {
+        var seleccionado = document.querySelector(
+            'input[name="hvae_familiar"]:checked'
+        );
 
-        if(hvae_familiar=='Si') {
-            $("#hpr_tabla_div").removeClass('d-none').addClass('d-block');
+        var respuesta = seleccionado ? seleccionado.value : '';
+
+        $("#hpr_tabla_div")
+            .removeClass('d-block')
+            .addClass('d-none');
+
+        if (respuesta === 'Si') {
+            $("#hpr_tabla_div")
+                .removeClass('d-none')
+                .addClass('d-block');
+
             persona_relacionada_list();
         }
     }
 
-    validar_etica();
-    
-    jQuery(document).ready(function(){
-        jQuery("#hvae_familiar").on('input', function (evt) {
-            jQuery(this).val(jQuery(this).val().toUpperCase());
-        });
-    });
-
-    jQuery(document).ready(function(){
+    if (document.readyState === 'loading') {
+        document.addEventListener(
+            'DOMContentLoaded',
+            validar_etica
+        );
+    } else {
+        validar_etica();
+    }
+jQuery(document).ready(function(){
         jQuery("#hpr_nombre_completo").on('input', function (evt) {
             jQuery(this).val(jQuery(this).val().toUpperCase());
         });
@@ -190,10 +246,7 @@
             jQuery(this).val(jQuery(this).val().toUpperCase());
         });
     });
-
-    validateControlById('hvae_familiar');
-
-    // ===== RF-02: Personas relacionadas con GRUPO ASD S.A.S. =====
+// ===== RF-02: Personas relacionadas con GRUPO ASD S.A.S. =====
     function persona_relacionada_add() {
         var id_oferta = '<?php echo $data['id_oferta']; ?>';
         var token = '<?php echo $data['id_token']; ?>';
@@ -239,7 +292,7 @@
                         document.getElementById("hpr_nombre_completo").value='';
                         document.getElementById("hpr_cargo").value='';
                         document.getElementById("hpr_campana_cliente").value='';
-                        $('#hpr_relacion_contractual').selectpicker('val', '');
+                        document.getElementById('hpr_relacion_contractual').value = '';
                         document.getElementById("hpr_parentesco").value='';
                     } else {
                         alert("¡No se pudo agregar el registro, verifique que la relación contractual sea válida e intente nuevamente!");

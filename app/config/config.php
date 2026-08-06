@@ -21,6 +21,21 @@
     define('APP_NAME', 'Vive iQ');
     define('APP_NAME_ALL', 'Vive iQ - iQ Outsourcing');
     define('CLIENT_NAME', 'iQ Outsourcing');
+    // Configuracion opcional de reCAPTCHA por entorno.
+    $recaptchaLocalConfig = __DIR__ . '/recaptcha.local.php';
+    if (is_file($recaptchaLocalConfig)) {
+        require_once $recaptchaLocalConfig;
+    }
+
+    if (!defined('RECAPTCHA_ENABLED')) {
+        define('RECAPTCHA_ENABLED', false);
+    }
+    if (!defined('RECAPTCHA_SITE_KEY')) {
+        define('RECAPTCHA_SITE_KEY', '');
+    }
+    if (!defined('RECAPTCHA_SECRET')) {
+        define('RECAPTCHA_SECRET', '');
+    }
     
     //Ruta base del proyecto
     define('BASEPATH', IS_LOCAL ? '/vive.iq-online.net.co/' : '');

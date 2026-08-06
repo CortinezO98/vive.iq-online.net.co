@@ -1,36 +1,22 @@
 <?php require_once INCLUDES.'inc_head.php'; ?>
-<!-- ✅ CAPTCHA DESHABILITADO
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<?php if (defined('RECAPTCHA_ENABLED') && RECAPTCHA_ENABLED): ?>
+<script src="https://www.google.com/recaptcha/api.js?hl=es" async defer></script>
 <style>
-    @media (max-width: 1400px) {
-        #gwd-reCAPTCHA_2 {
-            transform: scale(0.84) !important;
-            transform-origin: 0 0;
-        }
+    .vive-recaptcha {
+        display: flex;
+        justify-content: center;
+        overflow: hidden;
     }
 
-    @media (max-width: 1200px) {
-        #gwd-reCAPTCHA_2 {
-            transform: scale(0.64) !important;
-            transform-origin: 0 0;
-        }
-    }
-
-    @media (max-width: 992px) {
-        #gwd-reCAPTCHA_2 {
-            transform: scale(0.76) !important;
-            transform-origin: 0 0;
-        }
-    }
-
-    @media (max-width: 768px) {
-        #gwd-reCAPTCHA_2 {
-            transform: scale(1) !important;
-            transform-origin: 0 0;
+    @media (max-width: 380px) {
+        .vive-recaptcha .g-recaptcha {
+            transform: scale(0.88);
+            transform-origin: center top;
+            margin-bottom: -8px;
         }
     }
 </style>
--->
+<?php endif; ?>
 <!-- container -->
 <main class="container d-flex flex-column">
     <div class="row align-items-center justify-content-center g-0
@@ -69,14 +55,22 @@
                             <input type="password" id="password" class="form-control" name="password" placeholder="" required autocomplete="off">
                         </div>
 
-                        <!-- ✅ CAPTCHA DESHABILITADO
-                        <div class="col-md-12 my-2">
-                            <center><div class="g-recaptcha" id="gwd-reCAPTCHA_2" data-sitekey="6LftzogoAAAAALfVpbnOYd1LPzf2my7LyGAuVMEF" data-callback="correctCaptcha"></div></center>
-                            <?php if(isset($_POST["form_recovery"]) AND $_POST["g-recaptcha-response"]==''): ?>
-                                <div id="response" class="col-md-12"><p class='alert alert-danger p-1 font-size-11 my-0'>¡Por favor valide el Captcha!</p></div>
-                            <?php endif; ?>
-                        </div>
-                        -->
+                        <?php if (
+    defined('RECAPTCHA_ENABLED')
+    && RECAPTCHA_ENABLED
+): ?>
+<div class="col-md-12 my-3 vive-recaptcha">
+    <div
+        class="g-recaptcha"
+        data-sitekey="<?php echo htmlspecialchars(
+            (string)RECAPTCHA_SITE_KEY,
+            ENT_QUOTES,
+            'UTF-8'
+        ); ?>"
+        data-theme="light"
+    ></div>
+</div>
+<?php endif; ?>
 
                         <div>
                             <!-- Button -->
