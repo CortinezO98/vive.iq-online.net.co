@@ -6,6 +6,10 @@
         public $hvada_origen_fondos;
         public $hvada_proteccion_datos;
         public $hvada_tratamiento_datos;
+        public $hvada_sagrilaft_texto_id;
+        public $hvada_sagrilaft_fecha;
+        public $hvada_autorizacion_texto_id;
+        public $hvada_autorizacion_fecha;
         public $hvada_registro_usuario;
         public $hvada_registro_fecha;
         public $pagina;
@@ -27,12 +31,17 @@
             }
         }
 
-        /**
-         * Método para listar usuarios
-         */
+        private function selectFields(){
+            return '`hvada_id`, `hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`,
+                    `hvada_proteccion_datos`, `hvada_tratamiento_datos`,
+                    `hvada_sagrilaft_texto_id`, `hvada_sagrilaft_fecha`,
+                    `hvada_autorizacion_texto_id`, `hvada_autorizacion_fecha`,
+                    `hvada_registro_usuario`, `hvada_registro_fecha`';
+        }
 
         public function listDetail(){
-            $sql='SELECT `hvada_id`, `hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`, `hvada_proteccion_datos`, `hvada_tratamiento_datos`, `hvada_registro_usuario`, `hvada_registro_fecha` FROM `hoja_vida_aspirante_autorizaciones`
+            $sql='SELECT '.$this->selectFields().'
+                  FROM `hoja_vida_aspirante_autorizaciones`
              WHERE `hvada_aspirante`=:hvada_aspirante';
 
             $parametros = [
@@ -40,34 +49,29 @@
             ];
 
             try {
-                return $res = parent::query($sql, $parametros);
+                return parent::query($sql, $parametros);
             } catch (Exception $e) {
                 throw $e;
             }
         }
 
         public function listAllReport(){
-            $sql='SELECT `hvada_id`, `hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`, `hvada_proteccion_datos`, `hvada_tratamiento_datos`, `hvada_registro_usuario`, `hvada_registro_fecha` FROM `hoja_vida_aspirante_autorizaciones`
+            $sql='SELECT '.$this->selectFields().'
+                  FROM `hoja_vida_aspirante_autorizaciones`
              WHERE 1';
 
-            $parametros = [
-                // 'hvada_aspirante' => $this->hvada_aspirante,
-            ];
-
             try {
-                return $res = parent::query($sql, $parametros);
+                return parent::query($sql, []);
             } catch (Exception $e) {
                 throw $e;
             }
         }
 
-        /**
-         * Método para listar usuarios
-         */
-
         public function listDetailFormulario(){
-            $sql='SELECT `hvada_id`, `hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`, `hvada_proteccion_datos`, `hvada_tratamiento_datos`, `hvada_registro_usuario`, `hvada_registro_fecha` FROM `hoja_vida_aspirante_autorizaciones`
-             WHERE `hvada_aspirante`=:hvada_aspirante AND `hvada_registro_fecha` LIKE :hvada_registro_fecha';
+            $sql='SELECT '.$this->selectFields().'
+                  FROM `hoja_vida_aspirante_autorizaciones`
+                  WHERE `hvada_aspirante`=:hvada_aspirante
+                    AND `hvada_registro_fecha` LIKE :hvada_registro_fecha';
 
             $parametros = [
                 'hvada_aspirante' => $this->hvada_aspirante,
@@ -75,18 +79,23 @@
             ];
 
             try {
-                return $res = parent::query($sql, $parametros);
+                return parent::query($sql, $parametros);
             } catch (Exception $e) {
                 throw $e;
             }
         }
 
-        /**
-         * Método para crear un usuario 
-         */
-
         public function add(){
-            $sql='INSERT INTO `hoja_vida_aspirante_autorizaciones`(`hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`, `hvada_proteccion_datos`, `hvada_tratamiento_datos`, `hvada_registro_usuario`) VALUES (:hvada_aspirante, :hvada_veracidad, :hvada_origen_fondos, :hvada_proteccion_datos, :hvada_tratamiento_datos, :hvada_registro_usuario)';
+            $sql='INSERT INTO `hoja_vida_aspirante_autorizaciones`
+                    (`hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`,
+                     `hvada_proteccion_datos`, `hvada_tratamiento_datos`,
+                     `hvada_sagrilaft_texto_id`, `hvada_sagrilaft_fecha`,
+                     `hvada_registro_usuario`)
+                  VALUES
+                    (:hvada_aspirante, :hvada_veracidad, :hvada_origen_fondos,
+                     :hvada_proteccion_datos, :hvada_tratamiento_datos,
+                     :hvada_sagrilaft_texto_id, :hvada_sagrilaft_fecha,
+                     :hvada_registro_usuario)';
 
             $parametros = [
                 'hvada_aspirante' => $this->hvada_aspirante,
@@ -94,6 +103,8 @@
                 'hvada_origen_fondos' => $this->hvada_origen_fondos,
                 'hvada_proteccion_datos' => $this->hvada_proteccion_datos,
                 'hvada_tratamiento_datos' => $this->hvada_tratamiento_datos,
+                'hvada_sagrilaft_texto_id' => $this->hvada_sagrilaft_texto_id,
+                'hvada_sagrilaft_fecha' => $this->hvada_sagrilaft_fecha,
                 'hvada_registro_usuario' => $this->hvada_registro_usuario,
             ];
 
@@ -104,12 +115,17 @@
             }
         }
 
-        /**
-         * Método para crear un usuario 
-         */
-
          public function addPTD(){
-            $sql='INSERT INTO `hoja_vida_aspirante_autorizaciones`(`hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`, `hvada_proteccion_datos`, `hvada_tratamiento_datos`, `hvada_registro_usuario`) VALUES (:hvada_aspirante, :hvada_veracidad, :hvada_origen_fondos, :hvada_proteccion_datos, :hvada_tratamiento_datos, :hvada_registro_usuario)';
+            $sql='INSERT INTO `hoja_vida_aspirante_autorizaciones`
+                    (`hvada_aspirante`, `hvada_veracidad`, `hvada_origen_fondos`,
+                     `hvada_proteccion_datos`, `hvada_tratamiento_datos`,
+                     `hvada_autorizacion_texto_id`, `hvada_autorizacion_fecha`,
+                     `hvada_registro_usuario`)
+                  VALUES
+                    (:hvada_aspirante, :hvada_veracidad, :hvada_origen_fondos,
+                     :hvada_proteccion_datos, :hvada_tratamiento_datos,
+                     :hvada_autorizacion_texto_id, :hvada_autorizacion_fecha,
+                     :hvada_registro_usuario)';
 
             $parametros = [
                 'hvada_aspirante' => $this->hvada_aspirante,
@@ -117,6 +133,8 @@
                 'hvada_origen_fondos' => $this->hvada_origen_fondos,
                 'hvada_proteccion_datos' => $this->hvada_proteccion_datos,
                 'hvada_tratamiento_datos' => $this->hvada_tratamiento_datos,
+                'hvada_autorizacion_texto_id' => $this->hvada_autorizacion_texto_id,
+                'hvada_autorizacion_fecha' => $this->hvada_autorizacion_fecha,
                 'hvada_registro_usuario' => $this->hvada_registro_usuario,
             ];
 
@@ -128,13 +146,22 @@
         }
 
         public function updateRegistro(){
-            $sql='UPDATE `hoja_vida_aspirante_autorizaciones` SET `hvada_veracidad`=:hvada_veracidad, `hvada_origen_fondos`=:hvada_origen_fondos, `hvada_proteccion_datos`=:hvada_proteccion_datos, `hvada_registro_fecha`=:hvada_registro_fecha WHERE `hvada_aspirante`=:hvada_aspirante';
+            $sql='UPDATE `hoja_vida_aspirante_autorizaciones`
+                  SET `hvada_veracidad`=:hvada_veracidad,
+                      `hvada_origen_fondos`=:hvada_origen_fondos,
+                      `hvada_proteccion_datos`=:hvada_proteccion_datos,
+                      `hvada_sagrilaft_texto_id`=:hvada_sagrilaft_texto_id,
+                      `hvada_sagrilaft_fecha`=:hvada_sagrilaft_fecha,
+                      `hvada_registro_fecha`=:hvada_registro_fecha
+                  WHERE `hvada_aspirante`=:hvada_aspirante';
 
             $parametros = [
                 'hvada_aspirante' => $this->hvada_aspirante,
                 'hvada_veracidad' => $this->hvada_veracidad,
                 'hvada_origen_fondos' => $this->hvada_origen_fondos,
                 'hvada_proteccion_datos' => $this->hvada_proteccion_datos,
+                'hvada_sagrilaft_texto_id' => $this->hvada_sagrilaft_texto_id,
+                'hvada_sagrilaft_fecha' => $this->hvada_sagrilaft_fecha,
                 'hvada_registro_fecha' => $this->hvada_registro_fecha,
             ];
 
@@ -146,11 +173,18 @@
         }
 
         public function updateRegistroPTD(){
-            $sql='UPDATE `hoja_vida_aspirante_autorizaciones` SET `hvada_tratamiento_datos`=:hvada_tratamiento_datos, `hvada_registro_fecha`=:hvada_registro_fecha WHERE `hvada_aspirante`=:hvada_aspirante';
+            $sql='UPDATE `hoja_vida_aspirante_autorizaciones`
+                  SET `hvada_tratamiento_datos`=:hvada_tratamiento_datos,
+                      `hvada_autorizacion_texto_id`=:hvada_autorizacion_texto_id,
+                      `hvada_autorizacion_fecha`=:hvada_autorizacion_fecha,
+                      `hvada_registro_fecha`=:hvada_registro_fecha
+                  WHERE `hvada_aspirante`=:hvada_aspirante';
 
             $parametros = [
                 'hvada_aspirante' => $this->hvada_aspirante,
                 'hvada_tratamiento_datos' => $this->hvada_tratamiento_datos,
+                'hvada_autorizacion_texto_id' => $this->hvada_autorizacion_texto_id,
+                'hvada_autorizacion_fecha' => $this->hvada_autorizacion_fecha,
                 'hvada_registro_fecha' => $this->hvada_registro_fecha,
             ];
 

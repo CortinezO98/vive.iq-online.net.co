@@ -65,18 +65,24 @@
                                             <?php if($data['valida_token']): ?>
                                                 <?php if($data['valida_oferta']): ?>
                                                 <div class="appoinment-title mt-2">
-                                                    <h4>Veracidad de la Información Proporcionada</h4>
+                                                    <h4>CONSIDERACIONES</h4>
                                                 </div>
-                                                <p class="appoinment-content-text mt-0 mb-2">Con la firma del presente documento declaro que la información aquí contenida y suministrada durante el proceso de selección es veráz y que puede ser constatada en cualquier momento, asumiendo la responsabilidad en los eventos en que se presente cualquier falsedad o inconsistencia frente  a la misma.</p>
+                                                <p class="appoinment-content-text mt-0 mb-2">
+                                                    <?php echo $data['resultado_registros_parametros_veracidad'][0]->app_descripcion; ?>
+                                                </p>
                                                 <div class="col-md-12 my-3">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" value="Si" name="hvada_veracidad" id="hvada_veracidad" <?php echo ($data['resultado_registros'][0]->hvada_veracidad=='Si') ? 'checked' : ''; ?> required>
-                                                        <label class="form-check-label font-size-12 fw-bold" for="hvada_veracidad">Si, acepto</label>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" value="Si" name="hvada_veracidad" id="hvada_veracidad_si" <?php echo ($data['resultado_registros'][0]->hvada_veracidad=='Si') ? 'checked' : ''; ?> required>
+                                                        <label class="form-check-label font-size-12 fw-bold" for="hvada_veracidad_si">Sí</label>
+                                                    </div>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" value="No" name="hvada_veracidad" id="hvada_veracidad_no" <?php echo ($data['resultado_registros'][0]->hvada_veracidad=='No') ? 'checked' : ''; ?> required>
+                                                        <label class="form-check-label font-size-12 fw-bold" for="hvada_veracidad_no">No</label>
                                                     </div>
                                                 </div>
                                                 <div class="appoinment-title mt-2">
                                                     <hr>
-                                                    <h4>Declaración de Origen de Fondos y Prevención de Lavado de Activos y Financiación del Terrorismo - SAGRILAFT</h4>
+                                                    <h4>Declaración de Origen de Fondos y Prevención de Lavado de Activos, Financiación del Terrorismo, Financiamiento de la Proliferación de Armas de Destrucción Masiva, Corrupción y Soborno - SAGRILAFT - PTEE</h4>
                                                 </div>
                                                 <p class="appoinment-content-text mt-0 mb-2">
                                                     <?php echo $data['resultado_registros_parametros'][0]->app_descripcion; ?>

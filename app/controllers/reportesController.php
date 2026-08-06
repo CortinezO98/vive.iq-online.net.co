@@ -8,6 +8,79 @@
         {
         }
 
+        /**
+         * Carga una sola vez las personas relacionadas y las agrupa por propietario.
+         * Evita consultas N+1 durante la generación de los archivos Excel.
+         */
+        private function cargarPersonasRelacionadasReporte($contexto)
+        {
+            $resultado=array();
+            $persona_relacionada = new hv_persona_relacionadaModel();
+            $persona_relacionada->hpr_contexto=$contexto;
+            $registros=$persona_relacionada->listAllReport();
+
+            if (!isset($registros[0])) {
+                return $resultado;
+            }
+
+            for ($i=0; $i < count($registros); $i++) {
+                $propietario=$registros[$i]['hpr_propietario_id'];
+                if (!isset($resultado[$propietario])) {
+                    $resultado[$propietario]=array();
+                }
+                $resultado[$propietario][]=$registros[$i];
+            }
+
+            return $resultado;
+        }
+
+        /**
+         * Aplana la relación uno-a-muchos conservando una fila por aspirante/colaborador.
+         * Los campos históricos se usan como respaldo cuando aún no existen registros
+         * normalizados en hoja_vida_persona_relacionada.
+         */
+        private function resumenPersonasRelacionadasReporte($agrupadas, $propietario, $nombre_historico='', $campana_historica='')
+        {
+            $nombres=array();
+            $cargos=array();
+            $campanas=array();
+            $relaciones=array();
+            $parentescos=array();
+
+            if (isset($agrupadas[$propietario])) {
+                for ($i=0; $i < count($agrupadas[$propietario]); $i++) {
+                    $registro=$agrupadas[$propietario][$i];
+                    $nombres[]=$this->valorReporte($registro, 'hpr_nombre_completo');
+                    $cargos[]=$this->valorReporte($registro, 'hpr_cargo');
+                    $campanas[]=$this->valorReporte($registro, 'hpr_campana_cliente');
+                    $relaciones[]=$this->valorReporte($registro, 'hpr_relacion_contractual');
+                    $parentescos[]=$this->valorReporte($registro, 'hpr_parentesco');
+                }
+            } elseif (trim((string)$nombre_historico)!='' || trim((string)$campana_historica)!='') {
+                $nombres[]=trim((string)$nombre_historico);
+                $cargos[]='';
+                $campanas[]=trim((string)$campana_historica);
+                $relaciones[]='';
+                $parentescos[]='';
+            }
+
+            return array(
+                'cantidad'=>count($nombres),
+                'nombres'=>implode(' | ', $nombres),
+                'cargos'=>implode(' | ', $cargos),
+                'campanas'=>implode(' | ', $campanas),
+                'relaciones'=>implode(' | ', $relaciones),
+                'parentescos'=>implode(' | ', $parentescos),
+            );
+        }
+
+        private function valorReporte($datos, $clave, $valor_defecto='')
+        {
+            return (is_array($datos) && isset($datos[$clave]) && $datos[$clave]!==null)
+                ? $datos[$clave]
+                : $valor_defecto;
+        }
+
         function seleccion_aspirantes() {
             // error_reporting(E_ALL);
             // ini_set('display_errors', '1');
@@ -42,6 +115,11 @@
                 //Activar hoja 0
                 $sheet = $spreadsheet->getActiveSheet(0);
                 
+                $array_personas_relacionadas_seleccion=array();
+                if (in_array($tipo_reporte, array('Consolidado', 'Cumplimiento'), true)) {
+                    $array_personas_relacionadas_seleccion=$this->cargarPersonasRelacionadasReporte('seleccion');
+                }
+
                 // Nombramos la hoja 0 
                 if ($tipo_reporte=='Consolidado') {
                     $registros = new hv_aspiranteModel();
@@ -112,6 +190,8 @@
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar'] = $resaspirante_etica[$i]['hvae_familiar'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar_nombre'] = $resaspirante_etica[$i]['hvae_familiar_nombre'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar_area'] = $resaspirante_etica[$i]['hvae_familiar_area'];
+                        $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_poblacion_vulnerable'] = $resaspirante_etica[$i]['hvae_poblacion_vulnerable'];
+                        $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_alerta_familiaridad'] = $resaspirante_etica[$i]['hvae_alerta_familiaridad'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_registro_usuario'] = $resaspirante_etica[$i]['hvae_registro_usuario'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_registro_fecha'] = $resaspirante_etica[$i]['hvae_registro_fecha'];
                     }
@@ -218,6 +298,10 @@
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_origen_fondos'] = $resaspirante_autorizaciones[$i]['hvada_origen_fondos'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_proteccion_datos'] = $resaspirante_autorizaciones[$i]['hvada_proteccion_datos'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_tratamiento_datos'] = $resaspirante_autorizaciones[$i]['hvada_tratamiento_datos'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_sagrilaft_texto_id'] = $resaspirante_autorizaciones[$i]['hvada_sagrilaft_texto_id'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_sagrilaft_fecha'] = $resaspirante_autorizaciones[$i]['hvada_sagrilaft_fecha'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_autorizacion_texto_id'] = $resaspirante_autorizaciones[$i]['hvada_autorizacion_texto_id'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_autorizacion_fecha'] = $resaspirante_autorizaciones[$i]['hvada_autorizacion_fecha'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_registro_usuario'] = $resaspirante_autorizaciones[$i]['hvada_registro_usuario'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_registro_fecha'] = $resaspirante_autorizaciones[$i]['hvada_registro_fecha'];
                     }
@@ -408,8 +492,8 @@
                     $spreadsheet->getActiveSheet()->getColumnDimension('CH')->setWidth(20);
                     $spreadsheet->getActiveSheet()->getColumnDimension('CI')->setWidth(20);
                     $spreadsheet->getActiveSheet()->getColumnDimension('CJ')->setWidth(20);
-                    $spreadsheet->getActiveSheet()->getStyle('A4:BZ4')->applyFromArray($styleArrayTitulos);
-                    $spreadsheet->getActiveSheet()->setAutoFilter('A4:BZ4');
+                    $spreadsheet->getActiveSheet()->getStyle('A4:CM4')->applyFromArray($styleArrayTitulos);
+                    $spreadsheet->getActiveSheet()->setAutoFilter('A4:CM4');
                     $spreadsheet->getActiveSheet()->getStyle('3')->getAlignment()->setWrapText(true);
                     $spreadsheet->getActiveSheet()->getStyle('4')->getAlignment()->setWrapText(true);
 
@@ -445,7 +529,7 @@
                     $spreadsheet->getActiveSheet()->setCellValue('X4','Información Emergencia-Nombres y Apellidos');
                     $spreadsheet->getActiveSheet()->setCellValue('Y4','Información Emergencia-Parentesco');
                     $spreadsheet->getActiveSheet()->setCellValue('Z4','Información Emergencia-Teléfono');
-                    $spreadsheet->getActiveSheet()->setCellValue('AA4','¿Tiene usted familiares, conyugue y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente trabaje en IQ?');
+                    $spreadsheet->getActiveSheet()->setCellValue('AA4','¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?');
                     $spreadsheet->getActiveSheet()->setCellValue('AB4','Nombres y Apellidos');
                     $spreadsheet->getActiveSheet()->setCellValue('AC4','Área');
                     $spreadsheet->getActiveSheet()->setCellValue('AD4','¿Ha trabajado anteriormente en IQ?');
@@ -497,6 +581,21 @@
                     $spreadsheet->getActiveSheet()->setCellValue('BV4','Fecha terminacion');
                     $spreadsheet->getActiveSheet()->setCellValue('BW4','Tarjeta profesional');
                     $spreadsheet->getActiveSheet()->setCellValue('BX4','Fecha Diligenciamiento');
+                    $spreadsheet->getActiveSheet()->setCellValue('BY4','Población sujeto de especial protección o vulnerabilidad');
+                    $spreadsheet->getActiveSheet()->setCellValue('BZ4','Alerta de cambio en declaración de familiaridad');
+                    $spreadsheet->getActiveSheet()->setCellValue('CA4','Cantidad de personas relacionadas con GRUPO ASD S.A.S.');
+                    $spreadsheet->getActiveSheet()->setCellValue('CB4','Personas relacionadas - Nombres completos');
+                    $spreadsheet->getActiveSheet()->setCellValue('CC4','Personas relacionadas - Cargos');
+                    $spreadsheet->getActiveSheet()->setCellValue('CD4','Personas relacionadas - Campañas o clientes');
+                    $spreadsheet->getActiveSheet()->setCellValue('CE4','Personas relacionadas - Relación contractual');
+                    $spreadsheet->getActiveSheet()->setCellValue('CF4','Personas relacionadas - Parentesco');
+                    $spreadsheet->getActiveSheet()->setCellValue('CG4','Aceptación de consideraciones de veracidad');
+                    $spreadsheet->getActiveSheet()->setCellValue('CH4','Aceptación declaración SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('CI4','Referencia del texto legal SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('CJ4','Fecha aceptación SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('CK4','Autorización tratamiento de datos personales');
+                    $spreadsheet->getActiveSheet()->setCellValue('CL4','Referencia del texto legal de autorización de datos');
+                    $spreadsheet->getActiveSheet()->setCellValue('CM4','Fecha autorización de datos');
                     
                     $spreadsheet->getActiveSheet()->setCellValue('A1','Reporte: Consolidado de Aspirantes');
                     
@@ -685,6 +784,30 @@
                         $spreadsheet->getActiveSheet()->setCellValue('BV'.$i,mb_strtoupper($hvaet_fecha_terminacion));
                         $spreadsheet->getActiveSheet()->setCellValue('BW'.$i,mb_strtoupper($hvaet_tarjeta_profesional));
                         $spreadsheet->getActiveSheet()->setCellValue('BX'.$i,$resregistros[$i-5]['hvao_fecha_diligencia']);
+                        $datos_etica=(isset($array_etica[$id_aspirante])) ? $array_etica[$id_aspirante] : array();
+                        $datos_autorizaciones=(isset($array_autorizaciones[$id_aspirante])) ? $array_autorizaciones[$id_aspirante] : array();
+                        $personas_relacionadas=$this->resumenPersonasRelacionadasReporte(
+                            $array_personas_relacionadas_seleccion,
+                            $id_aspirante,
+                            $this->valorReporte($datos_etica, 'hvae_familiar_nombre'),
+                            $this->valorReporte($datos_etica, 'hvae_familiar_area')
+                        );
+
+                        $spreadsheet->getActiveSheet()->setCellValue('BY'.$i,mb_strtoupper($this->valorReporte($datos_etica, 'hvae_poblacion_vulnerable')));
+                        $spreadsheet->getActiveSheet()->setCellValue('BZ'.$i,mb_strtoupper($this->valorReporte($datos_etica, 'hvae_alerta_familiaridad')));
+                        $spreadsheet->getActiveSheet()->setCellValue('CA'.$i,$personas_relacionadas['cantidad']);
+                        $spreadsheet->getActiveSheet()->setCellValue('CB'.$i,mb_strtoupper($personas_relacionadas['nombres']));
+                        $spreadsheet->getActiveSheet()->setCellValue('CC'.$i,mb_strtoupper($personas_relacionadas['cargos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('CD'.$i,mb_strtoupper($personas_relacionadas['campanas']));
+                        $spreadsheet->getActiveSheet()->setCellValue('CE'.$i,mb_strtoupper($personas_relacionadas['relaciones']));
+                        $spreadsheet->getActiveSheet()->setCellValue('CF'.$i,mb_strtoupper($personas_relacionadas['parentescos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('CG'.$i,mb_strtoupper($this->valorReporte($datos_autorizaciones, 'hvada_veracidad')));
+                        $spreadsheet->getActiveSheet()->setCellValue('CH'.$i,mb_strtoupper($this->valorReporte($datos_autorizaciones, 'hvada_origen_fondos')));
+                        $spreadsheet->getActiveSheet()->setCellValue('CI'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_sagrilaft_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('CJ'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_sagrilaft_fecha'));
+                        $spreadsheet->getActiveSheet()->setCellValue('CK'.$i,mb_strtoupper($this->valorReporte($datos_autorizaciones, 'hvada_tratamiento_datos')));
+                        $spreadsheet->getActiveSheet()->setCellValue('CL'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_autorizacion_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('CM'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_autorizacion_fecha'));
                     }
                 } elseif ($tipo_reporte=='Ofertas') {
                     $ofertas = new hv_aspirante_ofertaModel();
@@ -1149,6 +1272,8 @@
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar'] = $resaspirante_etica[$i]['hvae_familiar'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar_nombre'] = $resaspirante_etica[$i]['hvae_familiar_nombre'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar_area'] = $resaspirante_etica[$i]['hvae_familiar_area'];
+                        $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_poblacion_vulnerable'] = $resaspirante_etica[$i]['hvae_poblacion_vulnerable'];
+                        $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_alerta_familiaridad'] = $resaspirante_etica[$i]['hvae_alerta_familiaridad'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_registro_usuario'] = $resaspirante_etica[$i]['hvae_registro_usuario'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_registro_fecha'] = $resaspirante_etica[$i]['hvae_registro_fecha'];
                     }
@@ -1255,6 +1380,10 @@
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_origen_fondos'] = $resaspirante_autorizaciones[$i]['hvada_origen_fondos'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_proteccion_datos'] = $resaspirante_autorizaciones[$i]['hvada_proteccion_datos'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_tratamiento_datos'] = $resaspirante_autorizaciones[$i]['hvada_tratamiento_datos'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_sagrilaft_texto_id'] = $resaspirante_autorizaciones[$i]['hvada_sagrilaft_texto_id'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_sagrilaft_fecha'] = $resaspirante_autorizaciones[$i]['hvada_sagrilaft_fecha'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_autorizacion_texto_id'] = $resaspirante_autorizaciones[$i]['hvada_autorizacion_texto_id'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_autorizacion_fecha'] = $resaspirante_autorizaciones[$i]['hvada_autorizacion_fecha'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_registro_usuario'] = $resaspirante_autorizaciones[$i]['hvada_registro_usuario'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_registro_fecha'] = $resaspirante_autorizaciones[$i]['hvada_registro_fecha'];
                     }
@@ -1445,8 +1574,8 @@
                     $spreadsheet->getActiveSheet()->getColumnDimension('CH')->setWidth(20);
                     $spreadsheet->getActiveSheet()->getColumnDimension('CI')->setWidth(20);
                     $spreadsheet->getActiveSheet()->getColumnDimension('CJ')->setWidth(20);
-                    $spreadsheet->getActiveSheet()->getStyle('A4:AI4')->applyFromArray($styleArrayTitulos);
-                    $spreadsheet->getActiveSheet()->setAutoFilter('A4:AI4');
+                    $spreadsheet->getActiveSheet()->getStyle('A4:AV4')->applyFromArray($styleArrayTitulos);
+                    $spreadsheet->getActiveSheet()->setAutoFilter('A4:AV4');
                     $spreadsheet->getActiveSheet()->getStyle('3')->getAlignment()->setWrapText(true);
                     $spreadsheet->getActiveSheet()->getStyle('4')->getAlignment()->setWrapText(true);
 
@@ -1463,7 +1592,7 @@
                     $spreadsheet->getActiveSheet()->setCellValue('I4','Barrio');
                     $spreadsheet->getActiveSheet()->setCellValue('J4','Ciudad');
                     $spreadsheet->getActiveSheet()->setCellValue('K4','Departamento');
-                    $spreadsheet->getActiveSheet()->setCellValue('L4','¿Tiene usted familiares, conyugue y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente trabaje en IQ?');
+                    $spreadsheet->getActiveSheet()->setCellValue('L4','¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?');
                     $spreadsheet->getActiveSheet()->setCellValue('M4','Nombres y Apellidos');
                     $spreadsheet->getActiveSheet()->setCellValue('N4','Área');
                     $spreadsheet->getActiveSheet()->setCellValue('O4','¿Declara tener otro trabajo u ocupación simultánea?');
@@ -1485,6 +1614,21 @@
                     $spreadsheet->getActiveSheet()->setCellValue('AE4','¿Ejerce algún grado de poder público?');
                     $spreadsheet->getActiveSheet()->setCellValue('AF4','¿Tiene usted algún familiar que cumpla con una característica anterior?');
                     $spreadsheet->getActiveSheet()->setCellValue('AG4','Si alguna de las respuestas anteriores es afirmativa, por favor especifique');
+                    $spreadsheet->getActiveSheet()->setCellValue('AH4','Población sujeto de especial protección o vulnerabilidad');
+                    $spreadsheet->getActiveSheet()->setCellValue('AI4','Alerta de cambio en declaración de familiaridad');
+                    $spreadsheet->getActiveSheet()->setCellValue('AJ4','Cantidad de personas relacionadas con GRUPO ASD S.A.S.');
+                    $spreadsheet->getActiveSheet()->setCellValue('AK4','Personas relacionadas - Nombres completos');
+                    $spreadsheet->getActiveSheet()->setCellValue('AL4','Personas relacionadas - Cargos');
+                    $spreadsheet->getActiveSheet()->setCellValue('AM4','Personas relacionadas - Campañas o clientes');
+                    $spreadsheet->getActiveSheet()->setCellValue('AN4','Personas relacionadas - Relación contractual');
+                    $spreadsheet->getActiveSheet()->setCellValue('AO4','Personas relacionadas - Parentesco');
+                    $spreadsheet->getActiveSheet()->setCellValue('AP4','Aceptación de consideraciones de veracidad');
+                    $spreadsheet->getActiveSheet()->setCellValue('AQ4','Aceptación declaración SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('AR4','Referencia del texto legal SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('AS4','Fecha aceptación SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('AT4','Autorización tratamiento de datos personales');
+                    $spreadsheet->getActiveSheet()->setCellValue('AU4','Referencia del texto legal de autorización de datos');
+                    $spreadsheet->getActiveSheet()->setCellValue('AV4','Fecha autorización de datos');
                     
                     $spreadsheet->getActiveSheet()->setCellValue('A1','Reporte: Cumplimiento');
                     
@@ -1531,6 +1675,30 @@
                         $spreadsheet->getActiveSheet()->setCellValue('AE'.$i,mb_strtoupper($array_publico[$id_aspirante]['hvap_poder']));//¿Ejerce algún grado de poder público?
                         $spreadsheet->getActiveSheet()->setCellValue('AF'.$i,mb_strtoupper($array_publico[$id_aspirante]['hvap_familiar']));//¿Tiene usted algún familiar que cumpla con una característica anterior?
                         $spreadsheet->getActiveSheet()->setCellValue('AG'.$i,mb_strtoupper($array_publico[$id_aspirante]['hvap_observaciones']));//Si alguna de las respuestas anteriores es afirmativa, por favor especifique
+                        $datos_etica=(isset($array_etica[$id_aspirante])) ? $array_etica[$id_aspirante] : array();
+                        $datos_autorizaciones=(isset($array_autorizaciones[$id_aspirante])) ? $array_autorizaciones[$id_aspirante] : array();
+                        $personas_relacionadas=$this->resumenPersonasRelacionadasReporte(
+                            $array_personas_relacionadas_seleccion,
+                            $id_aspirante,
+                            $this->valorReporte($datos_etica, 'hvae_familiar_nombre'),
+                            $this->valorReporte($datos_etica, 'hvae_familiar_area')
+                        );
+
+                        $spreadsheet->getActiveSheet()->setCellValue('AH'.$i,mb_strtoupper($this->valorReporte($datos_etica, 'hvae_poblacion_vulnerable')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AI'.$i,mb_strtoupper($this->valorReporte($datos_etica, 'hvae_alerta_familiaridad')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AJ'.$i,$personas_relacionadas['cantidad']);
+                        $spreadsheet->getActiveSheet()->setCellValue('AK'.$i,mb_strtoupper($personas_relacionadas['nombres']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AL'.$i,mb_strtoupper($personas_relacionadas['cargos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AM'.$i,mb_strtoupper($personas_relacionadas['campanas']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AN'.$i,mb_strtoupper($personas_relacionadas['relaciones']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AO'.$i,mb_strtoupper($personas_relacionadas['parentescos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AP'.$i,mb_strtoupper($this->valorReporte($datos_autorizaciones, 'hvada_veracidad')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AQ'.$i,mb_strtoupper($this->valorReporte($datos_autorizaciones, 'hvada_origen_fondos')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AR'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_sagrilaft_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('AS'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_sagrilaft_fecha'));
+                        $spreadsheet->getActiveSheet()->setCellValue('AT'.$i,mb_strtoupper($this->valorReporte($datos_autorizaciones, 'hvada_tratamiento_datos')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AU'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_autorizacion_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('AV'.$i,$this->valorReporte($datos_autorizaciones, 'hvada_autorizacion_fecha'));
                         
                     }
                 }
@@ -1579,6 +1747,15 @@
                 //Activar hoja 0
                 $sheet = $spreadsheet->getActiveSheet(0);
                 
+                $array_personas_relacionadas_ciudadano=array();
+                $array_personas_relacionadas_seleccion=array();
+                if (in_array($tipo_reporte, array('Consolidado', 'Consolidado Vinculados', 'Cumplimiento'), true)) {
+                    $array_personas_relacionadas_ciudadano=$this->cargarPersonasRelacionadasReporte('ciudadano_iq');
+                }
+                if ($tipo_reporte=='Consolidado Vinculados') {
+                    $array_personas_relacionadas_seleccion=$this->cargarPersonasRelacionadasReporte('seleccion');
+                }
+
                 // Nombramos la hoja 0
                 $spreadsheet->getActiveSheet()->setTitle($tipo_reporte);
 
@@ -1595,6 +1772,50 @@
                     
                     if (!isset($resregistros[0])) {
                         $resregistros=array();
+                    }
+
+                    // Valida Estudios terminados
+                    $aspirante_estudio = new hv_aspirante_estudio_terminadoModel();
+                    $resaspirante_estudio_terminado=$aspirante_estudio->listAllReport();
+
+                    if (!isset($resaspirante_estudio_terminado[0])) {
+                        $resaspirante_estudio_terminado=array();
+                    }
+
+                    $array_estudio_terminado=array();
+                    for ($i=0; $i < count($resaspirante_estudio_terminado); $i++) { 
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_nivel'][] = $resaspirante_estudio_terminado[$i]['hvaet_nivel'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_nivel'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_nivel']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_establecimiento'][] = $resaspirante_estudio_terminado[$i]['hvaet_establecimiento'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_establecimiento'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_establecimiento']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_titulo'][] = $resaspirante_estudio_terminado[$i]['hvaet_titulo'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_titulo'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_titulo']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_ciudad'][] = $resaspirante_estudio_terminado[$i]['hvaet_ciudad'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_ciudad'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_ciudad']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_fecha_inicio'][] = $resaspirante_estudio_terminado[$i]['hvaet_fecha_inicio'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_fecha_inicio'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_fecha_inicio']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_fecha_terminacion'][] = $resaspirante_estudio_terminado[$i]['hvaet_fecha_terminacion'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_fecha_terminacion'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_fecha_terminacion']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_tarjeta_profesional'][] = $resaspirante_estudio_terminado[$i]['hvaet_tarjeta_profesional'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_tarjeta_profesional'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['hvaet_tarjeta_profesional']=array();
+                        }
+                        $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['ciudad'][] = $resaspirante_estudio_terminado[$i]['ciu_municipio'].', '.$resaspirante_estudio_terminado[$i]['ciu_departamento'];
+                        if (!isset($array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['ciudad'][0])) {
+                            $array_estudio_terminado[$resaspirante_estudio_terminado[$i]['hvaet_aspirante']]['ciudad']=array();
+                        }
                     }
 
                     //Estilos de la Hoja 0
@@ -1743,21 +1964,33 @@
                         $spreadsheet->getActiveSheet()->getColumnDimension('EL')->setWidth(20);
                         $spreadsheet->getActiveSheet()->getColumnDimension('EM')->setWidth(20);
                         $spreadsheet->getActiveSheet()->getColumnDimension('EN')->setWidth(20);
-                        $spreadsheet->getActiveSheet()->getStyle('A4:EN4')->applyFromArray($styleArrayTitulos);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EO')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EP')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EQ')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('ER')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('ES')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('ET')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EU')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EV')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EW')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EX')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EY')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EZ')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getStyle('A4:EZ4')->applyFromArray($styleArrayTitulos);
                         
                         $spreadsheet->getActiveSheet()->getStyle('A3:C3')->applyFromArray($styleArrayTitulos_turno);
                         $spreadsheet->getActiveSheet()->getStyle('D3')->applyFromArray($styleArrayTitulos_almuerzo);
-                        $spreadsheet->getActiveSheet()->getStyle('E3:K3')->applyFromArray($styleArrayTitulos_break);
-                        $spreadsheet->getActiveSheet()->getStyle('L3:P3')->applyFromArray($styleArrayTitulos_pausa);
-                        $spreadsheet->getActiveSheet()->getStyle('Q3:T3')->applyFromArray($styleArrayTitulos_capacitacion);
-                        $spreadsheet->getActiveSheet()->getStyle('U3:AG3')->applyFromArray($styleArrayTitulos_retro);
-                        $spreadsheet->getActiveSheet()->getStyle('AH3:AK3')->applyFromArray($styleArrayTitulos_turno);
-                        $spreadsheet->getActiveSheet()->getStyle('AL3:AS3')->applyFromArray($styleArrayTitulos_almuerzo);
-                        $spreadsheet->getActiveSheet()->getStyle('AT3:BD3')->applyFromArray($styleArrayTitulos_break);
-                        $spreadsheet->getActiveSheet()->getStyle('BE3:BJ3')->applyFromArray($styleArrayTitulos_pausa);
-                        $spreadsheet->getActiveSheet()->getStyle('BK3:BS3')->applyFromArray($styleArrayTitulos_capacitacion);
-                        $spreadsheet->getActiveSheet()->getStyle('BT3:BZ3')->applyFromArray($styleArrayTitulos_retro);
-                        $spreadsheet->getActiveSheet()->getStyle('CA3:CI3')->applyFromArray($styleArrayTitulos_turno);
+                        $spreadsheet->getActiveSheet()->getStyle('E3:L3')->applyFromArray($styleArrayTitulos_break);
+                        $spreadsheet->getActiveSheet()->getStyle('M3:Q3')->applyFromArray($styleArrayTitulos_pausa);
+                        $spreadsheet->getActiveSheet()->getStyle('R3:U3')->applyFromArray($styleArrayTitulos_capacitacion);
+                        $spreadsheet->getActiveSheet()->getStyle('V3:AH3')->applyFromArray($styleArrayTitulos_retro);
+                        $spreadsheet->getActiveSheet()->getStyle('AI3:AL3')->applyFromArray($styleArrayTitulos_turno);
+                        $spreadsheet->getActiveSheet()->getStyle('AM3:AT3')->applyFromArray($styleArrayTitulos_almuerzo);
+                        $spreadsheet->getActiveSheet()->getStyle('AU3:BE3')->applyFromArray($styleArrayTitulos_break);
+                        $spreadsheet->getActiveSheet()->getStyle('BF3:BK3')->applyFromArray($styleArrayTitulos_pausa);
+                        $spreadsheet->getActiveSheet()->getStyle('BL3:BT3')->applyFromArray($styleArrayTitulos_capacitacion);
+                        $spreadsheet->getActiveSheet()->getStyle('BU3:BZ3')->applyFromArray($styleArrayTitulos_retro);
+                        $spreadsheet->getActiveSheet()->getStyle('CA3:CH3')->applyFromArray($styleArrayTitulos_turno);
                         $spreadsheet->getActiveSheet()->getStyle('CJ3:CZ3')->applyFromArray($styleArrayTitulos_almuerzo);
                         $spreadsheet->getActiveSheet()->getStyle('DA3:DG3')->applyFromArray($styleArrayTitulos_break);
                         $spreadsheet->getActiveSheet()->getStyle('DH3:DP3')->applyFromArray($styleArrayTitulos_pausa);
@@ -1766,7 +1999,7 @@
                         $spreadsheet->getActiveSheet()->getStyle('DV3:EE3')->applyFromArray($styleArrayTitulos_turno);
                         $spreadsheet->getActiveSheet()->getStyle('EF3:EN3')->applyFromArray($styleArrayTitulos_almuerzo);
 
-                        $spreadsheet->getActiveSheet()->setAutoFilter('A4:EN4');
+                        $spreadsheet->getActiveSheet()->setAutoFilter('A4:EZ4');
                         $spreadsheet->getActiveSheet()->getStyle('3')->getAlignment()->setWrapText(true);
                         $spreadsheet->getActiveSheet()->getStyle('4')->getAlignment()->setWrapText(true);
 
@@ -1864,7 +2097,7 @@
                     $spreadsheet->getActiveSheet()->setCellValue('BQ4','Otros Ingresos');
                     $spreadsheet->getActiveSheet()->setCellValue('BR4','Concepto de otros ingresos');
                     $spreadsheet->getActiveSheet()->setCellValue('BS4','¿Realiza Operaciones en Moneda Extranjera?');
-                    $spreadsheet->getActiveSheet()->setCellValue('BT4','Declaración de Origen de Fondos y Prevención de Lavado de Activos y Financiación del Terrorismo - SAGRILAFT');
+                    $spreadsheet->getActiveSheet()->setCellValue('BT4','Declaración de Origen de Fondos y Prevención de LA/FT/FPADM, Corrupción y Soborno - SAGRILAFT - PTEE');
 
                     $spreadsheet->getActiveSheet()->setCellValue('BU3','Personas Expuestas Públicamente - PEP');
                     $spreadsheet->getActiveSheet()->setCellValue('BU4','¿Maneja recursos públicos?');
@@ -1938,12 +2171,12 @@
                     $spreadsheet->getActiveSheet()->setCellValue('DU4','¿Cuentas con los documentos que validen la información (certificación)?');
                     
                     $spreadsheet->getActiveSheet()->setCellValue('DV3','Relaciones Familiares');
-                    $spreadsheet->getActiveSheet()->setCellValue('DV4','¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado de consanguinidad, segundo de afinidad o único civil que actualmente trabaje en iQ?');
+                    $spreadsheet->getActiveSheet()->setCellValue('DV4','¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?');
                     $spreadsheet->getActiveSheet()->setCellValue('DW4','Documento de identidad de tu familiar');
                     $spreadsheet->getActiveSheet()->setCellValue('DX4','¿Cuál es el nombre de tu familiar?');
                     $spreadsheet->getActiveSheet()->setCellValue('DY4','Tu familiar ingresó a la compañía antes de marzo 2022?');
 
-                    $spreadsheet->getActiveSheet()->setCellValue('DZ4','Veracidad de la Información Proporcionada');
+                    $spreadsheet->getActiveSheet()->setCellValue('DZ4','CONSIDERACIONES - Respuesta');
                     $spreadsheet->getActiveSheet()->setCellValue('EA4','Centro de Costo');
                     $spreadsheet->getActiveSheet()->setCellValue('EB4','Cargo');
                     $spreadsheet->getActiveSheet()->setCellValue('EC4','Fecha Ingreso');
@@ -1961,6 +2194,18 @@
                     $spreadsheet->getActiveSheet()->setCellValue('EL4','Formación/ Habilidades');
                     $spreadsheet->getActiveSheet()->setCellValue('EM4','Poblaciones/ Relaciones Familiares');
                     $spreadsheet->getActiveSheet()->setCellValue('EN4','Progreso General');
+                    $spreadsheet->getActiveSheet()->setCellValue('EO4','Población sujeto de especial protección o vulnerabilidad');
+                    $spreadsheet->getActiveSheet()->setCellValue('EP4','Alerta de cambio en declaración de familiaridad');
+                    $spreadsheet->getActiveSheet()->setCellValue('EQ4','Cantidad de personas relacionadas con GRUPO ASD S.A.S.');
+                    $spreadsheet->getActiveSheet()->setCellValue('ER4','Personas relacionadas - Nombres completos');
+                    $spreadsheet->getActiveSheet()->setCellValue('ES4','Personas relacionadas - Cargos');
+                    $spreadsheet->getActiveSheet()->setCellValue('ET4','Personas relacionadas - Campañas o clientes');
+                    $spreadsheet->getActiveSheet()->setCellValue('EU4','Personas relacionadas - Relación contractual');
+                    $spreadsheet->getActiveSheet()->setCellValue('EV4','Personas relacionadas - Parentesco');
+                    $spreadsheet->getActiveSheet()->setCellValue('EW4','Referencia del texto legal SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('EX4','Fecha aceptación SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('EY4','Referencia del texto legal de autorización de datos');
+                    $spreadsheet->getActiveSheet()->setCellValue('EZ4','Fecha autorización de datos');
                     
                     $spreadsheet->getActiveSheet()->setCellValue('A1','Reporte: Consolidado');
                     $spreadsheet->getActiveSheet()->setCellValue('A2','Fecha: '.now());
@@ -1979,6 +2224,12 @@
                             $dias_diferencia=$diferencia->days;
                         } else {
                             $dias_diferencia='';
+                        }
+
+                        if (isset($array_estudio_terminado[$resregistros[$i-5]['hvp_aspirante_id']]['hvaet_nivel'])) {
+                            $ultimo_estudio_alcanzado=obtenerNivelAcademicoMasAlto($array_estudio_terminado[$resregistros[$i-5]['hvp_aspirante_id']]['hvaet_nivel']);
+                        } else {
+                            $ultimo_estudio_alcanzado='';
                         }
 
                         $spreadsheet->getActiveSheet()->setCellValue('A'.$i,mb_strtoupper($resregistros[$i-5]['hvp_estado']));//Estado
@@ -2038,12 +2289,69 @@
                         $spreadsheet->getActiveSheet()->setCellValue('BC'.$i,mb_strtoupper($resregistros[$i-5]['hvp_socioeconomico_servicios_vivienda']));//¿Qué servicios tienes en tu vivienda?
                         $spreadsheet->getActiveSheet()->setCellValue('BD'.$i,mb_strtoupper($resregistros[$i-5]['hvp_socioeconomico_plan_compra_vivienda']));//¿Tienes pensado comprar vivienda en los próximos 3 años?
                         $spreadsheet->getActiveSheet()->setCellValue('BE'.$i,mb_strtoupper($resregistros[$i-5]['hvp_socioeconomico_beneficiario_subsidio_vivienda']));//¿Has sido beneficiario de subsidio de vivienda?
-                        $spreadsheet->getActiveSheet()->setCellValue('BF'.$i,mb_strtoupper($resregistros[$i-5]['hvp_familia_numero_hijos']));//¿Cuántos hijos tienes?
-                        $spreadsheet->getActiveSheet()->setCellValue('BG'.$i,mb_strtoupper($resregistros[$i-5]['xxx']));//familia_hijos_menor_3
-                        $spreadsheet->getActiveSheet()->setCellValue('BH'.$i,mb_strtoupper($resregistros[$i-5]['xxx']));//familia_hijos_4_10
-                        $spreadsheet->getActiveSheet()->setCellValue('BI'.$i,mb_strtoupper($resregistros[$i-5]['xxx']));//familia_hijos_11_17
-                        $spreadsheet->getActiveSheet()->setCellValue('BJ'.$i,mb_strtoupper($resregistros[$i-5]['xxx']));//familia_hijos_mayor_18
-                        $spreadsheet->getActiveSheet()->setCellValue('BK'.$i,mb_strtoupper($resregistros[$i-5]['hvp_familia_capacitacion_familia']));//¿En cual de los siguientes temas relacionados con la familia te gustaría recibir
+                        $spreadsheet->getActiveSheet()->setCellValue('BF'.$i, mb_strtoupper($resregistros[$i-5]['hvp_familia_numero_hijos'] ?? ''));
+
+                        $valorHistorico = trim((string)($resregistros[$i-5]['hvp_familia_hijos_menor_3'] ?? ''));
+                        $valor4a10      = trim((string)($resregistros[$i-5]['hvp_familia_hijos_4_10'] ?? ''));
+                        $valor11a17     = trim((string)($resregistros[$i-5]['hvp_familia_hijos_11_17'] ?? ''));
+                        $valorMayor18   = trim((string)($resregistros[$i-5]['hvp_familia_hijos_mayor_18'] ?? ''));
+
+                        $cantBG = 0; // 0-2
+                        $cantBH = 0; // 2-5 y 5-10
+                        $cantBI = 0; // 10-15
+                        $cantBJ = 0; // 15+
+
+                        // 1. Interpretar histórico guardado en hvp_familia_hijos_menor_3
+                        if ($valorHistorico !== '' && strtoupper($valorHistorico) !== 'NULL' && $valorHistorico !== '0') {
+                            $rangos = array_map('trim', explode(';', $valorHistorico));
+
+                            foreach ($rangos as $rango) {
+                                if ($rango === '0-2') {
+                                    $cantBG++;
+                                } elseif ($rango === '2-5' || $rango === '5-10') {
+                                    $cantBH++;
+                                } elseif ($rango === '10-15') {
+                                    $cantBI++;
+                                } elseif ($rango === '15+') {
+                                    $cantBJ++;
+                                }
+                            }
+                        }
+
+                        // 2. Compatibilidad si en algunos registros nuevos ya vienen separadas las columnas
+                        if ($valor4a10 !== '' && strtoupper($valor4a10) !== 'NULL' && $valor4a10 !== '0') {
+                            $rangos4a10 = array_map('trim', explode(';', $valor4a10));
+                            foreach ($rangos4a10 as $rango) {
+                                if ($rango !== '') {
+                                    $cantBH++;
+                                }
+                            }
+                        }
+
+                        if ($valor11a17 !== '' && strtoupper($valor11a17) !== 'NULL' && $valor11a17 !== '0') {
+                            $rangos11a17 = array_map('trim', explode(';', $valor11a17));
+                            foreach ($rangos11a17 as $rango) {
+                                if ($rango !== '') {
+                                    $cantBI++;
+                                }
+                            }
+                        }
+
+                        if ($valorMayor18 !== '' && strtoupper($valorMayor18) !== 'NULL' && $valorMayor18 !== '0') {
+                            $rangosMayor18 = array_map('trim', explode(';', $valorMayor18));
+                            foreach ($rangosMayor18 as $rango) {
+                                if ($rango !== '') {
+                                    $cantBJ++;
+                                }
+                            }
+                        }
+
+                        $spreadsheet->getActiveSheet()->setCellValue('BG'.$i, $cantBG > 0 ? str_repeat('X', $cantBG) : '');
+                        $spreadsheet->getActiveSheet()->setCellValue('BH'.$i, $cantBH > 0 ? str_repeat('X', $cantBH) : '');
+                        $spreadsheet->getActiveSheet()->setCellValue('BI'.$i, $cantBI > 0 ? str_repeat('X', $cantBI) : '');
+                        $spreadsheet->getActiveSheet()->setCellValue('BJ'.$i, $cantBJ > 0 ? str_repeat('X', $cantBJ) : '');
+
+                        $spreadsheet->getActiveSheet()->setCellValue('BK'.$i, mb_strtoupper($resregistros[$i-5]['hvp_familia_capacitacion_familia'] ?? ''));//¿En cual de los siguientes temas relacionados con la familia te gustaría recibir
                         $spreadsheet->getActiveSheet()->setCellValue('BL'.$i,mb_strtoupper($resregistros[$i-5]['hvp_financiero_activos']));//Activos
                         $spreadsheet->getActiveSheet()->setCellValue('BM'.$i,mb_strtoupper($resregistros[$i-5]['hvp_financiero_pasivos']));//Pasivos
                         $spreadsheet->getActiveSheet()->setCellValue('BN'.$i,mb_strtoupper($resregistros[$i-5]['hvp_financiero_patrimonio']));//Patrimonio
@@ -2104,7 +2412,7 @@
                         $spreadsheet->getActiveSheet()->setCellValue('DL'.$i,mb_strtoupper($resregistros[$i-5]['hvp_formacion_estudios_curso_titulo']));//Nombre de los Estudios en curso
                         $spreadsheet->getActiveSheet()->setCellValue('DM'.$i,mb_strtoupper($resregistros[$i-5]['hvp_formacion_estudios_curso_nivel']));//¿Cuál es el nivel académico del estudio que estas cursando?
                         $spreadsheet->getActiveSheet()->setCellValue('DN'.$i,mb_strtoupper($resregistros[$i-5]['hvp_formacion_estudios_curso_establecimiento']));//Institución educativa de los estudios en curso
-                        $spreadsheet->getActiveSheet()->setCellValue('DO'.$i,mb_strtoupper($resregistros[$i-5]['xxx']));//Último Estudio Culminado
+                        $spreadsheet->getActiveSheet()->setCellValue('DO'.$i,mb_strtoupper($ultimo_estudio_alcanzado));//Último Estudio Culminado
                         $spreadsheet->getActiveSheet()->setCellValue('DP'.$i,mb_strtoupper($resregistros[$i-5]['xxx']));//Estudios en Curso
 
                         $spreadsheet->getActiveSheet()->setCellValue('DQ'.$i,mb_strtoupper($resregistros[$i-5]['hvp_habilidades_nivel_ingles']));//¿Nivel de inglés conversacional?
@@ -2112,11 +2420,11 @@
                         $spreadsheet->getActiveSheet()->setCellValue('DS'.$i,mb_strtoupper($resregistros[$i-5]['hvp_habilidades_nivel_google_ws']));//Nivel de manejo de google WS (Workspace)
                         $spreadsheet->getActiveSheet()->setCellValue('DT'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_poblacion']));//Haces parte de alguna de las poblaciones mencionadas?
                         $spreadsheet->getActiveSheet()->setCellValue('DU'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_certificado']));//¿Cuentas con los documentos que validen la información (certificación)?
-                        $spreadsheet->getActiveSheet()->setCellValue('DV'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_familiares_iq']));//¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado
+                        $spreadsheet->getActiveSheet()->setCellValue('DV'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_familiares_iq']));//Declaración de familiares o personas relacionadas con GRUPO ASD S.A.S.
                         $spreadsheet->getActiveSheet()->setCellValue('DW'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_familiares_iq_identificacion']));//Documento de identidad de tu familiar
                         $spreadsheet->getActiveSheet()->setCellValue('DX'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_familiares_iq_nombres_apellidos']));//¿Cuál es el nombre de tu familiar?
                         $spreadsheet->getActiveSheet()->setCellValue('DY'.$i,mb_strtoupper($resregistros[$i-5]['hvp_poblaciones_familiares_iq_ingreso_marzo_2022']));//Tu familiar ingresó a la compañía antes de marzo 2022?
-                        $spreadsheet->getActiveSheet()->setCellValue('DZ'.$i,mb_strtoupper($resregistros[$i-5]['hvp_veracidad']));//Veracidad de la Información Proporcionada
+                        $spreadsheet->getActiveSheet()->setCellValue('DZ'.$i,mb_strtoupper($resregistros[$i-5]['hvp_veracidad']));//CONSIDERACIONES - Respuesta
                         $spreadsheet->getActiveSheet()->setCellValue('EA'.$i,mb_strtoupper($resregistros[$i-5]['aa_nombre']));//Centro de Costo
                         $spreadsheet->getActiveSheet()->setCellValue('EB'.$i,mb_strtoupper($resregistros[$i-5]['ac_nombre']));//Cargo
 
@@ -2146,6 +2454,25 @@
                         $spreadsheet->getActiveSheet()->setCellValue('EL'.$i,$estado_formacion_habilidades);//estado_formacion_habilidades
                         $spreadsheet->getActiveSheet()->setCellValue('EM'.$i,$estado_poblaciones_relaciones);//estado_poblaciones_relaciones
                         $spreadsheet->getActiveSheet()->setCellValue('EN'.$i,$estado_general);//estado_general
+                        $fila_hoja_vida=$resregistros[$i-5];
+                        $personas_relacionadas=$this->resumenPersonasRelacionadasReporte(
+                            $array_personas_relacionadas_ciudadano,
+                            $this->valorReporte($fila_hoja_vida, 'hvp_id'),
+                            $this->valorReporte($fila_hoja_vida, 'hvp_poblaciones_familiares_iq_nombres_apellidos')
+                        );
+
+                        $spreadsheet->getActiveSheet()->setCellValue('EO'.$i,mb_strtoupper($this->valorReporte($fila_hoja_vida, 'hvp_poblacion_vulnerable')));
+                        $spreadsheet->getActiveSheet()->setCellValue('EP'.$i,mb_strtoupper($this->valorReporte($fila_hoja_vida, 'hvp_alerta_familiaridad')));
+                        $spreadsheet->getActiveSheet()->setCellValue('EQ'.$i,$personas_relacionadas['cantidad']);
+                        $spreadsheet->getActiveSheet()->setCellValue('ER'.$i,mb_strtoupper($personas_relacionadas['nombres']));
+                        $spreadsheet->getActiveSheet()->setCellValue('ES'.$i,mb_strtoupper($personas_relacionadas['cargos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('ET'.$i,mb_strtoupper($personas_relacionadas['campanas']));
+                        $spreadsheet->getActiveSheet()->setCellValue('EU'.$i,mb_strtoupper($personas_relacionadas['relaciones']));
+                        $spreadsheet->getActiveSheet()->setCellValue('EV'.$i,mb_strtoupper($personas_relacionadas['parentescos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('EW'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_sagrilaft_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('EX'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_sagrilaft_fecha'));
+                        $spreadsheet->getActiveSheet()->setCellValue('EY'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_autorizacion_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('EZ'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_consentimiento_tratamiento_datos_personales_fecha'));
                         
                     }
                 } elseif ($tipo_reporte=='Consolidado Vinculados') {
@@ -2224,6 +2551,8 @@
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar'] = $resaspirante_etica[$i]['hvae_familiar'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar_nombre'] = $resaspirante_etica[$i]['hvae_familiar_nombre'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_familiar_area'] = $resaspirante_etica[$i]['hvae_familiar_area'];
+                        $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_poblacion_vulnerable'] = $resaspirante_etica[$i]['hvae_poblacion_vulnerable'];
+                        $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_alerta_familiaridad'] = $resaspirante_etica[$i]['hvae_alerta_familiaridad'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_registro_usuario'] = $resaspirante_etica[$i]['hvae_registro_usuario'];
                         $array_etica[$resaspirante_etica[$i]['hvae_aspirante']]['hvae_registro_fecha'] = $resaspirante_etica[$i]['hvae_registro_fecha'];
                     }
@@ -2330,6 +2659,10 @@
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_origen_fondos'] = $resaspirante_autorizaciones[$i]['hvada_origen_fondos'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_proteccion_datos'] = $resaspirante_autorizaciones[$i]['hvada_proteccion_datos'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_tratamiento_datos'] = $resaspirante_autorizaciones[$i]['hvada_tratamiento_datos'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_sagrilaft_texto_id'] = $resaspirante_autorizaciones[$i]['hvada_sagrilaft_texto_id'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_sagrilaft_fecha'] = $resaspirante_autorizaciones[$i]['hvada_sagrilaft_fecha'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_autorizacion_texto_id'] = $resaspirante_autorizaciones[$i]['hvada_autorizacion_texto_id'];
+                        $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_autorizacion_fecha'] = $resaspirante_autorizaciones[$i]['hvada_autorizacion_fecha'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_registro_usuario'] = $resaspirante_autorizaciones[$i]['hvada_registro_usuario'];
                         $array_autorizaciones[$resaspirante_autorizaciones[$i]['hvada_aspirante']]['hvada_registro_fecha'] = $resaspirante_autorizaciones[$i]['hvada_registro_fecha'];
                     }
@@ -2476,6 +2809,15 @@
                         $array_detalle_seleccion[$id_aspirante]['hvae_familiar']=$array_etica[$id_aspirante]['hvae_familiar'];//¿Tiene usted familiares, conyugue y/o compañero permanente
                         $array_detalle_seleccion[$id_aspirante]['hvae_familiar_nombre']=$array_etica[$id_aspirante]['hvae_familiar_nombre'];//Nombres y Apellidos
                         $array_detalle_seleccion[$id_aspirante]['hvae_familiar_area']=$array_etica[$id_aspirante]['hvae_familiar_area'];//Área
+                        $array_detalle_seleccion[$id_aspirante]['hvae_poblacion_vulnerable']=$this->valorReporte((isset($array_etica[$id_aspirante]) ? $array_etica[$id_aspirante] : array()), 'hvae_poblacion_vulnerable');
+                        $array_detalle_seleccion[$id_aspirante]['hvae_alerta_familiaridad']=$this->valorReporte((isset($array_etica[$id_aspirante]) ? $array_etica[$id_aspirante] : array()), 'hvae_alerta_familiaridad');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_veracidad']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_veracidad');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_origen_fondos']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_origen_fondos');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_tratamiento_datos']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_tratamiento_datos');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_sagrilaft_texto_id']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_sagrilaft_texto_id');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_sagrilaft_fecha']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_sagrilaft_fecha');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_autorizacion_texto_id']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_autorizacion_texto_id');
+                        $array_detalle_seleccion[$id_aspirante]['hvada_autorizacion_fecha']=$this->valorReporte((isset($array_autorizaciones[$id_aspirante]) ? $array_autorizaciones[$id_aspirante] : array()), 'hvada_autorizacion_fecha');
                         $array_detalle_seleccion[$id_aspirante]['hvai_excolaborador']=$array_informacion[$id_aspirante]['hvai_excolaborador'];//¿Ha trabajado anteriormente en IQ?
                         $array_detalle_seleccion[$id_aspirante]['hvai_excolaborador_motivo']=$array_informacion[$id_aspirante]['hvai_excolaborador_motivo'];//Motivo del retiro
                         $array_detalle_seleccion[$id_aspirante]['hvai_excolaborador_fecha']=$array_informacion[$id_aspirante]['hvai_excolaborador_fecha'];//Fecha de retiro
@@ -2627,7 +2969,6 @@
                         $array_detalle_seleccion[$id_aspirante]['hvaet_tarjeta_profesional']=$hvaet_tarjeta_profesional;
                     }
                     
-                    
                     $hoja_vida = new hv_personalModel();
                     if ($estado!='' AND $estado!='Todos') {
                         $hoja_vida->hvp_estado=$estado;
@@ -2638,10 +2979,6 @@
                     if (!isset($resregistros_hoja_vida[0])) {
                         $resregistros_hoja_vida=array();
                     }
-
-                    // echo "<pre>";
-                    // print_r($resregistros_hoja_vida);
-                    // echo "</pre>";
 
                     $array_detalle_hoja_vida = array();
                     for ($i=5; $i < count($resregistros_hoja_vida)+5; $i++) {
@@ -2658,8 +2995,15 @@
                         } else {
                             $dias_diferencia='';
                         }
-                        
+
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_estado']=$resregistros_hoja_vida[$i-5]['hvp_estado'];//Estado
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_id']=$resregistros_hoja_vida[$i-5]['hvp_id'];
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblacion_vulnerable']=$this->valorReporte($resregistros_hoja_vida[$i-5], 'hvp_poblacion_vulnerable');
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_alerta_familiaridad']=$this->valorReporte($resregistros_hoja_vida[$i-5], 'hvp_alerta_familiaridad');
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_sagrilaft_texto_id']=$this->valorReporte($resregistros_hoja_vida[$i-5], 'hvp_sagrilaft_texto_id');
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_sagrilaft_fecha']=$this->valorReporte($resregistros_hoja_vida[$i-5], 'hvp_sagrilaft_fecha');
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_autorizacion_texto_id']=$this->valorReporte($resregistros_hoja_vida[$i-5], 'hvp_autorizacion_texto_id');
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_consentimiento_tratamiento_datos_personales_fecha']=$this->valorReporte($resregistros_hoja_vida[$i-5], 'hvp_consentimiento_tratamiento_datos_personales_fecha');
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_actualiza_fecha']=$resregistros_hoja_vida[$i-5]['hvp_actualiza_fecha'];//Fecha Actualización
                         $array_detalle_hoja_vida[$id_aspirantehv]['dias_diferencia']=$dias_diferencia;//Tiempo Actualización
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_consentimiento_tratamiento_datos_personales']=$resregistros_hoja_vida[$i-5]['hvp_consentimiento_tratamiento_datos_personales'];//Consentimiento Tratamiento Datos
@@ -2716,10 +3060,10 @@
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_socioeconomico_plan_compra_vivienda']=$resregistros_hoja_vida[$i-5]['hvp_socioeconomico_plan_compra_vivienda'];//¿Tienes pensado comprar vivienda en los próximos 3 años?
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_socioeconomico_beneficiario_subsidio_vivienda']=$resregistros_hoja_vida[$i-5]['hvp_socioeconomico_beneficiario_subsidio_vivienda'];//¿Has sido beneficiario de subsidio de vivienda?
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_familia_numero_hijos']=$resregistros_hoja_vida[$i-5]['hvp_familia_numero_hijos'];//¿Cuántos hijos tienes?
-                        $array_detalle_hoja_vida[$id_aspirantehv]['xxx']=$resregistros_hoja_vida[$i-5]['xxx'];//familia_hijos_menor_3
-                        $array_detalle_hoja_vida[$id_aspirantehv]['xxx']=$resregistros_hoja_vida[$i-5]['xxx'];//familia_hijos_4_10
-                        $array_detalle_hoja_vida[$id_aspirantehv]['xxx']=$resregistros_hoja_vida[$i-5]['xxx'];//familia_hijos_11_17
-                        $array_detalle_hoja_vida[$id_aspirantehv]['xxx']=$resregistros_hoja_vida[$i-5]['xxx'];//familia_hijos_mayor_18
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_familia_hijos_menor_3']=$resregistros_hoja_vida[$i-5]['hvp_familia_hijos_menor_3'];//familia_hijos_menor_3
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_familia_hijos_4_10']=$resregistros_hoja_vida[$i-5]['hvp_familia_hijos_4_10'];//familia_hijos_4_10
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_familia_hijos_11_17']=$resregistros_hoja_vida[$i-5]['hvp_familia_hijos_11_17'];//familia_hijos_11_17
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_familia_hijos_mayor_18']=$resregistros_hoja_vida[$i-5]['hvp_familia_hijos_mayor_18'];//familia_hijos_mayor_18
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_familia_capacitacion_familia']=$resregistros_hoja_vida[$i-5]['hvp_familia_capacitacion_familia'];//¿En cual de los siguientes temas relacionados con la familia te gustaría recibir
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_financiero_activos']=$resregistros_hoja_vida[$i-5]['hvp_financiero_activos'];//Activos
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_financiero_pasivos']=$resregistros_hoja_vida[$i-5]['hvp_financiero_pasivos'];//Pasivos
@@ -2778,11 +3122,11 @@
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_habilidades_nivel_google_ws']=$resregistros_hoja_vida[$i-5]['hvp_habilidades_nivel_google_ws'];//Nivel de manejo de google WS (Workspace)
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_poblacion']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_poblacion'];//Haces parte de alguna de las poblaciones mencionadas?
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_certificado']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_certificado'];//¿Cuentas con los documentos que validen la información (certificación)?
-                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_familiares_iq']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_familiares_iq'];//¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_familiares_iq']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_familiares_iq'];//Declaración de familiares o personas relacionadas con GRUPO ASD S.A.S.
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_familiares_iq_identificacion']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_familiares_iq_identificacion'];//Documento de identidad de tu familiar
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_familiares_iq_nombres_apellidos']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_familiares_iq_nombres_apellidos'];//¿Cuál es el nombre de tu familiar?
                         $array_detalle_hoja_vida[$id_aspirantehv]['hvp_poblaciones_familiares_iq_ingreso_marzo_2022']=$resregistros_hoja_vida[$i-5]['hvp_poblaciones_familiares_iq_ingreso_marzo_2022'];//Tu familiar ingresó a la compañía antes de marzo 2022?
-                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_veracidad']=$resregistros_hoja_vida[$i-5]['hvp_veracidad'];//Veracidad de la Información Proporcionada
+                        $array_detalle_hoja_vida[$id_aspirantehv]['hvp_veracidad']=$resregistros_hoja_vida[$i-5]['hvp_veracidad'];//CONSIDERACIONES - Respuesta
                         $array_detalle_hoja_vida[$id_aspirantehv]['aa_nombre']=$resregistros_hoja_vida[$i-5]['aa_nombre'];//Centro de Costo
                         $array_detalle_hoja_vida[$id_aspirantehv]['ac_nombre']=$resregistros_hoja_vida[$i-5]['ac_nombre'];//Cargo
 
@@ -2959,8 +3303,45 @@
                         $spreadsheet->getActiveSheet()->getColumnDimension('EI')->setWidth(20);
                         $spreadsheet->getActiveSheet()->getColumnDimension('EJ')->setWidth(20);
                         $spreadsheet->getActiveSheet()->getColumnDimension('EK')->setWidth(20);
-                        $spreadsheet->getActiveSheet()->getStyle('A4:EK4')->applyFromArray($styleArrayTitulos);
-                        $spreadsheet->getActiveSheet()->setAutoFilter('A4:EK4');
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EL')->setWidth(20);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EM')->setWidth(20);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EN')->setWidth(20);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EO')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EP')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EQ')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('ER')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('ES')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('ET')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EU')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EV')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EW')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EX')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EY')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getColumnDimension('EZ')->setWidth(24);
+                        $spreadsheet->getActiveSheet()->getStyle('A4:EZ4')->applyFromArray($styleArrayTitulos);
+
+                        $spreadsheet->getActiveSheet()->getStyle('A3:C3')->applyFromArray($styleArrayTitulos_turno);
+                        $spreadsheet->getActiveSheet()->getStyle('D3')->applyFromArray($styleArrayTitulos_almuerzo);
+                        $spreadsheet->getActiveSheet()->getStyle('E3:L3')->applyFromArray($styleArrayTitulos_break);
+                        $spreadsheet->getActiveSheet()->getStyle('M3:Q3')->applyFromArray($styleArrayTitulos_pausa);
+                        $spreadsheet->getActiveSheet()->getStyle('R3:U3')->applyFromArray($styleArrayTitulos_capacitacion);
+                        $spreadsheet->getActiveSheet()->getStyle('V3:AH3')->applyFromArray($styleArrayTitulos_retro);
+                        $spreadsheet->getActiveSheet()->getStyle('AI3:AL3')->applyFromArray($styleArrayTitulos_turno);
+                        $spreadsheet->getActiveSheet()->getStyle('AM3:AT3')->applyFromArray($styleArrayTitulos_almuerzo);
+                        $spreadsheet->getActiveSheet()->getStyle('AU3:BE3')->applyFromArray($styleArrayTitulos_break);
+                        $spreadsheet->getActiveSheet()->getStyle('BF3:BK3')->applyFromArray($styleArrayTitulos_pausa);
+                        $spreadsheet->getActiveSheet()->getStyle('BL3:BT3')->applyFromArray($styleArrayTitulos_capacitacion);
+                        $spreadsheet->getActiveSheet()->getStyle('BU3:BZ3')->applyFromArray($styleArrayTitulos_retro);
+                        $spreadsheet->getActiveSheet()->getStyle('CA3:CH3')->applyFromArray($styleArrayTitulos_turno);
+                        $spreadsheet->getActiveSheet()->getStyle('CJ3:CZ3')->applyFromArray($styleArrayTitulos_almuerzo);
+                        $spreadsheet->getActiveSheet()->getStyle('DA3:DG3')->applyFromArray($styleArrayTitulos_break);
+                        $spreadsheet->getActiveSheet()->getStyle('DH3:DP3')->applyFromArray($styleArrayTitulos_pausa);
+                        $spreadsheet->getActiveSheet()->getStyle('DQ3:DS3')->applyFromArray($styleArrayTitulos_capacitacion);
+                        $spreadsheet->getActiveSheet()->getStyle('DT3:DU3')->applyFromArray($styleArrayTitulos_retro);
+                        $spreadsheet->getActiveSheet()->getStyle('DV3:EE3')->applyFromArray($styleArrayTitulos_turno);
+                        $spreadsheet->getActiveSheet()->getStyle('EF3:EN3')->applyFromArray($styleArrayTitulos_almuerzo);
+
+                        $spreadsheet->getActiveSheet()->setAutoFilter('A4:EZ4');
                         $spreadsheet->getActiveSheet()->getStyle('3')->getAlignment()->setWrapText(true);
                         $spreadsheet->getActiveSheet()->getStyle('4')->getAlignment()->setWrapText(true);
                     //Estilos de la Hoja 0
@@ -3059,7 +3440,7 @@
                         $spreadsheet->getActiveSheet()->setCellValue('BQ4','Otros Ingresos');
                         $spreadsheet->getActiveSheet()->setCellValue('BR4','Concepto de otros ingresos');
                         $spreadsheet->getActiveSheet()->setCellValue('BS4','¿Realiza Operaciones en Moneda Extranjera?');
-                        $spreadsheet->getActiveSheet()->setCellValue('BT4','Declaración de Origen de Fondos y Prevención de Lavado de Activos y Financiación del Terrorismo - SAGRILAFT');
+                        $spreadsheet->getActiveSheet()->setCellValue('BT4','Declaración de Origen de Fondos y Prevención de LA/FT/FPADM, Corrupción y Soborno - SAGRILAFT - PTEE');
 
                         $spreadsheet->getActiveSheet()->setCellValue('BU3','Personas Expuestas Públicamente - PEP');
                         $spreadsheet->getActiveSheet()->setCellValue('BU4','¿Maneja recursos públicos?');
@@ -3108,60 +3489,67 @@
                         $spreadsheet->getActiveSheet()->setCellValue('DF4','¿Tienes Mascotas?');
                         $spreadsheet->getActiveSheet()->setCellValue('DG4','Cuéntanos que mascota tienes?');
 
-
                         $spreadsheet->getActiveSheet()->setCellValue('DH3','Último Nivel Académico Alcanzado');
                         $spreadsheet->getActiveSheet()->setCellValue('DH4','Ya enviaste al área de Gestión humana el último certificado de tus estudios culminados?');
                         $spreadsheet->getActiveSheet()->setCellValue('DI4','Indica el nombre del título de tu último estudio realizado');
                         $spreadsheet->getActiveSheet()->setCellValue('DJ4','Tienes tarjeta profesional?');
                         $spreadsheet->getActiveSheet()->setCellValue('DK4','¿Estás estudiando actualmente?');
-
-
-                        $spreadsheet->getActiveSheet()->setCellValue('DL4','Estudios Culminados');
-                        $spreadsheet->getActiveSheet()->setCellValue('DM4','Estudios en Curso');
+                        $spreadsheet->getActiveSheet()->setCellValue('DL4','Nombre de los Estudios en curso');
+                        $spreadsheet->getActiveSheet()->setCellValue('DM4','¿Cuál es el nivel académico del estudio que estas cursando?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DN4','Institución educativa de los estudios en curso');
                         
+                        $spreadsheet->getActiveSheet()->setCellValue('DO4','Último Estudio Culminado');
+                        //agregar columna con el último estudio culminado ordenado por fecha de finalización
+                        $spreadsheet->getActiveSheet()->setCellValue('DP4','Estudios en Curso');
                         
-                        $spreadsheet->getActiveSheet()->setCellValue('DN3','Información de Habilidades');
-                        $spreadsheet->getActiveSheet()->setCellValue('DN4','¿Nivel de inglés conversacional?');
-                        $spreadsheet->getActiveSheet()->setCellValue('DO4','¿Nivel de manejo de hojas de cálculo?');
-                        $spreadsheet->getActiveSheet()->setCellValue('DP4','Nivel de manejo de google WS (Workspace)');
+                        $spreadsheet->getActiveSheet()->setCellValue('DQ3','Información de Habilidades');
+                        $spreadsheet->getActiveSheet()->setCellValue('DQ4','¿Nivel de inglés conversacional?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DR4','¿Nivel de manejo de hojas de cálculo?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DS4','Nivel de manejo de google WS (Workspace)');
                         
-                        $spreadsheet->getActiveSheet()->setCellValue('DQ3','Información de Poblaciones');
-                        $spreadsheet->getActiveSheet()->setCellValue('DQ4','Haces parte de alguna de las poblaciones mencionadas?');
-                        $spreadsheet->getActiveSheet()->setCellValue('DR4','¿Cuentas con los documentos que validen la información (certificación)?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DT3','Información de Poblaciones');
+                        $spreadsheet->getActiveSheet()->setCellValue('DT4','Haces parte de alguna de las poblaciones mencionadas?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DU4','¿Cuentas con los documentos que validen la información (certificación)?');
                         
-                        $spreadsheet->getActiveSheet()->setCellValue('DS3','Relaciones Familiares');
-                        $spreadsheet->getActiveSheet()->setCellValue('DS4','¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado de consanguinidad, segundo de afinidad o único civil que actualmente trabaje en iQ?');
-                        $spreadsheet->getActiveSheet()->setCellValue('DT4','Documento de identidad de tu familiar');
-                        $spreadsheet->getActiveSheet()->setCellValue('DU4','¿Cuál es el nombre de tu familiar?');
-                        $spreadsheet->getActiveSheet()->setCellValue('DV4','Tu familiar ingresó a la compañía antes de marzo 2022?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DV3','Relaciones Familiares');
+                        $spreadsheet->getActiveSheet()->setCellValue('DV4','¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DW4','Documento de identidad de tu familiar');
+                        $spreadsheet->getActiveSheet()->setCellValue('DX4','¿Cuál es el nombre de tu familiar?');
+                        $spreadsheet->getActiveSheet()->setCellValue('DY4','Tu familiar ingresó a la compañía antes de marzo 2022?');
 
-                        $spreadsheet->getActiveSheet()->setCellValue('DW4','Veracidad de la Información Proporcionada');
-                        $spreadsheet->getActiveSheet()->setCellValue('DX4','Centro de Costo');
-                        $spreadsheet->getActiveSheet()->setCellValue('DY4','Cargo');
-                        $spreadsheet->getActiveSheet()->setCellValue('DZ4','Fecha Ingreso');
-                        $spreadsheet->getActiveSheet()->setCellValue('EA4','Fecha Retiro');
-                        $spreadsheet->getActiveSheet()->setCellValue('EB4','Motivo Retiro');
+                        $spreadsheet->getActiveSheet()->setCellValue('DZ4','CONSIDERACIONES - Respuesta');
+                        $spreadsheet->getActiveSheet()->setCellValue('EA4','Centro de Costo');
+                        $spreadsheet->getActiveSheet()->setCellValue('EB4','Cargo');
+                        $spreadsheet->getActiveSheet()->setCellValue('EC4','Fecha Ingreso');
+                        $spreadsheet->getActiveSheet()->setCellValue('ED4','Fecha Retiro');
+                        $spreadsheet->getActiveSheet()->setCellValue('EE4','Motivo Retiro');
 
-
-                        $spreadsheet->getActiveSheet()->setCellValue('EC3','Estado Diligenciamiento');
-                        $spreadsheet->getActiveSheet()->setCellValue('EC4','Autorizaciones');
-                        $spreadsheet->getActiveSheet()->setCellValue('ED4','Información Personal');
-                        $spreadsheet->getActiveSheet()->setCellValue('EE4','Ubicación/ Contacto');
-                        $spreadsheet->getActiveSheet()->setCellValue('EF4','Socioeconómico/ Familiar');
-                        $spreadsheet->getActiveSheet()->setCellValue('EG4','Salud/ Bienestar');
-                        $spreadsheet->getActiveSheet()->setCellValue('EH4','Intereses/ Hábitos');
-                        $spreadsheet->getActiveSheet()->setCellValue('EI4','Formación/ Habilidades');
-                        $spreadsheet->getActiveSheet()->setCellValue('EJ4','Poblaciones/ Relaciones Familiares');
-                        $spreadsheet->getActiveSheet()->setCellValue('EK4','Progreso General');
+                        $spreadsheet->getActiveSheet()->setCellValue('EF3','Estado Diligenciamiento');
+                        $spreadsheet->getActiveSheet()->setCellValue('EF4','Autorizaciones');
+                        $spreadsheet->getActiveSheet()->setCellValue('EG4','Información Personal');
+                        $spreadsheet->getActiveSheet()->setCellValue('EH4','Ubicación/ Contacto');
+                        $spreadsheet->getActiveSheet()->setCellValue('EI4','Socioeconómico/ Familiar');
+                        $spreadsheet->getActiveSheet()->setCellValue('EJ4','Salud/ Bienestar');
+                        $spreadsheet->getActiveSheet()->setCellValue('EK4','Intereses/ Hábitos');
+                        $spreadsheet->getActiveSheet()->setCellValue('EL4','Formación/ Habilidades');
+                        $spreadsheet->getActiveSheet()->setCellValue('EM4','Poblaciones/ Relaciones Familiares');
+                        $spreadsheet->getActiveSheet()->setCellValue('EN4','Progreso General');
+                        $spreadsheet->getActiveSheet()->setCellValue('EO4','Población sujeto de especial protección o vulnerabilidad');
+                        $spreadsheet->getActiveSheet()->setCellValue('EP4','Alerta de cambio en declaración de familiaridad');
+                        $spreadsheet->getActiveSheet()->setCellValue('EQ4','Cantidad de personas relacionadas con GRUPO ASD S.A.S.');
+                        $spreadsheet->getActiveSheet()->setCellValue('ER4','Personas relacionadas - Nombres completos');
+                        $spreadsheet->getActiveSheet()->setCellValue('ES4','Personas relacionadas - Cargos');
+                        $spreadsheet->getActiveSheet()->setCellValue('ET4','Personas relacionadas - Campañas o clientes');
+                        $spreadsheet->getActiveSheet()->setCellValue('EU4','Personas relacionadas - Relación contractual');
+                        $spreadsheet->getActiveSheet()->setCellValue('EV4','Personas relacionadas - Parentesco');
+                        $spreadsheet->getActiveSheet()->setCellValue('EW4','Referencia del texto legal SAGRILAFT-PTEE');
+                        $spreadsheet->getActiveSheet()->setCellValue('EX4','Fecha aceptación SAGRILAFT-PTEE');
+                        $spreadsheet->getActiveSheet()->setCellValue('EY4','Referencia del texto legal de autorización de datos');
+                        $spreadsheet->getActiveSheet()->setCellValue('EZ4','Fecha autorización de datos');
                         
-                        $spreadsheet->getActiveSheet()->setCellValue('A1','Reporte: Consolidado');
+                        $spreadsheet->getActiveSheet()->setCellValue('A1','Reporte: Consolidado Vinculados');
                         $spreadsheet->getActiveSheet()->setCellValue('A2','Fecha: '.now());
                     // Escribiendo los titulos
-                    
-                    // Ingresar Data consultada a partir de la fila 4
-                    // echo "<pre>";
-                    // print_r($array_detalle_seleccion[3256]);
-                    // echo "</pre>";
 
                     for ($i=5; $i < count($resregistros)+5; $i++) {
                         $id_aspirante_final=$resregistros[$i-5]['hva_id'];
@@ -3284,11 +3672,11 @@
                             $hvp_habilidades_nivel_google_ws=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_habilidades_nivel_google_ws'];//Nivel de manejo de google WS (Workspace)
                             $hvp_poblaciones_poblacion=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_poblacion'];//Haces parte de alguna de las poblaciones mencionadas?
                             $hvp_poblaciones_certificado=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_certificado'];//¿Cuentas con los documentos que validen la información (certificación)?
-                            $hvp_poblaciones_familiares_iq=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_familiares_iq'];//¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado
+                            $hvp_poblaciones_familiares_iq=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_familiares_iq'];//Declaración de familiares o personas relacionadas con GRUPO ASD S.A.S.
                             $hvp_poblaciones_familiares_iq_identificacion=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_familiares_iq_identificacion'];//Documento de identidad de tu familiar
                             $hvp_poblaciones_familiares_iq_nombres_apellidos=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_familiares_iq_nombres_apellidos'];//¿Cuál es el nombre de tu familiar?
                             $hvp_poblaciones_familiares_iq_ingreso_marzo_2022=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_poblaciones_familiares_iq_ingreso_marzo_2022'];//Tu familiar ingresó a la compañía antes de marzo 2022?
-                            $hvp_veracidad=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_veracidad'];//Veracidad de la Información Proporcionada
+                            $hvp_veracidad=$array_detalle_hoja_vida[$id_aspirante_final]['hvp_veracidad'];//CONSIDERACIONES - Respuesta
                             $aa_nombre=$array_detalle_hoja_vida[$id_aspirante_final]['aa_nombre'];//Centro de Costo
                             $ac_nombre=$array_detalle_hoja_vida[$id_aspirante_final]['ac_nombre'];//Cargo
 
@@ -3309,7 +3697,7 @@
                             $hvp_estado=$array_detalle_seleccion[$id_aspirante_final]['hva_estado'];//Estado
                             $hvp_actualiza_fecha='';//Fecha Actualización
                             $dias_diferencia='';//Tiempo Actualización
-                            $hvp_consentimiento_tratamiento_datos_personales='Si';//Consentimiento Tratamiento Datos
+                            $hvp_consentimiento_tratamiento_datos_personales=$this->valorReporte($array_detalle_seleccion[$id_aspirante_final], 'hvada_tratamiento_datos');//Consentimiento Tratamiento Datos
                             $hvp_datos_personales_tipo_documento='';//Tipo de documento de identidad
                             $hvp_datos_personales_numero_identificacion=$array_detalle_seleccion[$id_aspirante_final]['hva_identificacion'];//Número de identificación
                             $hva_auxiliar_5=$array_detalle_seleccion[$id_aspirante_final]['hva_auxiliar_5'];//Fechad e expedición
@@ -3374,7 +3762,7 @@
                             $hvp_financiero_ingresos_otros=$array_detalle_seleccion[$id_aspirante_final]['hvaf_ingresos_otros'];//Otros Ingresos
                             $hvp_financiero_concepto_ingresos=$array_detalle_seleccion[$id_aspirante_final]['hvaf_concepto_ingresos'];//Concepto de otros ingresos
                             $hvp_financiero_moneda_extranjera=$array_detalle_seleccion[$id_aspirante_final]['hvaf_moneda_extranjera'];//¿Realiza Operaciones en Moneda Extranjera?
-                            $hvp_origen_fondos='Si';//Declaración de Origen de Fondos y Prevención de Lavado de Activos
+                            $hvp_origen_fondos=$this->valorReporte($array_detalle_seleccion[$id_aspirante_final], 'hvada_origen_fondos');//Declaración de Origen de Fondos y Prevención de Lavado de Activos
                             $hvp_pep_recursos=$array_detalle_seleccion[$id_aspirante_final]['hvap_recursos'];//¿Maneja recursos públicos?
                             $hvp_pep_reconocimiento=$array_detalle_seleccion[$id_aspirante_final]['hvap_reconocimiento'];//¿Goza de reconocimiento público general?
                             $hvp_pep_poder=$array_detalle_seleccion[$id_aspirante_final]['hvap_poder'];//¿Ejerce algún grado de poder público?
@@ -3423,11 +3811,11 @@
                             $hvp_habilidades_nivel_google_ws='';//Nivel de manejo de google WS (Workspace)
                             $hvp_poblaciones_poblacion='';//Haces parte de alguna de las poblaciones mencionadas?
                             $hvp_poblaciones_certificado='';//¿Cuentas con los documentos que validen la información (certificación)?
-                            $hvp_poblaciones_familiares_iq='';//¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado
+                            $hvp_poblaciones_familiares_iq='';//Declaración de familiares o personas relacionadas con GRUPO ASD S.A.S.
                             $hvp_poblaciones_familiares_iq_identificacion='';//Documento de identidad de tu familiar
                             $hvp_poblaciones_familiares_iq_nombres_apellidos='';//¿Cuál es el nombre de tu familiar?
                             $hvp_poblaciones_familiares_iq_ingreso_marzo_2022='';//Tu familiar ingresó a la compañía antes de marzo 2022?
-                            $hvp_veracidad='';//Veracidad de la Información Proporcionada
+                            $hvp_veracidad=$this->valorReporte($array_detalle_seleccion[$id_aspirante_final], 'hvada_veracidad');//CONSIDERACIONES - Respuesta
                             $aa_nombre=$array_detalle_seleccion[$id_aspirante_final]['aa_nombre'];//Centro de Costo
                             $ac_nombre=$array_detalle_seleccion[$id_aspirante_final]['ac_nombre'];//Cargo
 
@@ -3446,14 +3834,20 @@
                             $estado_general='';//estado_general
                         }
 
+                        if (isset($array_estudio_terminado[$id_aspirante_final]['hvaet_nivel'])) {
+                            $ultimo_estudio_alcanzado=obtenerNivelAcademicoMasAlto($array_estudio_terminado[$id_aspirante_final]['hvaet_nivel']);
+                        } else {
+                            $ultimo_estudio_alcanzado='';
+                        }
+
                         
                         $spreadsheet->getActiveSheet()->setCellValue('A'.$i,mb_strtoupper($hvp_estado));//Estado
                         $spreadsheet->getActiveSheet()->setCellValue('B'.$i,mb_strtoupper($hvp_actualiza_fecha));//Fecha Actualización
-                        $spreadsheet->getActiveSheet()->setCellValue('C'.$i,mb_strtoupper($dias_diferencia));//Tiempo Actualización
+                        $spreadsheet->getActiveSheet()->setCellValue('C'.$i,$dias_diferencia);//Tiempo Actualización
                         $spreadsheet->getActiveSheet()->setCellValue('D'.$i,mb_strtoupper($hvp_consentimiento_tratamiento_datos_personales));//Consentimiento Tratamiento Datos
                         $spreadsheet->getActiveSheet()->setCellValue('E'.$i,mb_strtoupper($hvp_datos_personales_tipo_documento));//Tipo de documento de identidad
                         $spreadsheet->getActiveSheet()->setCellValue('F'.$i,mb_strtoupper($hvp_datos_personales_numero_identificacion));//Número de identificación
-                        $spreadsheet->getActiveSheet()->setCellValue('G'.$i,mb_strtoupper($hva_auxiliar_5));//Fecha de expedición del documento
+                        $spreadsheet->getActiveSheet()->setCellValue('G'.$i,mb_strtoupper($hva_auxiliar_5));//hva_auxiliar_5 fecha expedición
                         $spreadsheet->getActiveSheet()->setCellValue('H'.$i,mb_strtoupper($hvp_datos_personales_nombre_1));//Primer nombre
                         $spreadsheet->getActiveSheet()->setCellValue('I'.$i,mb_strtoupper($hvp_datos_personales_nombre_2));//Segundo nombre
                         $spreadsheet->getActiveSheet()->setCellValue('J'.$i,mb_strtoupper($hvp_datos_personales_apellido_1));//Primer apellido
@@ -3461,14 +3855,14 @@
                         $spreadsheet->getActiveSheet()->setCellValue('L'.$i,mb_strtoupper($hvp_auxiliar_1));//¿Cómo prefieres que te llamen?
                         $spreadsheet->getActiveSheet()->setCellValue('M'.$i,mb_strtoupper($hvp_demografia_genero));//¿Cuál es tu género? 
                         $spreadsheet->getActiveSheet()->setCellValue('N'.$i,mb_strtoupper($hvp_demografia_estado_civil));//¿Cuál es tu estado civil ?
-                        $spreadsheet->getActiveSheet()->setCellValue('O'.$i,mb_strtoupper($TCIUDADN_ciu_municipio));//Lugar nacimiento 
+                        $spreadsheet->getActiveSheet()->setCellValue('O'.$i,mb_strtoupper($TCIUDADN_ciu_municipio).', '.mb_strtoupper($TCIUDADN_ciu_departamento));//Lugar nacimiento 
                         $spreadsheet->getActiveSheet()->setCellValue('P'.$i,mb_strtoupper($hvp_demografia_fecha_nacimiento));//Fecha nacimiento
                         $spreadsheet->getActiveSheet()->setCellValue('Q'.$i,mb_strtoupper($hvp_demografia_edad));//Edad
                         $spreadsheet->getActiveSheet()->setCellValue('R'.$i,mb_strtoupper($hvp_expectativa_motivacion_expectativa_desarrollo));//¿Llevas más de 6 meses en la compañía? 
                         $spreadsheet->getActiveSheet()->setCellValue('S'.$i,mb_strtoupper($hvp_expectativa_motivacion_expectativa_crecimiento_profesional));//¿Crees que este trabajo te ofrecerá oportunidades de crecimiento profesional?
                         $spreadsheet->getActiveSheet()->setCellValue('T'.$i,mb_strtoupper($hvp_expectativa_motivacion_realidad_crecimiento_profesional));//¿En qué medida estás de acuerdo con la siguiente afirmación?: “Este trabajo me ha ofrecido oportunidades de crecimiento laboral.”
                         $spreadsheet->getActiveSheet()->setCellValue('U'.$i,mb_strtoupper($hvp_expectativa_motivacion_motivacion_trabajo));//Motivación principal para aceptar el trabajo
-                        $spreadsheet->getActiveSheet()->setCellValue('V'.$i,mb_strtoupper($TCIUDAD_ciu_municipio));//Ciudad de residencia 
+                        $spreadsheet->getActiveSheet()->setCellValue('V'.$i,mb_strtoupper($TCIUDAD_ciu_municipio).', '.mb_strtoupper($TCIUDAD_ciu_departamento));//Ciudad de residencia 
                         $spreadsheet->getActiveSheet()->setCellValue('W'.$i,mb_strtoupper($hvp_ubicacion_direccion_residencia));//Dirección de residencia
                         $spreadsheet->getActiveSheet()->setCellValue('X'.$i,mb_strtoupper($hvp_ubicacion_localidad_comuna));//Localidad/Comuna
                         $spreadsheet->getActiveSheet()->setCellValue('Y'.$i,mb_strtoupper($hvp_ubicacion_barrio));//Barrio
@@ -3505,10 +3899,10 @@
                         $spreadsheet->getActiveSheet()->setCellValue('BD'.$i,mb_strtoupper($hvp_socioeconomico_plan_compra_vivienda));//¿Tienes pensado comprar vivienda en los próximos 3 años?
                         $spreadsheet->getActiveSheet()->setCellValue('BE'.$i,mb_strtoupper($hvp_socioeconomico_beneficiario_subsidio_vivienda));//¿Has sido beneficiario de subsidio de vivienda?
                         $spreadsheet->getActiveSheet()->setCellValue('BF'.$i,mb_strtoupper($hvp_familia_numero_hijos));//¿Cuántos hijos tienes?
-                        $spreadsheet->getActiveSheet()->setCellValue('BG'.$i,$xxx);//familia_hijos_menor_3
-                        $spreadsheet->getActiveSheet()->setCellValue('BH'.$i,$xxx);//familia_hijos_4_10
-                        $spreadsheet->getActiveSheet()->setCellValue('BI'.$i,$xxx);//familia_hijos_11_17
-                        $spreadsheet->getActiveSheet()->setCellValue('BJ'.$i,$xxx);//familia_hijos_mayor_18
+                        $spreadsheet->getActiveSheet()->setCellValue('BG'.$i,mb_strtoupper($hvp_familia_hijos_menor_3));//familia_hijos_menor_3
+                        $spreadsheet->getActiveSheet()->setCellValue('BH'.$i,mb_strtoupper($hvp_familia_hijos_4_10));//familia_hijos_4_10
+                        $spreadsheet->getActiveSheet()->setCellValue('BI'.$i,mb_strtoupper($hvp_familia_hijos_11_17));//familia_hijos_11_17
+                        $spreadsheet->getActiveSheet()->setCellValue('BJ'.$i,mb_strtoupper($hvp_familia_hijos_mayor_18));//familia_hijos_mayor_18
                         $spreadsheet->getActiveSheet()->setCellValue('BK'.$i,mb_strtoupper($hvp_familia_capacitacion_familia));//¿En cual de los siguientes temas relacionados con la familia te gustaría recibir
                         $spreadsheet->getActiveSheet()->setCellValue('BL'.$i,mb_strtoupper($hvp_financiero_activos));//Activos
                         $spreadsheet->getActiveSheet()->setCellValue('BM'.$i,mb_strtoupper($hvp_financiero_pasivos));//Pasivos
@@ -3558,36 +3952,101 @@
                         $spreadsheet->getActiveSheet()->setCellValue('DE'.$i,mb_strtoupper($hvp_interes_habitos_habito_ahorro));//¿Tienes el hábito de ahorrar?
                         $spreadsheet->getActiveSheet()->setCellValue('DF'.$i,mb_strtoupper($hvp_interes_habitos_mascotas));//¿Tienes Mascotas?
                         $spreadsheet->getActiveSheet()->setCellValue('DG'.$i,mb_strtoupper($hvp_interes_habitos_mascotas_cual));//Cuéntanos que mascota tienes?
+
+                        
+
+
                         $spreadsheet->getActiveSheet()->setCellValue('DH'.$i,mb_strtoupper($hvp_formacion_ultimo_certificado_enviado_rrhh));//Ya enviaste al área de Gestión humana el último certificado de tus estudios culminados?
                         $spreadsheet->getActiveSheet()->setCellValue('DI'.$i,mb_strtoupper($hvp_formacion_ultimo_estudio_realizado_titulo));//Indica el nombre del título de tu último estudio realizado
-                        $spreadsheet->getActiveSheet()->setCellValue('DL'.$i,mb_strtoupper($hvp_formacion_tarjeta_profesional));//Tienes tarjeta profesional?
-                        $spreadsheet->getActiveSheet()->setCellValue('DM'.$i,mb_strtoupper($hvp_formacion_estudios_curso));//¿Estás estudiando actualmente?
-                        $spreadsheet->getActiveSheet()->setCellValue('DN'.$i,mb_strtoupper($hvp_habilidades_nivel_ingles));//¿Nivel de inglés conversacional?
-                        $spreadsheet->getActiveSheet()->setCellValue('DO'.$i,mb_strtoupper($hvp_habilidades_nivel_excel));//¿Nivel de manejo de hojas de cálculo?
-                        $spreadsheet->getActiveSheet()->setCellValue('DP'.$i,mb_strtoupper($hvp_habilidades_nivel_google_ws));//Nivel de manejo de google WS (Workspace)
-                        $spreadsheet->getActiveSheet()->setCellValue('DQ'.$i,mb_strtoupper($hvp_poblaciones_poblacion));//Haces parte de alguna de las poblaciones mencionadas?
-                        $spreadsheet->getActiveSheet()->setCellValue('DR'.$i,mb_strtoupper($hvp_poblaciones_certificado));//¿Cuentas con los documentos que validen la información (certificación)?
-                        $spreadsheet->getActiveSheet()->setCellValue('DS'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq));//¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del primer o segundo grado
-                        $spreadsheet->getActiveSheet()->setCellValue('DT'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq_identificacion));//Documento de identidad de tu familiar
-                        $spreadsheet->getActiveSheet()->setCellValue('DU'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq_nombres_apellidos));//¿Cuál es el nombre de tu familiar?
-                        $spreadsheet->getActiveSheet()->setCellValue('DV'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq_ingreso_marzo_2022));//Tu familiar ingresó a la compañía antes de marzo 2022?
-                        $spreadsheet->getActiveSheet()->setCellValue('DW'.$i,mb_strtoupper($hvp_veracidad));//Veracidad de la Información Proporcionada
-                        $spreadsheet->getActiveSheet()->setCellValue('DX'.$i,mb_strtoupper($aa_nombre));//Centro de Costo
-                        $spreadsheet->getActiveSheet()->setCellValue('DY'.$i,mb_strtoupper($ac_nombre));//Cargo
+                        $spreadsheet->getActiveSheet()->setCellValue('DJ'.$i,mb_strtoupper($hvp_formacion_tarjeta_profesional));//Tienes tarjeta profesional?
+                        $spreadsheet->getActiveSheet()->setCellValue('DK'.$i,mb_strtoupper($hvp_formacion_estudios_curso));//¿Estás estudiando actualmente?
+                        
+                        $spreadsheet->getActiveSheet()->setCellValue('DL'.$i,mb_strtoupper($hvp_formacion_estudios_curso_titulo));//Nombre de los Estudios en curso
+                        $spreadsheet->getActiveSheet()->setCellValue('DM'.$i,mb_strtoupper($hvp_formacion_estudios_curso_nivel));//¿Cuál es el nivel académico del estudio que estas cursando?
+                        $spreadsheet->getActiveSheet()->setCellValue('DN'.$i,mb_strtoupper($hvp_formacion_estudios_curso_establecimiento));//Institución educativa de los estudios en curso
+                        $spreadsheet->getActiveSheet()->setCellValue('DO'.$i,mb_strtoupper($ultimo_estudio_alcanzado));//Último Estudio Culminado
+                        $spreadsheet->getActiveSheet()->setCellValue('DP'.$i,mb_strtoupper($xxx));//Estudios en Curso
 
-                        $spreadsheet->getActiveSheet()->setCellValue('DZ'.$i,mb_strtoupper($hvp_fecha_ingreso));//Fecha Ingreso
-                        $spreadsheet->getActiveSheet()->setCellValue('EA'.$i,mb_strtoupper($hvp_retiro_fecha));//Fecha Retiro
-                        $spreadsheet->getActiveSheet()->setCellValue('EB'.$i,mb_strtoupper($hvp_retiro_motivo));//Motivo Retiro
+                        $spreadsheet->getActiveSheet()->setCellValue('DQ'.$i,mb_strtoupper($hvp_habilidades_nivel_ingles));//¿Nivel de inglés conversacional?
+                        $spreadsheet->getActiveSheet()->setCellValue('DR'.$i,mb_strtoupper($hvp_habilidades_nivel_excel));//¿Nivel de manejo de hojas de cálculo?
+                        $spreadsheet->getActiveSheet()->setCellValue('DS'.$i,mb_strtoupper($hvp_habilidades_nivel_google_ws));//Nivel de manejo de google WS (Workspace)
+                        $spreadsheet->getActiveSheet()->setCellValue('DT'.$i,mb_strtoupper($hvp_poblaciones_poblacion));//Haces parte de alguna de las poblaciones mencionadas?
+                        $spreadsheet->getActiveSheet()->setCellValue('DU'.$i,mb_strtoupper($hvp_poblaciones_certificado));//¿Cuentas con los documentos que validen la información (certificación)?
+                        $spreadsheet->getActiveSheet()->setCellValue('DV'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq));//Declaración de familiares o personas relacionadas con GRUPO ASD S.A.S.
+                        $spreadsheet->getActiveSheet()->setCellValue('DW'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq_identificacion));//Documento de identidad de tu familiar
+                        $spreadsheet->getActiveSheet()->setCellValue('DX'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq_nombres_apellidos));//¿Cuál es el nombre de tu familiar?
+                        $spreadsheet->getActiveSheet()->setCellValue('DY'.$i,mb_strtoupper($hvp_poblaciones_familiares_iq_ingreso_marzo_2022));//Tu familiar ingresó a la compañía antes de marzo 2022?
+                        $spreadsheet->getActiveSheet()->setCellValue('DZ'.$i,mb_strtoupper($hvp_veracidad));//CONSIDERACIONES - Respuesta
+                        $spreadsheet->getActiveSheet()->setCellValue('EA'.$i,mb_strtoupper($aa_nombre));//Centro de Costo
+                        $spreadsheet->getActiveSheet()->setCellValue('EB'.$i,mb_strtoupper($ac_nombre));//Cargo
 
-                        $spreadsheet->getActiveSheet()->setCellValue('EC'.$i,$estado_autorizaciones);//estado_autorizaciones
-                        $spreadsheet->getActiveSheet()->setCellValue('ED'.$i,$estado_informacion_personal);//estado_informacion_personal
-                        $spreadsheet->getActiveSheet()->setCellValue('EE'.$i,$estado_ubicacion_contacto);//estado_ubicacion_contacto
-                        $spreadsheet->getActiveSheet()->setCellValue('EF'.$i,$estado_socioeconomico_familiar);//estado_socioeconomico_familiar
-                        $spreadsheet->getActiveSheet()->setCellValue('EG'.$i,$estado_salud_bienestar);//estado_salud_bienestar
-                        $spreadsheet->getActiveSheet()->setCellValue('EH'.$i,$estado_intereses_habitos);//estado_intereses_habitos
-                        $spreadsheet->getActiveSheet()->setCellValue('EI'.$i,$estado_formacion_habilidades);//estado_formacion_habilidades
-                        $spreadsheet->getActiveSheet()->setCellValue('EJ'.$i,$estado_poblaciones_relaciones);//estado_poblaciones_relaciones
-                        $spreadsheet->getActiveSheet()->setCellValue('EK'.$i,$estado_general);//estado_general
+                        $spreadsheet->getActiveSheet()->setCellValue('EC'.$i,mb_strtoupper($hvp_fecha_ingreso));//Fecha Ingreso
+                        $spreadsheet->getActiveSheet()->setCellValue('ED'.$i,mb_strtoupper($hvp_retiro_fecha));//Fecha Retiro
+                        $spreadsheet->getActiveSheet()->setCellValue('EE'.$i,mb_strtoupper($hvp_retiro_motivo));//Motivo Retiro
+
+                        //Función para obtener el estado de los campos
+                        // $array_estados=estadoDiligenciaHV($resregistros[$i-5]);
+
+                        // $estado_autorizaciones=$array_estados['estado_autorizaciones'];
+                        // $estado_informacion_personal=$array_estados['estado_informacion_personal'];
+                        // $estado_ubicacion_contacto=$array_estados['estado_ubicacion_contacto'];
+                        // $estado_socioeconomico_familiar=$array_estados['estado_socioeconomico_familiar'];
+                        // $estado_salud_bienestar=$array_estados['estado_salud_bienestar'];
+                        // $estado_intereses_habitos=$array_estados['estado_intereses_habitos'];
+                        // $estado_formacion_habilidades=$array_estados['estado_formacion_habilidades'];
+                        // $estado_poblaciones_relaciones=$array_estados['estado_poblaciones_relaciones'];
+                        // $estado_general=$array_estados['estado_general'];
+                        
+                        $spreadsheet->getActiveSheet()->setCellValue('EF'.$i,$estado_autorizaciones);//estado_autorizaciones
+                        $spreadsheet->getActiveSheet()->setCellValue('EG'.$i,$estado_informacion_personal);//estado_informacion_personal
+                        $spreadsheet->getActiveSheet()->setCellValue('EH'.$i,$estado_ubicacion_contacto);//estado_ubicacion_contacto
+                        $spreadsheet->getActiveSheet()->setCellValue('EI'.$i,$estado_socioeconomico_familiar);//estado_socioeconomico_familiar
+                        $spreadsheet->getActiveSheet()->setCellValue('EJ'.$i,$estado_salud_bienestar);//estado_salud_bienestar
+                        $spreadsheet->getActiveSheet()->setCellValue('EK'.$i,$estado_intereses_habitos);//estado_intereses_habitos
+                        $spreadsheet->getActiveSheet()->setCellValue('EL'.$i,$estado_formacion_habilidades);//estado_formacion_habilidades
+                        $spreadsheet->getActiveSheet()->setCellValue('EM'.$i,$estado_poblaciones_relaciones);//estado_poblaciones_relaciones
+                        $spreadsheet->getActiveSheet()->setCellValue('EN'.$i,$estado_general);//estado_general
+                        if (isset($array_detalle_hoja_vida[$id_aspirante_final])) {
+                            $datos_rf07=$array_detalle_hoja_vida[$id_aspirante_final];
+                            $personas_relacionadas=$this->resumenPersonasRelacionadasReporte(
+                                $array_personas_relacionadas_ciudadano,
+                                $this->valorReporte($datos_rf07, 'hvp_id'),
+                                $this->valorReporte($datos_rf07, 'hvp_poblaciones_familiares_iq_nombres_apellidos')
+                            );
+                            $poblacion_vulnerable=$this->valorReporte($datos_rf07, 'hvp_poblacion_vulnerable');
+                            $alerta_familiaridad=$this->valorReporte($datos_rf07, 'hvp_alerta_familiaridad');
+                            $sagrilaft_texto_id=$this->valorReporte($datos_rf07, 'hvp_sagrilaft_texto_id');
+                            $sagrilaft_fecha=$this->valorReporte($datos_rf07, 'hvp_sagrilaft_fecha');
+                            $autorizacion_texto_id=$this->valorReporte($datos_rf07, 'hvp_autorizacion_texto_id');
+                            $autorizacion_fecha=$this->valorReporte($datos_rf07, 'hvp_consentimiento_tratamiento_datos_personales_fecha');
+                        } else {
+                            $datos_rf07=(isset($array_detalle_seleccion[$id_aspirante_final])) ? $array_detalle_seleccion[$id_aspirante_final] : array();
+                            $personas_relacionadas=$this->resumenPersonasRelacionadasReporte(
+                                $array_personas_relacionadas_seleccion,
+                                $id_aspirante_final,
+                                $this->valorReporte($datos_rf07, 'hvae_familiar_nombre'),
+                                $this->valorReporte($datos_rf07, 'hvae_familiar_area')
+                            );
+                            $poblacion_vulnerable=$this->valorReporte($datos_rf07, 'hvae_poblacion_vulnerable');
+                            $alerta_familiaridad=$this->valorReporte($datos_rf07, 'hvae_alerta_familiaridad');
+                            $sagrilaft_texto_id=$this->valorReporte($datos_rf07, 'hvada_sagrilaft_texto_id');
+                            $sagrilaft_fecha=$this->valorReporte($datos_rf07, 'hvada_sagrilaft_fecha');
+                            $autorizacion_texto_id=$this->valorReporte($datos_rf07, 'hvada_autorizacion_texto_id');
+                            $autorizacion_fecha=$this->valorReporte($datos_rf07, 'hvada_autorizacion_fecha');
+                        }
+
+                        $spreadsheet->getActiveSheet()->setCellValue('EO'.$i,mb_strtoupper($poblacion_vulnerable));
+                        $spreadsheet->getActiveSheet()->setCellValue('EP'.$i,mb_strtoupper($alerta_familiaridad));
+                        $spreadsheet->getActiveSheet()->setCellValue('EQ'.$i,$personas_relacionadas['cantidad']);
+                        $spreadsheet->getActiveSheet()->setCellValue('ER'.$i,mb_strtoupper($personas_relacionadas['nombres']));
+                        $spreadsheet->getActiveSheet()->setCellValue('ES'.$i,mb_strtoupper($personas_relacionadas['cargos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('ET'.$i,mb_strtoupper($personas_relacionadas['campanas']));
+                        $spreadsheet->getActiveSheet()->setCellValue('EU'.$i,mb_strtoupper($personas_relacionadas['relaciones']));
+                        $spreadsheet->getActiveSheet()->setCellValue('EV'.$i,mb_strtoupper($personas_relacionadas['parentescos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('EW'.$i,$sagrilaft_texto_id);
+                        $spreadsheet->getActiveSheet()->setCellValue('EX'.$i,$sagrilaft_fecha);
+                        $spreadsheet->getActiveSheet()->setCellValue('EY'.$i,$autorizacion_texto_id);
+                        $spreadsheet->getActiveSheet()->setCellValue('EZ'.$i,$autorizacion_fecha);
                         
                     }
                 } elseif ($tipo_reporte=='Cumplimiento') {
@@ -3638,8 +4097,20 @@
                     $spreadsheet->getActiveSheet()->getColumnDimension('AF')->setWidth(20);
                     $spreadsheet->getActiveSheet()->getColumnDimension('AG')->setWidth(20);
                     $spreadsheet->getActiveSheet()->getColumnDimension('AH')->setWidth(20);
-                    $spreadsheet->getActiveSheet()->getStyle('A4:AH4')->applyFromArray($styleArrayTitulos);
-                    $spreadsheet->getActiveSheet()->setAutoFilter('A4:AH4');
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AI')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AJ')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AK')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AL')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AM')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AN')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AO')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AP')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AQ')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AR')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AS')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getColumnDimension('AT')->setWidth(24);
+                    $spreadsheet->getActiveSheet()->getStyle('A4:AT4')->applyFromArray($styleArrayTitulos);
+                    $spreadsheet->getActiveSheet()->setAutoFilter('A4:AT4');
                     $spreadsheet->getActiveSheet()->getStyle('3')->getAlignment()->setWrapText(true);
                     $spreadsheet->getActiveSheet()->getStyle('4')->getAlignment()->setWrapText(true);
 
@@ -3682,7 +4153,7 @@
                     $spreadsheet->getActiveSheet()->setCellValue('W4','Otros Ingresos');
                     $spreadsheet->getActiveSheet()->setCellValue('X4','Concepto de otros ingresos');
                     $spreadsheet->getActiveSheet()->setCellValue('Y4','¿Realiza Operaciones en Moneda Extranjera?');
-                    $spreadsheet->getActiveSheet()->setCellValue('Z4','Declaración de Origen de Fondos y Prevención de Lavado de Activos y Financiación del Terrorismo - SAGRILAFT');
+                    $spreadsheet->getActiveSheet()->setCellValue('Z4','Declaración de Origen de Fondos y Prevención de LA/FT/FPADM, Corrupción y Soborno - SAGRILAFT - PTEE');
 
                     $spreadsheet->getActiveSheet()->setCellValue('Z3','Personas Expuestas Públicamente - PEP');
                     $spreadsheet->getActiveSheet()->setCellValue('AA4','¿Maneja recursos públicos?');
@@ -3692,8 +4163,20 @@
                     $spreadsheet->getActiveSheet()->setCellValue('AE4','PEP - Identificación');
                     $spreadsheet->getActiveSheet()->setCellValue('AF4','PEP - Nombres y Apellidos');
                     
-                    $spreadsheet->getActiveSheet()->setCellValue('AG4','Veracidad de la Información Proporcionada');
+                    $spreadsheet->getActiveSheet()->setCellValue('AG4','CONSIDERACIONES - Respuesta');
                     $spreadsheet->getActiveSheet()->setCellValue('AH4','Fecha Actualización');
+                    $spreadsheet->getActiveSheet()->setCellValue('AI4','Población sujeto de especial protección o vulnerabilidad');
+                    $spreadsheet->getActiveSheet()->setCellValue('AJ4','Alerta de cambio en declaración de familiaridad');
+                    $spreadsheet->getActiveSheet()->setCellValue('AK4','Cantidad de personas relacionadas con GRUPO ASD S.A.S.');
+                    $spreadsheet->getActiveSheet()->setCellValue('AL4','Personas relacionadas - Nombres completos');
+                    $spreadsheet->getActiveSheet()->setCellValue('AM4','Personas relacionadas - Cargos');
+                    $spreadsheet->getActiveSheet()->setCellValue('AN4','Personas relacionadas - Campañas o clientes');
+                    $spreadsheet->getActiveSheet()->setCellValue('AO4','Personas relacionadas - Relación contractual');
+                    $spreadsheet->getActiveSheet()->setCellValue('AP4','Personas relacionadas - Parentesco');
+                    $spreadsheet->getActiveSheet()->setCellValue('AQ4','Referencia del texto legal SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('AR4','Fecha aceptación SAGRILAFT-PTEE');
+                    $spreadsheet->getActiveSheet()->setCellValue('AS4','Referencia del texto legal de autorización de datos');
+                    $spreadsheet->getActiveSheet()->setCellValue('AT4','Fecha autorización de datos');
                     
                     $spreadsheet->getActiveSheet()->setCellValue('A1','Reporte: Cumplimiento');
                     $spreadsheet->getActiveSheet()->setCellValue('A2','Fecha: '.now());
@@ -3732,8 +4215,27 @@
                         $spreadsheet->getActiveSheet()->setCellValue('AD'.$i,mb_strtoupper($resregistros[$i-5]['hvp_pep_familiar']));//¿Tiene usted algún familiar que cumpla con una característica anterior?
                         $spreadsheet->getActiveSheet()->setCellValue('AE'.$i,mb_strtoupper($resregistros[$i-5]['hvp_pep_cedula']));//¿Tiene usted algún familiar que cumpla con una característica anterior?
                         $spreadsheet->getActiveSheet()->setCellValue('AF'.$i,mb_strtoupper($resregistros[$i-5]['hvp_pep_nombres_apellidos']));//¿Tiene usted algún familiar que cumpla con una característica anterior?
-                        $spreadsheet->getActiveSheet()->setCellValue('AG'.$i,mb_strtoupper($resregistros[$i-5]['hvp_veracidad']));//Veracidad de la Información Proporcionada
-                        $spreadsheet->getActiveSheet()->setCellValue('AH'.$i,mb_strtoupper($resregistros[$i-5]['hvp_actualiza_fecha']));//Veracidad de la Información Proporcionada
+                        $spreadsheet->getActiveSheet()->setCellValue('AG'.$i,mb_strtoupper($resregistros[$i-5]['hvp_veracidad']));//CONSIDERACIONES - Respuesta
+                        $spreadsheet->getActiveSheet()->setCellValue('AH'.$i,mb_strtoupper($resregistros[$i-5]['hvp_actualiza_fecha']));//CONSIDERACIONES - Respuesta
+                        $fila_hoja_vida=$resregistros[$i-5];
+                        $personas_relacionadas=$this->resumenPersonasRelacionadasReporte(
+                            $array_personas_relacionadas_ciudadano,
+                            $this->valorReporte($fila_hoja_vida, 'hvp_id'),
+                            $this->valorReporte($fila_hoja_vida, 'hvp_poblaciones_familiares_iq_nombres_apellidos')
+                        );
+
+                        $spreadsheet->getActiveSheet()->setCellValue('AI'.$i,mb_strtoupper($this->valorReporte($fila_hoja_vida, 'hvp_poblacion_vulnerable')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AJ'.$i,mb_strtoupper($this->valorReporte($fila_hoja_vida, 'hvp_alerta_familiaridad')));
+                        $spreadsheet->getActiveSheet()->setCellValue('AK'.$i,$personas_relacionadas['cantidad']);
+                        $spreadsheet->getActiveSheet()->setCellValue('AL'.$i,mb_strtoupper($personas_relacionadas['nombres']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AM'.$i,mb_strtoupper($personas_relacionadas['cargos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AN'.$i,mb_strtoupper($personas_relacionadas['campanas']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AO'.$i,mb_strtoupper($personas_relacionadas['relaciones']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AP'.$i,mb_strtoupper($personas_relacionadas['parentescos']));
+                        $spreadsheet->getActiveSheet()->setCellValue('AQ'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_sagrilaft_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('AR'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_sagrilaft_fecha'));
+                        $spreadsheet->getActiveSheet()->setCellValue('AS'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_autorizacion_texto_id'));
+                        $spreadsheet->getActiveSheet()->setCellValue('AT'.$i,$this->valorReporte($fila_hoja_vida, 'hvp_consentimiento_tratamiento_datos_personales_fecha'));
                         
                     }
                 } elseif ($tipo_reporte=='Contratación') {

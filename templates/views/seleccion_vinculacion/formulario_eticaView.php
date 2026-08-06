@@ -69,19 +69,64 @@
                                                     </p>
                                                     <hr class="my-3">
                                                     <div class="col-md-12 mb-3 mt-3">
-                                                        <label for="hvae_familiar" class="form-label my-0 font-size-12">¿Tiene usted familiares, conyugue y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente trabaje en IQ?</label>
+                                                        <label for="hvae_familiar" class="form-label my-0 font-size-12">¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?</label>
                                                         <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" name="hvae_familiar" id="hvae_familiar" data-container="body" title="Seleccione" required onchange="validar_etica();">
                                                             <option value="Si" <?php echo ($data['resultado_registros'][0]->hvae_familiar=='Si') ? 'selected' : ''; ?>>Si</option>
                                                             <option value="No" <?php echo ($data['resultado_registros'][0]->hvae_familiar=='No') ? 'selected' : ''; ?>>No</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-md-6 mb-3 d-none" id="hvae_familiar_nombre_div">
-                                                        <label for="hvae_familiar_nombre" class="form-label my-0 font-size-12">Nombres y apellidos</label>
-                                                        <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvae_familiar_nombre" id="hvae_familiar_nombre" value="<?php echo $data['resultado_registros'][0]->hvae_familiar_nombre; ?>" required autocomplete="off" disabled>
+                                                    <div class="col-md-12 mb-3 d-none" id="hpr_tabla_div">
+                                                        <p class="appoinment-content-text mt-0 mb-2">Por favor, proporcione el nombre completo, el cargo que ocupa y la campaña/cliente a la que pertenece su familiar.</p>
+                                                        <div class="row g-2 align-items-end">
+                                                            <div class="col-md-3">
+                                                                <label for="hpr_nombre_completo" class="form-label my-0 font-size-12">Nombre Completo</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_nombre_completo" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_cargo" class="form-label my-0 font-size-12">Cargo</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_cargo" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_campana_cliente" class="form-label my-0 font-size-12">Campaña/Cliente</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_campana_cliente" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_relacion_contractual" class="form-label my-0 font-size-12">Relación Contractual/Comercial</label>
+                                                                <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" id="hpr_relacion_contractual" data-container="body" title="Seleccione">
+                                                                    <option value="Trabajador">Trabajador</option>
+                                                                    <option value="Practicante">Practicante</option>
+                                                                    <option value="Aprendiz">Aprendiz</option>
+                                                                    <option value="Contratista">Contratista</option>
+                                                                    <option value="Cliente">Cliente</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_parentesco" class="form-label my-0 font-size-12">Parentesco/Relación</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_parentesco" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-1">
+                                                                <a class="btn btn-warning login-btn btn-sm w-100" onclick="persona_relacionada_add();">Agregar</a>
+                                                            </div>
+                                                        </div>
+                                                        <hr>
+                                                        <p class="appoinment-content-text mt-0 mb-2">Personas Relacionadas Registradas</p>
+                                                        <div class="col-md-12 mb-2" id="lista_persona_relacionada"></div>
                                                     </div>
-                                                    <div class="col-md-6 mb-3 d-none" id="hvae_familiar_area_div">
-                                                        <label for="hvae_familiar_area" class="form-label my-0 font-size-12">Área</label>
-                                                        <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvae_familiar_area" id="hvae_familiar_area" value="<?php echo $data['resultado_registros'][0]->hvae_familiar_area; ?>" required autocomplete="off" disabled>
+                                                    <hr class="my-3">
+                                                    <div class="col-md-12 mb-3">
+                                                        <label class="form-label my-0 font-size-12 d-block">¿Forma parte de alguna población sujeto de especial protección o vulnerabilidad?</label>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="hvae_poblacion_vulnerable" id="hvae_poblacion_vulnerable_si" value="Si" required <?php echo (isset($data['resultado_registros'][0]->hvae_poblacion_vulnerable) AND $data['resultado_registros'][0]->hvae_poblacion_vulnerable=='Si') ? 'checked' : ''; ?>>
+                                                            <label class="form-check-label font-size-12" for="hvae_poblacion_vulnerable_si">Sí</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="hvae_poblacion_vulnerable" id="hvae_poblacion_vulnerable_no" value="No" required <?php echo (isset($data['resultado_registros'][0]->hvae_poblacion_vulnerable) AND $data['resultado_registros'][0]->hvae_poblacion_vulnerable=='No') ? 'checked' : ''; ?>>
+                                                            <label class="form-check-label font-size-12" for="hvae_poblacion_vulnerable_no">No</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="hvae_poblacion_vulnerable" id="hvae_poblacion_vulnerable_np" value="Prefiero no decirlo" required <?php echo (isset($data['resultado_registros'][0]->hvae_poblacion_vulnerable) AND $data['resultado_registros'][0]->hvae_poblacion_vulnerable=='Prefiero no decirlo') ? 'checked' : ''; ?>>
+                                                            <label class="form-check-label font-size-12" for="hvae_poblacion_vulnerable_np">Prefiero no decirlo</label>
+                                                        </div>
                                                     </div>
                                                 <?php endif; ?>
                                             <?php else: ?>
@@ -118,16 +163,11 @@
 <script type="text/javascript">
     function validar_etica(){
         var hvae_familiar = document.getElementById("hvae_familiar").value;
-        var hvae_familiar_nombre = document.getElementById('hvae_familiar_nombre').disabled=true;
-        var hvae_familiar_area = document.getElementById('hvae_familiar_area').disabled=true;
-        $("#hvae_familiar_nombre_div").removeClass('d-block').addClass('d-none');
-        $("#hvae_familiar_area_div").removeClass('d-block').addClass('d-none');
+        $("#hpr_tabla_div").removeClass('d-block').addClass('d-none');
 
         if(hvae_familiar=='Si') {
-            var hvae_familiar_nombre = document.getElementById('hvae_familiar_nombre').disabled=false;
-            var hvae_familiar_area = document.getElementById('hvae_familiar_area').disabled=false;
-            $("#hvae_familiar_nombre_div").removeClass('d-none').addClass('d-block');
-            $("#hvae_familiar_area_div").removeClass('d-none').addClass('d-block');
+            $("#hpr_tabla_div").removeClass('d-none').addClass('d-block');
+            persona_relacionada_list();
         }
     }
 
@@ -140,20 +180,156 @@
     });
 
     jQuery(document).ready(function(){
-        jQuery("#hvae_familiar_nombre").on('input', function (evt) {
+        jQuery("#hpr_nombre_completo").on('input', function (evt) {
             jQuery(this).val(jQuery(this).val().toUpperCase());
         });
     });
 
     jQuery(document).ready(function(){
-        jQuery("#hvae_familiar_area").on('input', function (evt) {
+        jQuery("#hpr_parentesco").on('input', function (evt) {
             jQuery(this).val(jQuery(this).val().toUpperCase());
         });
     });
 
     validateControlById('hvae_familiar');
-    validateControlById('hvae_familiar_nombre');
-    validateControlById('hvae_familiar_area');
+
+    // ===== RF-02: Personas relacionadas con GRUPO ASD S.A.S. =====
+    function persona_relacionada_add() {
+        var id_oferta = '<?php echo $data['id_oferta']; ?>';
+        var token = '<?php echo $data['id_token']; ?>';
+        var hpr_nombre_completo = document.getElementById("hpr_nombre_completo").value;
+        var hpr_cargo = document.getElementById("hpr_cargo").value;
+        var hpr_campana_cliente = document.getElementById("hpr_campana_cliente").value;
+        var hpr_relacion_contractual = document.getElementById("hpr_relacion_contractual").value;
+        var hpr_parentesco = document.getElementById("hpr_parentesco").value;
+
+        var formData = new FormData();
+        formData.append("id_oferta", id_oferta);
+        formData.append("token", token);
+        formData.append("hpr_nombre_completo", hpr_nombre_completo);
+        formData.append("hpr_cargo", hpr_cargo);
+        formData.append("hpr_campana_cliente", hpr_campana_cliente);
+        formData.append("hpr_relacion_contractual", hpr_relacion_contractual);
+        formData.append("hpr_parentesco", hpr_parentesco);
+
+        if (token!="" && id_oferta!="" && hpr_nombre_completo!="" && hpr_cargo!="" && hpr_campana_cliente!="" && hpr_relacion_contractual!="" && hpr_parentesco!="") {
+            $.ajax({
+                type: 'POST',
+                url: '<?php echo URL; ?>seleccion-vinculacion/formulario-persona-relacionada-registro',
+                data: formData,
+                cache: false,
+                contentType: false,
+                processData: false,
+                beforeSend: function(){
+                    document.getElementById("hpr_nombre_completo").disabled=true;
+                    document.getElementById("hpr_cargo").disabled=true;
+                    document.getElementById("hpr_campana_cliente").disabled=true;
+                    document.getElementById("hpr_parentesco").disabled=true;
+                },
+                complete:function(data){
+                    document.getElementById("hpr_nombre_completo").disabled=false;
+                    document.getElementById("hpr_cargo").disabled=false;
+                    document.getElementById("hpr_campana_cliente").disabled=false;
+                    document.getElementById("hpr_parentesco").disabled=false;
+                },
+                success: function(data){
+                    var resp = $.parseJSON(data);
+
+                    if (resp.resultado_valor) {
+                        document.getElementById("hpr_nombre_completo").value='';
+                        document.getElementById("hpr_cargo").value='';
+                        document.getElementById("hpr_campana_cliente").value='';
+                        $('#hpr_relacion_contractual').selectpicker('val', '');
+                        document.getElementById("hpr_parentesco").value='';
+                    } else {
+                        alert("¡No se pudo agregar el registro, verifique que la relación contractual sea válida e intente nuevamente!");
+                    }
+                    persona_relacionada_list();
+                },
+                error: function(data){
+                    alert("Problemas al tratar de crear el registro, por favor verifique e intente nuevamente");
+                }
+            });
+        } else {
+            alert("¡Todos los campos son obligatorios, por favor verifique e intente nuevamente!");
+        }
+    }
+
+    function persona_relacionada_list() {
+        var id_oferta = '<?php echo $data['id_oferta']; ?>';
+        var token = '<?php echo $data['id_token']; ?>';
+
+        var formData = new FormData();
+        formData.append("id_oferta", id_oferta);
+        formData.append("token", token);
+
+        if (token!="" && id_oferta!="") {
+            $.ajax({
+                type: 'POST',
+                url: '<?php echo URL; ?>seleccion-vinculacion/formulario-persona-relacionada-listar',
+                data: formData,
+                cache: false,
+                contentType: false,
+                processData: false,
+                beforeSend: function(){
+
+                },
+                complete:function(data){
+
+                },
+                success: function(data){
+                    var resp = $.parseJSON(data);
+
+                    if (resp.resultado_valor) {
+                        $('#lista_persona_relacionada').html(resp.resultado_lista);
+                        progreso();
+                    } else {
+                        $('#lista_persona_relacionada').html('<p class="alert alert-warning p-1 font-size-11">¡No se encontró información de personas relacionadas registrada!</p>');
+                    }
+                },
+                error: function(data){
+                    alert("Problemas al tratar de obtener el registro, por favor verifique e intente nuevamente");
+                }
+            });
+        }
+    }
+
+    function persona_relacionada_del(id_registro) {
+        if (!confirm("¿Está seguro de eliminar esta persona relacionada?")) {
+            return;
+        }
+
+        var id_oferta = '<?php echo $data['id_oferta']; ?>';
+        var token = '<?php echo $data['id_token']; ?>';
+
+        var formData = new FormData();
+        formData.append("id_oferta", id_oferta);
+        formData.append("token", token);
+        formData.append("id_registro", id_registro);
+
+        if (token!="" && id_oferta!="" && id_registro!="") {
+            $.ajax({
+                type: 'POST',
+                url: '<?php echo URL; ?>seleccion-vinculacion/formulario-persona-relacionada-eliminar',
+                data: formData,
+                cache: false,
+                contentType: false,
+                processData: false,
+                beforeSend: function(){
+
+                },
+                complete:function(data){
+
+                },
+                success: function(data){
+                    persona_relacionada_list();
+                },
+                error: function(data){
+                    alert("Problemas al tratar de eliminar el registro, por favor verifique e intente nuevamente");
+                }
+            });
+        }
+    }
 </script>
 <script type="text/javascript">
     function progreso() {

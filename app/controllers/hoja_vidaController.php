@@ -59,6 +59,69 @@
         {
         }
 
+
+        /**
+         * Obtiene el contenido HTML vigente de un parámetro legal para su inclusión en PDF.
+         */
+        private static function obtenerParametroLegalPdf($app_id) {
+            $parametro = new parametroModel();
+            $parametro->app_id=$app_id;
+            $resultado=$parametro->listDetail();
+
+            return isset($resultado[0]['app_descripcion']) ? $resultado[0]['app_descripcion'] : '';
+        }
+
+        /**
+         * Construye la tabla PDF de personas relacionadas sin duplicar la fila principal.
+         * Mantiene un respaldo visual para registros históricos que solo tienen los campos antiguos.
+         */
+        private static function construirPersonasRelacionadasPdf($contexto, $propietario_id, $nombre_historico='', $area_historica='') {
+            $persona_relacionada = new hv_persona_relacionadaModel();
+            $persona_relacionada->hpr_contexto=$contexto;
+            $persona_relacionada->hpr_propietario_id=$propietario_id;
+            $personas=$persona_relacionada->listDetail();
+
+            if (!isset($personas[0])) {
+                $personas=array();
+            }
+
+            $escapar = function($valor) {
+                return htmlspecialchars((string)$valor, ENT_QUOTES, 'UTF-8');
+            };
+
+            $html='';
+            if (count($personas)>0) {
+                $html.='<table cellspacing="2" cellpadding="3">';
+                $html.='<tr>';
+                $html.='<td style="background-color: #D5DAF0;"><b>Nombre completo</b></td>';
+                $html.='<td style="background-color: #D5DAF0;"><b>Cargo</b></td>';
+                $html.='<td style="background-color: #D5DAF0;"><b>Campaña/Cliente</b></td>';
+                $html.='<td style="background-color: #D5DAF0;"><b>Relación contractual/comercial</b></td>';
+                $html.='<td style="background-color: #D5DAF0;"><b>Parentesco/Relación</b></td>';
+                $html.='</tr>';
+
+                foreach ($personas as $persona) {
+                    $html.='<tr>';
+                    $html.='<td style="background-color: #E2E8F0;">'.$escapar($persona['hpr_nombre_completo']).'</td>';
+                    $html.='<td style="background-color: #E2E8F0;">'.$escapar($persona['hpr_cargo']).'</td>';
+                    $html.='<td style="background-color: #E2E8F0;">'.$escapar($persona['hpr_campana_cliente']).'</td>';
+                    $html.='<td style="background-color: #E2E8F0;">'.$escapar($persona['hpr_relacion_contractual']).'</td>';
+                    $html.='<td style="background-color: #E2E8F0;">'.$escapar($persona['hpr_parentesco']).'</td>';
+                    $html.='</tr>';
+                }
+                $html.='</table>';
+            } elseif ($nombre_historico!=='' OR $area_historica!=='') {
+                $html.='<table cellspacing="2" cellpadding="3">';
+                $html.='<tr><td colspan="2" style="background-color: #FFF3CD;"><b>Información histórica</b></td></tr>';
+                $html.='<tr>';
+                $html.='<td style="background-color: #E2E8F0;"><b>Nombre:</b><br>'.$escapar($nombre_historico).'</td>';
+                $html.='<td style="background-color: #E2E8F0;"><b>Área:</b><br>'.$escapar($area_historica).'</td>';
+                $html.='</tr></table>';
+            }
+
+            return $html;
+        }
+
         function index() {
             Controller::checkSesion();
             Redirect::to('hoja-vida/ver');
@@ -100,8 +163,10 @@
                     $array_estados[]='Retirado';
                 } elseif ($bandeja=='Documentos Nuevos') {
                     $registros->filtro_documentos_nuevos = '1';
-                } elseif ($bandeja=='xxx') {
-                    
+                } elseif ($bandeja=='Información Financiera') {
+                    $registros->hvp_alerta_financiera = '1';
+                } elseif ($bandeja=='Información Familiaridad') {
+                    $registros->hvp_alerta_familiaridad = '1';
                 }
 
                 $registros->filtro_bandeja = $array_estados;
@@ -1808,46 +1873,33 @@
                 $resaspirante_etica=array();
             }
 
+            $respuesta_familiar=isset($resaspirante_etica[0]['hvae_familiar']) ? $resaspirante_etica[0]['hvae_familiar'] : '';
+            $poblacion_vulnerable=isset($resaspirante_etica[0]['hvae_poblacion_vulnerable']) ? $resaspirante_etica[0]['hvae_poblacion_vulnerable'] : '';
+            $nombre_historico=isset($resaspirante_etica[0]['hvae_familiar_nombre']) ? $resaspirante_etica[0]['hvae_familiar_nombre'] : '';
+            $area_historica=isset($resaspirante_etica[0]['hvae_familiar_area']) ? $resaspirante_etica[0]['hvae_familiar_area'] : '';
+
             $html = '<table cellpadding="3">';
-            $html .= '<tr>
-                <td style="background-color: #1C2262; color: #FFFFFF; font-size: 11;"><b>Código de ética, Anticorrupción y Buen Gobierno P6-A1</b></td>
-                </tr>';
+            $html .= '<tr><td style="background-color: #1C2262; color: #FFFFFF; font-size: 11;"><b>Código de ética, Anticorrupción y Buen Gobierno P6-A1</b></td></tr>';
             $html .= '</table>';
-
-            // Crea una tabla HTML con celdas redondeadas
             $html .= '<table cellspacing="2" cellpadding="3">';
-            $html .= '<tr>
-                <td style="background-color: #E2E8F0;"><b>¿Tiene usted familiares, conyugue y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente trabaje en IQ?:</b> '.$resaspirante_etica[0]['hvae_familiar']. '</td>
-                </tr>';
+            $html .= '<tr><td style="background-color: #E2E8F0;"><b>¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?</b><br>'.htmlspecialchars($respuesta_familiar, ENT_QUOTES, 'UTF-8').'</td></tr>';
             $html .= '</table>';
 
-            if ($resaspirante_etica[0]['hvae_familiar']=='Si') {
-                // Crea una tabla HTML con celdas redondeadas
-                $html .= '<table cellspacing="2" cellpadding="3">';
-                $html .= '<tr>
-                    <td style="background-color: #E2E8F0;"><b>Nombres y apellidos:</b><br>'.$resaspirante_etica[0]['hvae_familiar_nombre']. '</td>
-                    <td style="background-color: #E2E8F0;"><b>Área:</b><br>'.$resaspirante_etica[0]['hvae_familiar_area']. '</td>
-                    </tr>';
-                $html .= '</table>';
+            if ($respuesta_familiar=='Si') {
+                $html .= self::construirPersonasRelacionadasPdf('seleccion', $id_aspirante_consulta, $nombre_historico, $area_historica);
             }
             
+            $html .= '<table cellspacing="2" cellpadding="3">';
+            $html .= '<tr><td style="background-color: #E2E8F0;"><b>¿Forma parte de alguna población sujeto de especial protección o vulnerabilidad?</b><br>'.htmlspecialchars($poblacion_vulnerable, ENT_QUOTES, 'UTF-8').'</td></tr>';
+            $html .= '</table>';
             $pdf->writeHTML($html, true, false, true, false, '');
 
-
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
+            $texto_codigo_etica=self::obtenerParametroLegalPdf('codigo_etica_buen_gobierno');
+            if ($texto_codigo_etica!='') {
+                $pdf->SetTextColor(0, 0, 0);
             $pdf->SetFont('Helvetica', '', 7);
-            $pdf->MultiCell('', 1, 'De acuerdo con lo establecido en el Código de ética, Anticorrupción y Buen Gobierno P6-A1, está prohibido el ingreso de familiares o personas con grado de afinidad a la compañía, tal como se enuncia a continuación, si usted brinda información no veraz esto representa una falta grave al Reglamento Interno de Trabajo y Políticas de la organización, por lo que, asume la responsabilidad de cualquier falsedad frente a la misma.
-            <br><br><b>GRADOS DE CONSAGUINIDAD</b>
-                <br><br><b>Primer grado:</b> Mis padres, Mis hijos/as (tanto naturales como adoptivos)
-                <br><b>Segundo grado:</b> Mis hermanos/as  abuelos/as Mis nietos/as
-                <br><b>Tercer grado:</b> Mis tíos/as (hermanos/as de mis padres) Mis sobrinos/as (hijos/as de hermanos/as) Mis bisabuelos/as (padres de mis abuelos/as) Mis biznietos/as (hijos/as de mis nietos/as)
-                <br><b>Cuarto grado:</b> Mis primos/as hermanos/as (hijos/as de los hermanos/as de mis padres)
-                <br><br><b>GRADOS DE AFINIDAD</b>
-                <br><br><b>Primer grado:</b> Mi cónyuge, Mis suegro/a (los padres de mi cónyuge), Los cónyuges de mis hijos/as, Cónyuge de mi padre, si no es mi madre, Cónyuge de mi madre, si no es mi padre.
-                <br><b>Segundo grado:</b> Cónyuges de mis hermanos/as, Abuelos/as de mi cónyuge, Cónyuges de mis nietos/as, Mis hermanastros/as (entendiendo como hermanastro/a el hijo/a del cónyuge de mi padre/madre con el que no comparto ningún <br>lazo de sangre)
-                <br><b>Tercer grado:</b> Cónyuges de mis tíos/as (cónyuges de los hermanos/as de mis padres), Cónyuges de mis sobrinos/as, Tíos de mi cónyuge y sus cónyuges
-                <br><br><b>ÚNICO CIVIL:</b> Hijos adoptivos.<br><br>', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
+                $pdf->MultiCell('', 1, $texto_codigo_etica, 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
+            }
             
 
             // Valida Información IQ
@@ -2091,125 +2143,38 @@
                 $resaspirante_autorizaciones=array();
             }
 
-            $html = '<table cellpadding="3">';
-            $html .= '<tr>
-                <td style="background-color: #1C2262; color: #FFFFFF; font-size: 11;"><b>Declaraciones y Autorizaciones</b></td>
-                </tr>';
-            $html .= '</table>';
+            $respuesta_veracidad=isset($resaspirante_autorizaciones[0]['hvada_veracidad']) ? $resaspirante_autorizaciones[0]['hvada_veracidad'] : '';
+            $respuesta_sagrilaft=isset($resaspirante_autorizaciones[0]['hvada_origen_fondos']) ? $resaspirante_autorizaciones[0]['hvada_origen_fondos'] : '';
+            $fecha_sagrilaft=isset($resaspirante_autorizaciones[0]['hvada_sagrilaft_fecha']) ? $resaspirante_autorizaciones[0]['hvada_sagrilaft_fecha'] : '';
+            $respuesta_datos=isset($resaspirante_autorizaciones[0]['hvada_tratamiento_datos']) ? $resaspirante_autorizaciones[0]['hvada_tratamiento_datos'] : '';
+            $fecha_datos=isset($resaspirante_autorizaciones[0]['hvada_autorizacion_fecha']) ? $resaspirante_autorizaciones[0]['hvada_autorizacion_fecha'] : '';
+
+            $texto_consideraciones=self::obtenerParametroLegalPdf('veracidad_informacion');
+            $texto_sagrilaft=self::obtenerParametroLegalPdf('autorizacion_sagrilaft');
+            $texto_datos=self::obtenerParametroLegalPdf('autorizacion_tratamiento_datos');
+
+            $html = '<table cellpadding="3"><tr><td style="background-color: #1C2262; color: #FFFFFF; font-size: 11;"><b>Declaraciones y Autorizaciones</b></td></tr></table>';
             $pdf->writeHTML($html, true, false, true, false, '');
 
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
+            $pdf->SetTextColor(0, 0, 0);
             $pdf->SetFont('Helvetica', '', 7);
-            $pdf->MultiCell('', 1, '<b>Veracidad de la Información Proporcionada</b><br><br>Con la firma del  presente documento declaro que la información aquí contenida y suministrada durante el proceso de selección es veráz y que puede ser constatada en cualquier momento, asumiendo la responsabilidad en los eventos en que se presente cualquier falsedad frente a la misma.', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
+            $pdf->MultiCell('', 1, '<b>CONSIDERACIONES</b><br><br>'.$texto_consideraciones, 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
             $pdf->SetFont('Helvetica', '', 8);
-            $pdf->MultiCell('', 1, '<b>Si, acepto</b> ', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
+            $pdf->MultiCell('', 1, '<b>Respuesta: '.htmlspecialchars($respuesta_veracidad, ENT_QUOTES, 'UTF-8').'</b>', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
 
-            $pdf->SetFont('Helvetica', '', 1);
-            $pdf->MultiCell('', 1, '', '', 'L', 0, 1, '', '');
-
-            //HR SEPARADOR SECCIONES
             $pdf->SetFont('Helvetica', '', 3);
             $pdf->MultiCell('', 1, '<hr style="color: E2E8F0;">', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
-
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
             $pdf->SetFont('Helvetica', '', 7);
-            $pdf->MultiCell('', 1, '<b>Declaración de Origen de Fondos y Prevención de Lavado de Activos y Financiación del Terrorismo - SAGRILAFT</b>
-            <br><br>Declaro que los recursos utilizados o a utilizarse en cualquier relación contractual con la IMAGE QUALITY OUTSOURCING S.A.S., provienen de actividades lícitas; por tal razón, manifiesto que los recursos a utilizar en la relación contractual, no desarrollan o provienen de ninguna actividad ilícita de las contempladas en el Código Penal Colombiano o en cualquier norma que lo modifique o adicione. Igualmente, declaro que los recursos que se deriven del desarrollo de la relación contractual no se destinarán a la financiación del terrorismo, grupos terroristas o actividades terroristas.
-            
-            <br><br>Por ende, declaro bajo la gravedad de juramento que no me encuentro incluido en ninguna lista restrictiva como la lista OFAC o similares, ni he sido vinculado a investigación alguna ante cualquier autoridad como resultado de investigaciones en procesos de extinción de dominio, no he sido condenado, y no se ha emitido en mi contra sentencia o fallo en relación con las conductas mencionadas en este párrafo. Así mismo, declaro: Que la Información suministrada es veraz y verificable para el cumplimiento de la normatividad relacionada con prevención y control de lavado de activos y de la financiación del terrorismo y me comprometo a actualizar anualmente mis datos, suministrando la totalidad de los soportes que sean requieran.
-            
-            <br><br>Compromiso: Me comprometo a suministrar al Oficial de Cumplimiento de IMAGE QUALITY OUTSOURCING S.A.S. toda la información requerida frente al SAGRILAFT, dar a conocer cualquier inquietud que me surja sobre el mismo, y dar cumplimiento estricto a cada una de las políticas y procedimientos allí descritos, así como a las normas que obligan a actualizar mis datos personales e información financiera al menos una vez por año.', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
+            $pdf->MultiCell('', 1, '<b>DECLARACIÓN DE ORIGEN DE FONDOS Y PREVENCIÓN DE LAVADO DE ACTIVOS, FINANCIACIÓN DEL TERRORISMO, FINANCIAMIENTO DE LA PROLIFERACIÓN DE ARMAS DE DESTRUCCIÓN MASIVA, CORRUPCIÓN Y SOBORNO - SAGRILAFT - PTEE</b><br><br>'.$texto_sagrilaft, 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
             $pdf->SetFont('Helvetica', '', 8);
-            $pdf->MultiCell('', 1, '<b>Si, acepto</b> ', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
+            $pdf->MultiCell('', 1, '<b>Respuesta: '.htmlspecialchars($respuesta_sagrilaft, ENT_QUOTES, 'UTF-8').'</b>'.(($fecha_sagrilaft!='') ? '<br>Fecha de aceptación: '.htmlspecialchars($fecha_sagrilaft, ENT_QUOTES, 'UTF-8') : ''), 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
 
-            $pdf->SetFont('Helvetica', '', 1);
-            $pdf->MultiCell('', 1, '', '', 'L', 0, 1, '', '');
-
-            //HR SEPARADOR SECCIONES
             $pdf->SetFont('Helvetica', '', 3);
             $pdf->MultiCell('', 1, '<hr style="color: E2E8F0;">', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
-
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
             $pdf->SetFont('Helvetica', '', 7);
-            $pdf->MultiCell('', 1, '<b>Protección y Tratamiento de Datos Personales</b>
-                <br><br>Autorización para el tratamiento de datos personales: Autorizo expresa e inequívocamente a IMAGE QUALITY OUTSOURCING S.A.S. (en adelante la “EMPRESA”), NIT 830.039.329-8, ubicada en la Carrera 13A No. 29-24, Teléfono (1) 593 1990, para que trate todos los datos que aquí se suministran y de los que posteriormente se suministren en desarrollo de la relación comercial contractual, declaro haber obtenido autorización para el tratamiento en los términos de la normatividad vigente. Finalidades: 1) Cumplir con las solicitudes de productos y/o de servicios realizados por la EMPRESA; 2) Cumplir con las solicitudes de productos y/o de servicios, 3) Realizar gestión, verificación y manejo de información financiera, contable, fiscal, administrativa y de facturación; 4) Verificar toda la información suministrada, realizar reportes de información contable, crediticia y financiera a centrales de riesgo e información financiera; 5) Consultar en listas restrictivas a todas las personas relacionadas y los que posteriormente se suministren; 6) Realizar pagos electrónicos y los diferentes medios derivados de la relación que vincula a las partes; 7) Realizar gestión y manejo de las relaciones comerciales establecidas o por establecer con los 3ros y los vinculados a los anteriores; 8) Suministrar y recibir información de material relacionado con el portafolio de productos y/o servicios de la EMPRESA, así como de noticias y nuevos lanzamientos por cualquier canal de comunicación; 9) Realizar gestión comercial, de mercadeo y publicidad de los productos y/o servicios ofrecidos por la EMPRESA; 10) Realizar gestión para la atención de PQR, campañas de actualización de datos y cambios, encuestas de opinión; 11) Captura de datos biométricos (datos sensibles) a través de registros fotográficos o de video para fines administrativos, comerciales, de publicidad, así como identificación, seguridad y la prevención de fraude interno y externo.; 12) Transmitir y/o transferir todos los datos personales a terceras personas según se requiera la vinculación contractual; 13) Atender visita domiciliaria o de establecimiento de comercio, 14) Las demás finalidades establecidas en la Política de Protección y Tratamiento de datos publicada en la página web https://www.iqoutsourcing.com/. Respecto de los datos personales que correspondan a titulares distintos de quien suscribe, éste manifiesta contar con la autorización para suministrar los datos a la EMPRESA y dar la presente autorización. Quien firma declara haber sido informado sobre los derechos que le asisten a los titulares de los datos personales, específicamente los de conocer, actualizar y eliminar sus datos personales, ser informado sobre el uso que se les ha dado, solicitar prueba de la autorización otorgada, presentar PQR ante la SIC por infracción a la ley, revocar la autorización y/o solicitar la supresión de sus datos, acceder a los mismos y abstenerse de suministrar datos sensibles o de menores de edad. Todo lo anterior de conformidad con la política de tratamiento de datos personales adoptada por la EMPRESA, la cual se me ha informado se encuentra disponible para pública consulta en la dirección web www.iqoutsourcing.com. La vigencia de la autorización para tratamiento de datos personales corresponderán al término que dure la relación entre las partes, de acuerdo con las finalidades que justificaron el tratamiento y/o al término que disponga la ley aplicable según la naturaleza de los datos.
-                <br><br>
-                Las peticiones, consultas y reclamos formulados por los titulares de Datos Personales bajo Tratamiento de IMAGE QUALITY OUTSOURCING S.A.S. para ejercer sus derechos a conocer, actualizar, rectificar y suprimir datos, o revocar la autorización deberán ser dirigidas a:
-                <br><br>
-                <br>• Oficial de Protección de Datos Personales: Calle 28 # 13-22, pisos 5 y 6, en Bogotá, D.C.
-                <br>• Teléfono: (57) (601) 307 30 61
-                <br>• Correo electrónico: privacidad@iq-online.com							
-                <br><br><br>
-                <b>Autorizo:</b> De manera irrevocable a IMAGE QUALITY OUTSOURCING S.A.S.  para solicitar, consultar, procesar, suministrar, reportar o divulgar a cualquier entidad válidamente autorizada para manejar o administrar bases de datos, incluidas las entidades gubernamentales, información contenida en este formulario y demás información relativa al cumplimiento de mis obligaciones legalmente adquiridas.								
-                <br><br>
-                <b>Acuerdo de protección y tratamiento de datos personales:</b> En relación con los datos personales que las partes se hayan comunicado o llegaren a comunicar recíprocamente como consecuencia o con ocasión de un vínculo o relación comercial/contractual vigente, estas se obligan a: 1) Efectuar el tratamiento de los datos personales de conformidad con las Políticas de Protección y Tratamiento de Datos Personales de cada una de ellas y la normatividad vigente que resulte aplicable; 2) Salvaguardar la seguridad de las bases de datos en las que se almacenen los datos personales, empleando medidas de seguridad razonables; 3) Guardar máxima confidencialidad respecto de los datos personales a los que tenga acceso en virtud de la relación contractual que las une, 4) realizar el tratamiento exclusivamente para las finalidades autorizadas; 5) cumplir con todas las obligaciones que resulten a su cargo, en la calidad de responsable o encargado del tratamiento de los datos personales, según el caso. Todo lo cual efectuará de conformidad con lo descrito en la ley 1581 de 2012 y sus concordantes y  con la política de privacidad descrita en la página www.iqoutsourcing.com acerca de la cual he sido informado.', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
+            $pdf->MultiCell('', 1, '<b>AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES</b><br><br>'.$texto_datos, 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
             $pdf->SetFont('Helvetica', '', 8);
-            $pdf->MultiCell('', 1, '<b>Si, acepto</b><br><br>', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
-
-            $pdf->SetFont('Helvetica', '', 1);
-            $pdf->MultiCell('', 1, '', '', 'L', 0, 1, '', '');
-
-            // Valida Autorización Tratamiento Datos Personales
-            $aspirante_tratamiento_datos = new hv_aspirante_autorizacionesModel();
-            $aspirante_tratamiento_datos->hvada_aspirante=$id_aspirante_consulta;
-            $resaspirante_tratamiento_datos=$aspirante_tratamiento_datos->listDetail();
-
-            if (!isset($resaspirante_tratamiento_datos[0])) {
-                $resaspirante_tratamiento_datos=array();
-            }
-
-            $html = '<table cellpadding="3">';
-            $html .= '<tr>
-                <td style="background-color: #1C2262; color: #FFFFFF; font-size: 11;"><b>Autorización para el Tratamiento de Datos Personales</b></td>
-                </tr>';
-            $html .= '</table>';
-            $pdf->writeHTML($html, true, false, true, false, '');
-            
-            $pdf->SetTextColor(0, 0, 0); // Color de texto negro
-            $pdf->SetFont('Helvetica', '', 7);
-            $pdf->MultiCell('', 1, 'Cumpliendo lo dispuesto en la Ley 1581 de 2012, “Por el cual se dictan disposiciones para la protección de datos personales” y de conformidad con lo señalado en el Decreto 1377 de 2013, con la firma de este documento manifiesto que he sido informado de lo siguiente:
-
-                <br><br>1. IMAGE QUALITY OUTSOURCING S.A.S. (IQ Outsourcing o la Compañía), durante el proceso de selección en el que participo y/o en virtud de la vinculación laboral o contractual que tengo con la Compañía como empleado, aprendiz SENA o practicante, ha conocido o conocerá mi información personal a través de los diferentes canales de comunicación o de los documentos por medio los cuales se formaliza mi vinculación. Respecto de esta información, IQ Outsourcing actuará como Responsable del Tratamiento, el cual realizará para las siguientes finalidades:
-                <br><br>a. Realizar pruebas psicotécnicas, pruebas de conocimiento, estudios de seguridad y exámenes médicos directamente por la Compañía o a través de terceros.
-                <br>b. Realizar todas las actividades relativas a la contratación y manejo de relaciones laborales.
-                <br>c. Realizar las actividades necesarias para dar cumplimiento a las obligaciones legales y contractuales en relación con los empleados y exempleados de la Compañía.
-                <br>d. Controlar el cumplimiento de requisitos relacionados con el Sistema General de Seguridad Social.
-                <br>e. Facilitar, coordinar y supervisar el cumplimiento de la labor para la cual fue contratado el personal (empleados, aprendices SENA, practicantes) de manera directa -personal-, o a través de herramientas tecnológicas tales como plataformas de chat y videollamadas, correos electrónicos, números telefónicos.
-                <br>f. Verificar y supervisar la productividad de los trabajadores, aprendices SENA y practicantes, a través de cualquier mecanismo y medio definido por la Compañía.
-                <br>g. Mantener un archivo digital y/o físico que permita contar con la información correspondiente a la historia laboral, incluida la hoja de vida, de cada empleado o exempleado de la compañía.
-                <br>h. Verificar datos de estudio, experiencia laboral, referencias laborales y personales mediante fuentes públicas y/o privadas. Así mismo, para certificar experiencia solicitada por terceros cuando sea candidato para laborar en otras compañías.
-                <br>i. Realizar investigaciones administrativas y/o disciplinarias cuando a ello haya lugar.
-                <br>j. En caso de datos biométricos capturados a través de sistemas de videovigilancia o grabación, su tratamiento tendrá como finalidad la identificación, seguridad y la prevención de fraude interno y externo, así como el control de acceso a las instalaciones físicas o a los sistemas de comunicación a través de los cuales se prestan los servicios.
-                <br>k. Los datos personales de menores, en caso de ser requeridos, serán tratados con la finalidad de dar cumplimiento a las obligaciones legales y lo dispuesto en la política de Protección y Datos personales de la compañía.
-                <br>l. Para el caso de los participantes en procesos de selección, los datos personales tratados tendrán como finalidad, además de las ya señaladas, adelantar las gestiones de los procesos de selección; las hojas de vida se gestionarán garantizando el principio de acceso restringido. Así mismo, las hojas de vida podrán conservarse para efectos de contar con información de posibles candidatos para futuros procesos de contratación y contactarlos en caso de requerirse.
-                <br>m. Mantener informados a los empleados sobre los eventos, noticias, recomendaciones, políticas, y en general toda información que la Compañía considere pertinente informar a su personal.
-                <br>n. Realizar encuestas, evaluaciones y cuestionarios para el análisis y toma de decisiones de carácter laboral por parte de la Compañía, tales como evaluaciones de desempeño, evaluación del clima laboral, recopilación de información sobre condiciones físicas y tecnológicas en los hogares cuando se trata de trabajo remoto o teletrabajo, información de carácter sanitario, entre otros.
-                <br>o. Consultar en las diferentes listas restrictivas que establezca la Compañía en el marco de su política SAGRILAFT, Programa de Transparencia y Ética Empresarial, y la debida diligencia para el conocimiento de las contrapartes. Igualmente, se consultará el estado o antecedentes, siempre que ello se considere pertinente, en las bases de información pública de la Registraduría Nacional, Contraloría General de la República, Procuraduría General de la Nación, Policía Nacional y Boletín de deudores morosos del Estado, y verificar antecedentes de crédito y hacer los reportes correspondientes ante centrales de información crediticia.
-                <br>p. Gestionar el proceso contable y de nómina de la Compañía.
-                <br>q. Transmitir la información a encargados nacionales o internacionales con los que se tenga una relación operativa que provean los servicios necesarios para la debida operación de la Compañía.
-                <br>r. Compartir los datos personales con autoridades nacionales o extranjeras cuando la solicitud se base en razones legales y procesales, fundamentados en causas legítimas tales como lo son temas legales o de carácter tributario. En todo caso, la información compartida deberá ser estrictamente la solicitada por la autoridad competente.
-                <br>s. Compartir los datos personales, hojas de vidas y los soportes que acrediten la información allí relacionada, con los Clientes para los cuales se preste o se vaya a prestar el servicio, con el objeto de que éstos puedan validar la información que requieran en el marco de los contratos suscritos o por suscribirse entre aquellos e IQ.
-                <br>t. Para la expedición de certificaciones laborales y suministro de información por solicitud de terceros en los procesos de selección en los que el personal (empleados, aprendices SENA, practicantes) se encuentren participando.
-                <br>u. Para compartir la información con los terceros con los que la Compañía tiene convenios de libranza o en el marco de las actividades de bienestar, siempre que el personal (empleados, aprendices SENA, practicantes) estén interesados en acceder a dichos convenios.
-                <br>v. Para contactarlo por cualquier medio (ej. Telefónico, correo electrónico), de los reportados a la Compañía, bien sea personal o laboral, con el fin de darle información o lineamientos de ésta.
-                
-                <br><br>2. IQ Outsourcing no tratará datos personales sensibles, salvo que se cuente con la autorización explícita del titular y las demás excepciones establecidas en la Ley 1581 de 2012.
-                
-                <br><br>3. Los derechos de los Titulares de los datos son los previstos en la Política de Protección y Tratamiento de Datos Personales de la Compañía, la Constitución Política de Colombia y en la Ley 1581 de 2012. Estos derechos podrán ser ejercidos a través de los siguientes canales:
-                
-                <br><br>- Oficial de Protección de Datos Personales: Calle 28 # 13-22, pisos 5 y 6, en Bogotá, D.C.
-                <br>- Teléfono: (57) (601) 307 30 61
-                <br>- Correo electrónico: privacidad@iq-online.com
-                
-                <br><br>En virtud de lo anterior, OTORGO AUTORIZACIÓN de manera libre, voluntaria, explícita, informada e inequívoca a IQ Outsourcing para que realice el tratamiento de mis datos personales de conformidad con las finalidades antes descritas y la Política de Protección y Tratamiento de Datos Personales de la Compañía. Entiendo que esta autorización para adelantar el tratamiento de datos personales se extiende mientras persista el vínculo con la Compañía y con posterioridad al finiquito de este, siempre que tal tratamiento se encuentre relacionado con las finalidades para las cuales los datos personales, fueron inicialmente suministrados.', 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
+            $pdf->MultiCell('', 1, '<b>Respuesta: '.htmlspecialchars($respuesta_datos, ENT_QUOTES, 'UTF-8').'</b>'.(($fecha_datos!='') ? '<br>Fecha de autorización: '.htmlspecialchars($fecha_datos, ENT_QUOTES, 'UTF-8') : ''), 0, 'L', 0, 1, '', '', true, 0, true, true, 0);
 
             // Valida Firma
             $aspirante_documentos = new hv_aspirante_documentoModel();
@@ -2449,123 +2414,102 @@
         }
 
         public static function formulario_instrucciones($menu_opcion) {
-            // Controller::checkSesionIndex();
             $modulo_plataforma=1;
-            // unset($_SESSION[APP_SESSION.'_hv_informacion_general']);
-            // error_reporting(E_ALL);
             $menu_opcion=checkInput(base64_decode($menu_opcion));
+            $resaspirante=[];
+            $resaspirante_autorizacion=[];
+            $resregistro_parametro=[];
+            $resregistro_parametro_sagrilaft=[];
 
             try {
-                $registro_parametro = new parametroModel();
-                $registro_parametro->app_id = 'autorizacion_tratamiento_datos';
-                $resregistro_parametro=$registro_parametro->listDetail();
-
-                if (!isset($resregistro_parametro[0])) {
-                    $resregistro_parametro=array();
-                }
-
-                $ciudad = new ciudadModel();
-                $resciudad=$ciudad->listActive();
-
-                if (!isset($resciudad[0])) {
-                    $resciudad=array();
-                }
-
                 $aspirante = new hv_personalModel();
                 $aspirante->hvp_usuario_id=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
-
                 $resaspirante=$aspirante->listDetail();
-
                 if (!isset($resaspirante[0])) {
-                    $resaspirante=array();
-                }
-
-                if(isset($_POST["form_guardar"])){
-                    //obtiene variables de formulario
-                    $ruta_guardar_general=ASSETS_ROOT."uploads/hoja_vida_documentos/".$aspirante->hvp_usuario_id."/";
-                    if (!file_exists($ruta_guardar_general)) {
-                        mkdir($ruta_guardar_general, 0777, true);
+                    $resaspirante=[];
+                } else {
+                    $aspirante->hvp_id=$resaspirante[0]['hvp_id'];
                     }
                     
-                    $documento_control=0; 
-                    if ($_FILES['documento_soporte']['name']!="") {
-                        $archivo_extension = checkInput(strtolower(pathinfo(basename($_FILES['documento_soporte']['name']), PATHINFO_EXTENSION)));
-                        if ($archivo_extension=="png" OR $archivo_extension=="jpg" OR $archivo_extension=="jpeg") {
-                            if ($_FILES['documento_soporte']['size']<=80000000) {
-                                $documento_NombreArchivo='firma'.'_'.nowFile().".".$archivo_extension;
-                                $documento_ruta_actual=$ruta_guardar_general;
-                                $documento_ruta_actual_guardar="hoja_vida_documentos/".$aspirante->hvp_usuario_id."/";
-                                $documento_ruta_final=$documento_ruta_actual.$documento_NombreArchivo;
-                                $documento_ruta_final_guardar=$documento_ruta_actual_guardar.$documento_NombreArchivo;
-                                if ($_FILES['documento_soporte']["error"] > 0) {
-                                    $documento_control++;
-                                } else {
-                                    if (move_uploaded_file($_FILES['documento_soporte']['tmp_name'], $documento_ruta_final)) {
-                                        $aspirante->hvp_auxiliar_3=$documento_ruta_final_guardar;
-                                        $aspirante->hvp_actualiza_fecha=now();
+                $registro_parametro = new parametroModel();
+                $registro_parametro->app_id='autorizacion_tratamiento_datos';
+                $resregistro_parametro=$registro_parametro->listDetail();
+                if (!isset($resregistro_parametro[0])) $resregistro_parametro=[];
 
-                                        $resupdate_aspirante_firma = $aspirante->updateAutorizacionFirma();
+                $registro_parametro->app_id='autorizacion_sagrilaft';
+                $resregistro_parametro_sagrilaft=$registro_parametro->listDetail();
+                if (!isset($resregistro_parametro_sagrilaft[0])) $resregistro_parametro_sagrilaft=[];
 
-                                        if ($resupdate_aspirante_firma) {
+                $texto_legal = new hoja_vida_texto_legalModel();
+                $texto_legal->htl_tipo='sagrilaft_ptee';
+                $restexto_legal_sagrilaft=$texto_legal->getVigentePorTipo();
+                if (!isset($restexto_legal_sagrilaft[0])) $restexto_legal_sagrilaft=[];
+
+                $texto_legal->htl_tipo='autorizacion_datos';
+                $restexto_legal_autorizacion=$texto_legal->getVigentePorTipo();
+                if (!isset($restexto_legal_autorizacion[0])) $restexto_legal_autorizacion=[];
+
+                if (isset($_POST['form_guardar']) AND isset($resaspirante[0])) {
+                    $consentimiento=isset($_POST['hvp_consentimiento_tratamiento_datos_personales']) ? checkInput($_POST['hvp_consentimiento_tratamiento_datos_personales']) : '';
+                    $origen_fondos=isset($_POST['hvp_origen_fondos']) ? checkInput($_POST['hvp_origen_fondos']) : '';
                                             
+                    if ($consentimiento!='Si' OR $origen_fondos!='Si') {
+                        Flasher::new('¡Debe aceptar la declaración SAGRILAFT-PTEE y la autorización de tratamiento de datos!', 'warning');
                                         } else {
-                                            $documento_control++;
-                                        }
-                                    } else {
-                                        $documento_control++;
-                                    }
-                                }
-                            } else {
-                                $documento_control++;
+                        $aspirante->hvp_consentimiento_tratamiento_datos_personales='Si';
+                        $aspirante->updateAutorizacion();
+                        $aspirante->hvp_consentimiento_tratamiento_datos_personales_fecha=now();
+                        $aspirante->updateAutorizacionFecha();
+
+                        if (isset($restexto_legal_autorizacion[0]['htl_id'])) {
+                            $aspirante->hvp_autorizacion_texto_id=$restexto_legal_autorizacion[0]['htl_id'];
+                            $aspirante->updateAutorizacionVersion();
                             }
-                        } else {
-                            $documento_control++;
+
+                        $aspirante->hvp_origen_fondos='Si';
+                        $aspirante->hvp_actualiza_fecha=now();
+                        $aspirante->updateOrigenFondos();
+                        if (isset($restexto_legal_sagrilaft[0]['htl_id'])) {
+                            $aspirante->hvp_sagrilaft_texto_id=$restexto_legal_sagrilaft[0]['htl_id'];
+                            $aspirante->hvp_sagrilaft_fecha=now();
+                            $aspirante->updateSagrilaftVersion();
+                        }
+
+                        if (isset($_FILES['hvp_firma']) AND $_FILES['hvp_firma']['name']!='') {
+                            $archivo_extension=checkInput(strtolower(pathinfo(basename($_FILES['hvp_firma']['name']), PATHINFO_EXTENSION)));
+                            if (in_array($archivo_extension, ['png','jpg','jpeg']) AND $_FILES['hvp_firma']['size']<=5000000 AND $_FILES['hvp_firma']['error']==0) {
+                                $ruta_guardar_general=ASSETS_ROOT.'uploads/hoja_vida_documentos/'.$aspirante->hvp_id.'/';
+                                if (!file_exists($ruta_guardar_general)) mkdir($ruta_guardar_general, 0777, true);
+                                $nombre='firma_'.nowFile().'.'.$archivo_extension;
+                                if (move_uploaded_file($_FILES['hvp_firma']['tmp_name'], $ruta_guardar_general.$nombre)) {
+                                    $aspirante->hvp_firma='hoja_vida_documentos/'.$aspirante->hvp_id.'/'.$nombre;
+                                    $aspirante->updateAutorizacionFirma();
                         }
                     } else {
-                        $documento_ruta_final_guardar='';
+                                Flasher::new('¡La firma debe ser PNG, JPG o JPEG y pesar máximo 5 MB!', 'warning');
                     }
-
-                    $hvp_consentimiento_tratamiento_datos_personales=checkInput($_POST['hvp_consentimiento_tratamiento_datos_personales']);
-
-                    $aspirante->hvp_consentimiento_tratamiento_datos_personales=$hvp_consentimiento_tratamiento_datos_personales;
-                    $aspirante->hvp_consentimiento_tratamiento_datos_personales_fecha=now();
-                    $aspirante->hvp_actualiza_fecha=now();
-
-                    $resupdate_aspirante = $aspirante->updateAutorizacion();
-
-                    if ($resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales_fecha']=='') {
-                        $aspirante->hvp_consentimiento_tratamiento_datos_personales_fecha=now();
-    
-                        $resupdate_aspirante_fecha = $aspirante->updateAutorizacionFecha();
                     }
                     
-                    if ($resupdate_aspirante AND $documento_control==0) {
-                        // Flasher::new('¡Información actualizada exitosamente!', 'success');
-                        Redirect::to('hoja-vida/formulario-personal/'.base64_encode('personal').'');
-                    } else {
-                        Flasher::new('¡Problemas al actualizar la información, verifique e intente nuevamente!', 'warning');
+                        Flasher::new('¡Información actualizada exitosamente!', 'success');
                     }
                 }
 
                 $resaspirante=$aspirante->listDetail();
-
-                if (!isset($resaspirante[0])) {
-                    $resaspirante=array();
-                }
+                if (!isset($resaspirante[0])) $resaspirante=[];
+                $resaspirante_autorizacion=$aspirante->listAutorizacion();
+                if (!isset($resaspirante_autorizacion[0])) $resaspirante_autorizacion=[];
             } catch (Exception $e) {
-                echo $e->getMessage();
+                Flasher::new('¡Se ha generado un error al almacenar la información, verifique e intente nuevamente!', 'warning');
             }
 
-            $data =
-            [   
-                'titulo_pagina' => 'HOJA DE VIDA|AUTORIZACIÓN TRATAMIENTO DE DATOS PERSONALES',
-                'path_add' => '/'.base64_encode('instrucciones'),
+            $data=[
+                'titulo_pagina'=>'HOJA DE VIDA|INSTRUCCIONES Y AUTORIZACIONES',
                 'menu_opcion' => $menu_opcion,
                 'resultado_registros_usuario' => to_object($resaspirante),
-                'resultado_registros_usuario_count' => count($resaspirante),
+                'resultado_registros_autorizacion'=>to_object($resaspirante_autorizacion),
                 'resultado_registros_parametros' => to_object($resregistro_parametro),
+                'resultado_registros_parametros_sagrilaft'=>to_object($resregistro_parametro_sagrilaft),
             ];
-            
             View::render('formulario', $data);
         }
 
@@ -2865,6 +2809,12 @@
                 $aspirante = new hv_personalModel();
                 $aspirante->hvp_usuario_id=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
 
+                $resaspirante=$aspirante->listDetail();
+
+                if (!isset($resaspirante[0])) {
+                    $resaspirante=array();
+                }
+
                 if(isset($_POST["form_guardar"])){
                     //obtiene variables de formulario
                     $hvp_socioeconomico_estrato_socioeconomico=checkInput($_POST['hvp_socioeconomico_estrato_socioeconomico']);
@@ -2901,6 +2851,14 @@
                     $hvp_financiero_ingresos_otros=checkInput($_POST['hvp_financiero_ingresos_otros']);
                     $hvp_financiero_concepto_ingresos=checkInput($_POST['hvp_financiero_concepto_ingresos']);
                     $hvp_financiero_moneda_extranjera=checkInput($_POST['hvp_financiero_moneda_extranjera']);
+
+                    if ($resaspirante[0]['hvp_financiero_activos']!=$hvp_financiero_activos OR $resaspirante[0]['hvp_financiero_ingresos']!=$hvp_financiero_ingresos OR $resaspirante[0]['hvp_financiero_pasivos']!=$hvp_financiero_pasivos OR $resaspirante[0]['hvp_financiero_egresos']!=$hvp_financiero_egresos OR $resaspirante[0]['hvp_financiero_patrimonio']!=$hvp_financiero_patrimonio OR $resaspirante[0]['hvp_financiero_ingresos_otros']!=$hvp_financiero_ingresos_otros OR $resaspirante[0]['hvp_financiero_concepto_ingresos']!=$hvp_financiero_concepto_ingresos OR $resaspirante[0]['hvp_financiero_moneda_extranjera']!=$hvp_financiero_moneda_extranjera) {
+                        // Si hay cambios en la información financiera, se debe cargar el último certificado
+                        $aspirante->hvp_alerta_financiera='1';
+                        $aspirante->hvp_actualiza_fecha=now();
+    
+                        $resupdate_aspirante_alerta_financiera = $aspirante->updateAlertaFinanciera();
+                    }
 
                     $hvp_origen_fondos=checkInput($_POST['hvp_origen_fondos']);
                     $hvp_pep_recursos=checkInput($_POST['hvp_pep_recursos']);
@@ -3632,125 +3590,281 @@
         }
 
         public static function formulario_poblaciones($menu_opcion) {
-            // Controller::checkSesionIndex();
             $modulo_plataforma=1;
-            // error_reporting(E_ALL);
             $menu_opcion=checkInput(base64_decode($menu_opcion));
+            $resaspirante=[];
+            $resregistro_parametro=[];
+            $resregistro_parametro_cod_etica=[];
+            $respersona_relacionada=[];
+
             try {
                 $registro_parametro = new parametroModel();
                 $registro_parametro->app_id = 'veracidad_informacion';
                 $resregistro_parametro=$registro_parametro->listDetail();
-
-                if (!isset($resregistro_parametro[0])) {
-                    $resregistro_parametro=array();
-                }
+                if (!isset($resregistro_parametro[0])) $resregistro_parametro=[];
 
                 $registro_parametro->app_id = 'codigo_etica_buen_gobierno';
                 $resregistro_parametro_cod_etica=$registro_parametro->listDetail();
-
-                if (!isset($resregistro_parametro_cod_etica[0])) {
-                    $resregistro_parametro_cod_etica=array();
-                }
+                if (!isset($resregistro_parametro_cod_etica[0])) $resregistro_parametro_cod_etica=[];
 
                 $aspirante = new hv_personalModel();
                 $aspirante->hvp_usuario_id=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
+                $resaspirante=$aspirante->listDetail();
+                if (!isset($resaspirante[0])) {
+                    $resaspirante=[];
+                } else {
+                    $aspirante->hvp_id=$resaspirante[0]['hvp_id'];
+                }
 
-                if(isset($_POST["form_guardar"])){
-                    //obtiene variables de formulario
-                    $hvp_poblaciones_poblacion=checkInput($_POST['hvp_poblaciones_poblacion']);
-                    $hvp_poblaciones_certificado=checkInput($_POST['hvp_poblaciones_certificado']);
-                    $hvp_poblaciones_familiares_iq=checkInput($_POST['hvp_poblaciones_familiares_iq']);
-                    $hvp_poblaciones_familiares_iq_identificacion=checkInput($_POST['hvp_poblaciones_familiares_iq_identificacion']);
-                    $hvp_poblaciones_familiares_iq_nombres_apellidos=checkInput($_POST['hvp_poblaciones_familiares_iq_nombres_apellidos']);
-                    $hvp_poblaciones_familiares_iq_ingreso_marzo_2022=checkInput($_POST['hvp_poblaciones_familiares_iq_ingreso_marzo_2022']);
-                    $hvp_veracidad=checkInput($_POST['hvp_veracidad']);
-                    
-                    //Validar cargue soporte
-                    //obtiene variables de formulario
-                    $ruta_guardar_general=ASSETS_ROOT."uploads/hoja_vida_documentos/".$aspirante->hvp_id."/";
-                    if (!file_exists($ruta_guardar_general)) {
-                        mkdir($ruta_guardar_general, 0777, true);
+                $hvp_id_propietario=isset($resaspirante[0]['hvp_id']) ? $resaspirante[0]['hvp_id'] : null;
+                $persona_relacionada = new hv_persona_relacionadaModel();
+                $persona_relacionada->hpr_contexto='ciudadano_iq';
+                $persona_relacionada->hpr_propietario_id=$hvp_id_propietario;
+
+                if (isset($_POST['form_guardar']) AND $hvp_id_propietario!==null) {
+                    $poblacion=isset($_POST['hvp_poblaciones_poblacion']) ? checkInput($_POST['hvp_poblaciones_poblacion']) : '';
+                    $certificado=isset($_POST['hvp_poblaciones_certificado']) ? checkInput($_POST['hvp_poblaciones_certificado']) : '';
+                    $familiares=isset($_POST['hvp_poblaciones_familiares_iq']) ? checkInput($_POST['hvp_poblaciones_familiares_iq']) : '';
+                    $poblacion_vulnerable=isset($_POST['hvp_poblacion_vulnerable']) ? checkInput($_POST['hvp_poblacion_vulnerable']) : '';
+                    $veracidad=isset($_POST['hvp_veracidad']) ? checkInput($_POST['hvp_veracidad']) : '';
+                    $familiares_previo=isset($resaspirante[0]['hvp_poblaciones_familiares_iq']) ? $resaspirante[0]['hvp_poblaciones_familiares_iq'] : null;
+
+                    $valido=in_array($familiares, ['Si','No']) AND
+                            in_array($poblacion_vulnerable, ['Si','No','Prefiero no decirlo']) AND
+                            in_array($veracidad, ['Si','No']);
+                    $cantidad_personas=$persona_relacionada->countByOwner();
+
+                    if (!$valido) {
+                        Flasher::new('¡Alguna de las respuestas no es válida, verifique e intente nuevamente!', 'warning');
+                    } elseif ($familiares=='Si' AND $cantidad_personas<1) {
+                        Flasher::new('¡Debe registrar al menos una persona relacionada cuando la respuesta de familiares es Sí!', 'warning');
+                    } else {
+                        if ($familiares_previo!==null AND $familiares_previo!=$familiares) {
+                        $aspirante->hvp_alerta_familiaridad='1';
+                        $aspirante->hvp_actualiza_fecha=now();
+                            $aspirante->updateAlertaFamiliaridad();
                     }
                     
-                    $documento_control=0;
-                    if ($hvp_poblaciones_certificado=='Si') {
-                        if ($_FILES['hvp_poblaciones_poblacion_soporte']['name']!="") {
-                            $archivo_extension = checkInput(strtolower(pathinfo(basename($_FILES['hvp_poblaciones_poblacion_soporte']['name']), PATHINFO_EXTENSION)));
-                            if ($archivo_extension=="pdf" OR $archivo_extension=="png" OR $archivo_extension=="jpg" OR $archivo_extension=="jpeg") {
-                                if ($_FILES['hvp_poblaciones_poblacion_soporte']['size']<=80000000) {
-                                    $documento_NombreArchivo='certificado_poblacion_'.nowFile().".".$archivo_extension;
-                                    $documento_ruta_actual=$ruta_guardar_general;
-                                    $documento_ruta_actual_guardar="hoja_vida_documentos/".$aspirante->hvp_id."/";
-                                    $documento_ruta_final=$documento_ruta_actual.$documento_NombreArchivo;
-                                    $documento_ruta_final_guardar=$documento_ruta_actual_guardar.$documento_NombreArchivo;
-                                    if ($_FILES['hvp_poblaciones_poblacion_soporte']["error"] > 0) {
-                                        $documento_control++;
-                                    } else {
-                                        if (move_uploaded_file($_FILES['hvp_poblaciones_poblacion_soporte']['tmp_name'], $documento_ruta_final)) {
-                                            $aspirante->hvp_poblaciones_poblacion_soporte=$documento_ruta_final_guardar;
-                                            $resupdate_aspirante = $aspirante->updatePoblacionesSoporte();
+                        $ruta_guardar_general=ASSETS_ROOT.'uploads/hoja_vida_documentos/'.$aspirante->hvp_id.'/';
+                        if (!file_exists($ruta_guardar_general)) mkdir($ruta_guardar_general, 0777, true);
+                    
+                        if ($certificado=='Si' AND isset($_FILES['hvp_poblaciones_poblacion_soporte']) AND $_FILES['hvp_poblaciones_poblacion_soporte']['name']!='') {
+                            $ext=checkInput(strtolower(pathinfo(basename($_FILES['hvp_poblaciones_poblacion_soporte']['name']), PATHINFO_EXTENSION)));
+                            if (in_array($ext, ['pdf','png','jpg','jpeg']) AND $_FILES['hvp_poblaciones_poblacion_soporte']['size']<=80000000 AND $_FILES['hvp_poblaciones_poblacion_soporte']['error']==0) {
+                                $nombre='certificado_poblacion_'.nowFile().'.'.$ext;
+                                if (move_uploaded_file($_FILES['hvp_poblaciones_poblacion_soporte']['tmp_name'], $ruta_guardar_general.$nombre)) {
+                                    $aspirante->hvp_poblaciones_poblacion_soporte='hoja_vida_documentos/'.$aspirante->hvp_id.'/'.$nombre;
+                                    $aspirante->updatePoblacionesSoporte();
+                                }
+                            }
+                        } elseif ($certificado!='Si') {
+                            $aspirante->hvp_poblaciones_poblacion_soporte='';
+                            $aspirante->updatePoblacionesSoporte();
+                        }
+
+                        $aspirante->hvp_poblaciones_poblacion=$poblacion;
+                        $aspirante->hvp_poblacion_vulnerable=$poblacion_vulnerable;
+                        $aspirante->hvp_poblaciones_certificado=$certificado;
+                        $aspirante->hvp_poblaciones_familiares_iq=$familiares;
+                        // Campos antiguos: se preservan para compatibilidad histórica y no se sobreescriben.
+                        $aspirante->hvp_poblaciones_familiares_iq_identificacion=$resaspirante[0]['hvp_poblaciones_familiares_iq_identificacion'];
+                        $aspirante->hvp_poblaciones_familiares_iq_nombres_apellidos=$resaspirante[0]['hvp_poblaciones_familiares_iq_nombres_apellidos'];
+                        $aspirante->hvp_poblaciones_familiares_iq_ingreso_marzo_2022=$resaspirante[0]['hvp_poblaciones_familiares_iq_ingreso_marzo_2022'];
+                        $aspirante->hvp_veracidad=$veracidad;
+                        $aspirante->hvp_actualiza_fecha=now();
+
+                        if ($aspirante->updatePoblaciones()) {
+                            if ($familiares=='No' AND $familiares_previo=='Si') $persona_relacionada->deleteAll();
+                            Flasher::new('¡Información actualizada exitosamente!', 'success');
                                         } else {
-                                            $documento_control++;
+                            Flasher::new('¡Problemas al actualizar la información, verifique e intente nuevamente!', 'warning');
                                         }
                                     }
-                                } else {
-                                    $documento_control++;
                                 }
-                            } else {
-                                $documento_control++;
-                            }
-                        } else {
-                            $documento_ruta_final_guardar='';
-                            // $documento_control++;
-                        }
-                    } else {
-                        $documento_ruta_final_guardar='';
-                        // $documento_control++;
-                        $aspirante->hvp_poblaciones_poblacion_soporte=$documento_ruta_final_guardar;
-                        $resupdate_aspirante = $aspirante->updatePoblacionesSoporte();
-                    }
-
-                    $aspirante->hvp_poblaciones_poblacion=$hvp_poblaciones_poblacion;
-                    $aspirante->hvp_poblaciones_certificado=$hvp_poblaciones_certificado;
-                    $aspirante->hvp_poblaciones_poblacion_soporte=$documento_ruta_final_guardar;
-                    $aspirante->hvp_poblaciones_familiares_iq=$hvp_poblaciones_familiares_iq;
-                    $aspirante->hvp_poblaciones_familiares_iq_identificacion=$hvp_poblaciones_familiares_iq_identificacion;
-                    $aspirante->hvp_poblaciones_familiares_iq_nombres_apellidos=$hvp_poblaciones_familiares_iq_nombres_apellidos;
-                    $aspirante->hvp_poblaciones_familiares_iq_ingreso_marzo_2022=$hvp_poblaciones_familiares_iq_ingreso_marzo_2022;
-                    $aspirante->hvp_veracidad=$hvp_veracidad;
-                    
-                    $aspirante->hvp_actualiza_fecha=now();
-
-                    $resupdate_aspirante = $aspirante->updatePoblaciones();
-                    
-                    if ($resupdate_aspirante) {
-                        Flasher::new('¡Información actualizada exitosamente!', 'success');
-                    } else {
-                        Flasher::new('¡Problemas al actualizar la información, verifique e intente nuevamente!', 'warning');
-                    }
-                }
 
                 $resaspirante=$aspirante->listDetail();
+                if (!isset($resaspirante[0])) $resaspirante=[];
+                if ($hvp_id_propietario!==null) {
+                    $respersona_relacionada=$persona_relacionada->listDetail();
+                    if (!isset($respersona_relacionada[0])) $respersona_relacionada=[];
+                        }
+            } catch (Exception $e) {
+                Flasher::new('¡Se ha generado un error al almacenar la información, verifique e intente nuevamente!', 'warning');
+                    }
 
-                if (!isset($resaspirante[0])) {
-                    $resaspirante=array();
+            $data=[
+                'titulo_pagina'=>'HOJA DE VIDA|POBLACIONES',
+                'menu_opcion'=>$menu_opcion,
+                'resultado_registros_usuario'=>to_object($resaspirante),
+                'resultado_registros_parametros'=>to_object($resregistro_parametro),
+                'resultado_registros_parametros_cod_etica'=>to_object($resregistro_parametro_cod_etica),
+                'resultado_registros_persona_relacionada'=>to_object($respersona_relacionada),
+            ];
+            View::render('formulario_poblaciones', $data);
+        }
+        public static function formulario_persona_relacionada_registro() {
+            try {
+                // El propietario SIEMPRE sale de sesion, nunca de $_POST (anti-IDOR)
+                $aspirante = new hv_personalModel();
+                $aspirante->hvp_usuario_id=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
+                $resaspirante=$aspirante->listDetail();
+                    
+                if (!isset($resaspirante[0]) OR !isset($resaspirante[0]['hvp_id'])) {
+                    $resultado_valor = 0;
+                    $resultado_lista = '';
+                } else {
+                    $hvp_id_propietario = $resaspirante[0]['hvp_id'];
+
+                    // Lista blanca de relacion contractual/comercial (RF-02)
+                    $relacion_contractual_whitelist=['Trabajador','Practicante','Aprendiz','Contratista','Cliente'];
+                    
+                    //obtiene variables de formulario
+                    $hpr_nombre_completo=isset($_POST['hpr_nombre_completo']) ? checkInput($_POST['hpr_nombre_completo']) : '';
+                    $hpr_cargo=isset($_POST['hpr_cargo']) ? checkInput($_POST['hpr_cargo']) : '';
+                    $hpr_campana_cliente=isset($_POST['hpr_campana_cliente']) ? checkInput($_POST['hpr_campana_cliente']) : '';
+                    $hpr_relacion_contractual=isset($_POST['hpr_relacion_contractual']) ? checkInput($_POST['hpr_relacion_contractual']) : '';
+                    $hpr_parentesco=isset($_POST['hpr_parentesco']) ? checkInput($_POST['hpr_parentesco']) : '';
+
+                    // Rechaza filas vacias o con relacion contractual fuera de la lista blanca
+                    if ($hpr_nombre_completo=='' OR $hpr_cargo=='' OR $hpr_campana_cliente=='' OR $hpr_parentesco==''
+                        OR !in_array($hpr_relacion_contractual, $relacion_contractual_whitelist)) {
+                        $resultado_valor = 0;
+                        $resultado_lista = '';
+                    } else {
+                        $persona_relacionada = new hv_persona_relacionadaModel();
+                        $persona_relacionada->hpr_contexto='ciudadano_iq';
+                        $persona_relacionada->hpr_propietario_id=$hvp_id_propietario;
+                        $persona_relacionada->hpr_nombre_completo=$hpr_nombre_completo;
+                        $persona_relacionada->hpr_cargo=$hpr_cargo;
+                        $persona_relacionada->hpr_campana_cliente=$hpr_campana_cliente;
+                        $persona_relacionada->hpr_relacion_contractual=$hpr_relacion_contractual;
+                        $persona_relacionada->hpr_parentesco=$hpr_parentesco;
+                        $persona_relacionada->hpr_orden=$persona_relacionada->countByOwner()+1;
+                        $persona_relacionada->hpr_registro_usuario=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
+
+                        $resinsert = $persona_relacionada->add();
+                        $resultado_lista='';
+                        $resultado_valor = $resinsert ? 1 : 0;
+                    }
                 }
             } catch (Exception $e) {
-                echo $e->getMessage();
+                Flasher::new('¡Se ha generado un error al almacenar la información, verifique e intente nuevamente!', 'warning');
+                $resultado_valor = 0;
+                $resultado_lista = '';
             }
 
-            $data =
-            [
-                'titulo_pagina' => 'HOJA DE VIDA|INFORMACIÓN DE POBLACIONES Y RELACIONES FAMILIARES',
-                'path_add' => '/'.base64_encode('xxx'),
-                'menu_opcion' => $menu_opcion,
-                'resultado_registros_usuario' => to_object($resaspirante),
-                'resultado_registros_usuario_count' => count($resaspirante),
-                'resultado_registros_parametros' => to_object($resregistro_parametro),
-                'resultado_registros_parametros_cod_etica' => to_object($resregistro_parametro_cod_etica),
-            ];
+            $data = array(
+                "resultado_lista" => $resultado_lista,
+                "resultado_valor" => $resultado_valor
+            );
+            echo json_encode($data);
+        }
+
+        public static function formulario_persona_relacionada_eliminar() {
+            try {
+                // El propietario SIEMPRE sale de sesion, nunca de $_POST (anti-IDOR)
+                $aspirante = new hv_personalModel();
+                $aspirante->hvp_usuario_id=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
+                $resaspirante=$aspirante->listDetail();
+
+                if (!isset($resaspirante[0]) OR !isset($resaspirante[0]['hvp_id'])) {
+                    $resultado_valor = 0;
+                    $resultado_lista = '';
+                } else {
+                    $hvp_id_propietario = $resaspirante[0]['hvp_id'];
+
+                    //obtiene variables de formulario
+                    $id_registro = isset($_POST["id_registro"]) ? (int)checkInput($_POST["id_registro"]) : 0;
+
+                    $persona_relacionada = new hv_persona_relacionadaModel();
+                    $persona_relacionada->hpr_id=$id_registro;
+                    $persona_relacionada->hpr_contexto='ciudadano_iq';
+                    $persona_relacionada->hpr_propietario_id=$hvp_id_propietario;
+                    $resdelete = $persona_relacionada->delete();
+
+                    $resultado_valor = $resdelete ? 1 : 0;
+                    $resultado_lista='';
+                }
+            } catch (Exception $e) {
+                Flasher::new('¡Se ha generado un error al almacenar la información, verifique e intente nuevamente!', 'warning');
+                $resultado_valor = 0;
+                $resultado_lista = '';
+            }
+
+            $data = array(
+                "resultado_lista" => $resultado_lista,
+                "resultado_valor" => $resultado_valor
+            );
+            echo json_encode($data);
+        }
             
-            View::render('formulario_poblaciones', $data);
+        public static function formulario_persona_relacionada_listar() {
+            try {
+                // El propietario SIEMPRE sale de sesion, nunca de $_POST (anti-IDOR)
+                $aspirante = new hv_personalModel();
+                $aspirante->hvp_usuario_id=checkInput($_SESSION[APP_SESSION.'usu_aspirante_id']);
+                $resaspirante=$aspirante->listDetail();
+
+                if (!isset($resaspirante[0]) OR !isset($resaspirante[0]['hvp_id'])) {
+                    $resultado_valor = 0;
+                    $resultado_lista = '';
+                } else {
+                    $hvp_id_propietario = $resaspirante[0]['hvp_id'];
+
+                    $persona_relacionada = new hv_persona_relacionadaModel();
+                    $persona_relacionada->hpr_contexto='ciudadano_iq';
+                    $persona_relacionada->hpr_propietario_id=$hvp_id_propietario;
+                    $respersona_relacionada=$persona_relacionada->listDetail();
+
+                    if (!isset($respersona_relacionada[0])) {
+                        $respersona_relacionada=array();
+                    }
+
+                    if (count($respersona_relacionada)>0) {
+                        $resultado_valor = 1;
+                        $resultado_lista='<div class="table-responsive table-fixed">
+                                <table class="table table-hover table-bordered table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th class="px-1 py-2 text-center font-size-12" style="width: 30px;"></th>
+                                            <th class="px-1 py-2 text-center font-size-12">Nombre Completo</th>
+                                            <th class="px-1 py-2 text-center font-size-12">Cargo</th>
+                                            <th class="px-1 py-2 text-center font-size-12">Campaña/Cliente</th>
+                                            <th class="px-1 py-2 text-center font-size-12">Relación Contractual</th>
+                                            <th class="px-1 py-2 text-center font-size-12">Parentesco</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>';
+                        for ($i=0; $i < count($respersona_relacionada); $i++) {
+                            $resultado_lista.='<tr>
+                                            <td class="p-1 text-center">
+                                                <a class="btn btn-danger btn-sm font-size-11 btn-table" title="Eliminar" onclick="persona_relacionada_del('.(int)$respersona_relacionada[$i]['hpr_id'].')"><i class="fas fa-trash-alt font-size-11"></i></a>
+                                            </td>
+                                            <td class="p-1 font-size-11 align-middle">'.htmlspecialchars($respersona_relacionada[$i]['hpr_nombre_completo'], ENT_QUOTES, 'UTF-8').'</td>
+                                            <td class="p-1 font-size-11 align-middle">'.htmlspecialchars($respersona_relacionada[$i]['hpr_cargo'], ENT_QUOTES, 'UTF-8').'</td>
+                                            <td class="p-1 font-size-11 align-middle">'.htmlspecialchars($respersona_relacionada[$i]['hpr_campana_cliente'], ENT_QUOTES, 'UTF-8').'</td>
+                                            <td class="p-1 font-size-11 align-middle">'.htmlspecialchars($respersona_relacionada[$i]['hpr_relacion_contractual'], ENT_QUOTES, 'UTF-8').'</td>
+                                            <td class="p-1 font-size-11 align-middle">'.htmlspecialchars($respersona_relacionada[$i]['hpr_parentesco'], ENT_QUOTES, 'UTF-8').'</td>
+                                        </tr>';
+                        }
+                        $resultado_lista.='</tbody>
+                                </table>';
+                    } else {
+                        $resultado_lista='';
+                        $resultado_valor = 0;
+                    }
+                }
+            } catch (Exception $e) {
+                Flasher::new('¡Se ha generado un error al almacenar la información, verifique e intente nuevamente!', 'warning');
+                $resultado_valor = 0;
+                $resultado_lista = '';
+            }
+
+            $data = array(
+                "resultado_lista" => $resultado_lista,
+                "resultado_valor" => $resultado_valor
+            );
+            echo json_encode($data);
         }
 
         public static function mostrar_seccion() {
@@ -3767,12 +3881,29 @@
                         $resaspirante=array();
                     }
 
+                    $respersona_relacionada_detalle=array();
+                    if (isset($resaspirante[0]['hvp_id'])) {
+                        $persona_relacionada_detalle = new hv_persona_relacionadaModel();
+                        $persona_relacionada_detalle->hpr_contexto='ciudadano_iq';
+                        $persona_relacionada_detalle->hpr_propietario_id=$resaspirante[0]['hvp_id'];
+                        $respersona_relacionada_detalle=$persona_relacionada_detalle->listDetail();
+                        if (!isset($respersona_relacionada_detalle[0])) {
+                            $respersona_relacionada_detalle=array();
+                        }
+                    }
+
                     $registro_parametro = new parametroModel();
                     $registro_parametro->app_id = 'autorizacion_tratamiento_datos';
                     $resregistro_parametro=$registro_parametro->listDetail();
 
                     if (!isset($resregistro_parametro[0])) {
                         $resregistro_parametro=array();
+                    }
+
+                    $registro_parametro->app_id = 'autorizacion_sagrilaft';
+                    $resregistro_parametro_sagrilaft=$registro_parametro->listDetail();
+                    if (!isset($resregistro_parametro_sagrilaft[0])) {
+                        $resregistro_parametro_sagrilaft=array();
                     }
 
                     $id_aspirante = $resaspirante[0]['hvp_aspirante_id'];
@@ -3811,30 +3942,25 @@
                         $resultado_valor = 1;
 
                         if ($seccion=='instrucciones') {
-                            $checked = ($resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales'] == 'Si') ? 'checked' : '';
+                            $checked_datos = ($resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales']=='Si') ? 'checked' : '';
+                            $checked_sagrilaft = ($resaspirante[0]['hvp_origen_fondos']=='Si') ? 'checked' : '';
 
                             $resultado_lista = '<div class="col-md-12 mb-2">
                                 <label for="">Progreso</label><span class="float-end">Completado: <span id="avance_total"></span> de <span id="secciones_total"></span></span>
                                 <div class="progress" style="height: 25px;" id="avance_barra"></div>
                             </div>
-                            <div class="col-md-12">
+                            <div class="col-md-12 mb-4">
+                                <p class="alert alert-corp p-1 my-0"><span class="fas fa-balance-scale"></span> Declaración de Origen de Fondos y Prevención de Lavado de Activos, Financiación del Terrorismo, Financiamiento de la Proliferación de Armas de Destrucción Masiva, Corrupción y Soborno - SAGRILAFT - PTEE</p>
+                                <div class="bg-light p-3 overflow-y-scroll" style="min-height:100px !important; max-height:300px !important;">'.(isset($resregistro_parametro_sagrilaft[0]['app_descripcion']) ? $resregistro_parametro_sagrilaft[0]['app_descripcion'] : '').'</div>
+                                <div class="form-check mt-2"><input class="form-check-input" type="checkbox" '.$checked_sagrilaft.' disabled><label class="form-check-label font-size-12 fw-bold">Sí, declaro y acepto lo anterior</label></div>
+                                </div>
+                            <div class="col-md-12 mb-4">
                                 <p class="alert alert-corp p-1 my-0"><span class="fas fa-file-signature"></span> Autorización para el Tratamiento de Datos Personales</p>
-                            </div>
-                            <div class="col-md-12">
-                                <div class="bg-light p-3 overflow-y-scroll" style="min-height: 100px !important; max-height: 300px !important;">
-                                    '.$resregistro_parametro[0]['app_descripcion'].'
-                                </div>
-                            </div>
-                            <div class="col-md-12 my-5">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="Si" name="hvp_consentimiento_tratamiento_datos_personales" id="hvp_consentimiento_tratamiento_datos_personales" '.$checked.' required disabled>
-                                    <label class="form-check-label font-size-12 fw-bold" for="hvp_consentimiento_tratamiento_datos_personales">Si, autorizo el tratamiento de datos personales</label>
-                                </div>
+                                <div class="bg-light p-3 overflow-y-scroll" style="min-height:100px !important; max-height:300px !important;">'.(isset($resregistro_parametro[0]['app_descripcion']) ? $resregistro_parametro[0]['app_descripcion'] : '').'</div>
+                                <div class="form-check mt-2"><input class="form-check-input" type="checkbox" '.$checked_datos.' disabled><label class="form-check-label font-size-12 fw-bold">Sí, autorizo el tratamiento de datos personales</label></div>
                             </div>
                             <div class="col-md-12 mb-3">';
-                            if($resaspirante[0]['hvp_auxiliar_3']=='') {
-                                $resultado_lista .= '<p class="alert alert-warning p-1 font-size-11 mt-0 mb-2">Para autorizar el Tratamiento de Datos Personales, por favor cargue la firma en formato de imagen.</p>';
-                            } else {
+                            if ($resaspirante[0]['hvp_auxiliar_3']!='') {
                                 $resultado_lista .= '<img src="'.UPLOADS.$resaspirante[0]['hvp_auxiliar_3'].'" class="img-fluid mb-2" style="width: 100px;">';
                             }
                             $resultado_lista .= '</div>';
@@ -4688,74 +4814,30 @@
                                                 <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_habilidades_nivel_google_ws" id="hvp_habilidades_nivel_google_ws" value="'.$resaspirante[0]['hvp_habilidades_nivel_google_ws'].'" required readonly>
                                             </div>';
                         } elseif ($seccion=='poblaciones') {
-                            $resultado_lista='<div class="col-md-12 mb-2">
-                                                <label for="">Progreso</label><span class="float-end">Completado: <span id="avance_total"></span> de <span id="secciones_total"></span></span>
-                                                <div class="progress" style="height: 25px;" id="avance_barra">
-                                                    
-                                                </div>
-                                            </div>
-                                            <div class="col-md-12">
-                                                <p class="alert alert-corp p-1 mt-0 mb-2"><span class="fas fa-users"></span> Información de Poblaciones</p>
-                                            </div>
-                                            <div class="col-md-12 mb-3">
-                                                <label for="hvp_poblaciones_poblacion" class="form-label my-0 font-size-12">Haces parte de alguna de las poblaciones mencionadas?</label>
-                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_poblacion" id="hvp_poblaciones_poblacion" value="'.$resaspirante[0]['hvp_poblaciones_poblacion'].'" required readonly>
-                                            </div>
-                                            <div class="col-md-6 mb-3 d-none" id="div_hvp_poblaciones_certificado">
-                                                <label for="hvp_poblaciones_certificado" class="form-label my-0 font-size-12">¿Cuentas con los documentos que validen la información (certificación)?</label>
-                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_certificado" id="hvp_poblaciones_certificado" value="'.$resaspirante[0]['hvp_poblaciones_certificado'].'" required readonly>
-                                            </div>';
+                            $resultado_lista='<div class="col-md-12 mb-2"><label for="">Progreso</label><span class="float-end">Completado: <span id="avance_total"></span> de <span id="secciones_total"></span></span><div class="progress" style="height:25px;" id="avance_barra"></div></div>
+                                <div class="col-md-12"><p class="alert alert-corp p-1 mt-0 mb-2"><span class="fas fa-users"></span> Información de Poblaciones</p></div>
+                                <div class="col-md-12 mb-3"><label class="form-label my-0 font-size-12">¿Hace parte de alguna de las poblaciones mencionadas?</label><input type="text" class="form-control form-control-sm font-size-11" value="'.htmlspecialchars($resaspirante[0]['hvp_poblaciones_poblacion'], ENT_QUOTES, 'UTF-8').'" readonly></div>
+                                <div class="col-md-12 mb-3"><label class="form-label my-0 font-size-12">¿Forma parte de alguna población sujeto de especial protección o vulnerabilidad?</label><input type="text" class="form-control form-control-sm font-size-11" value="'.htmlspecialchars($resaspirante[0]['hvp_poblacion_vulnerable'], ENT_QUOTES, 'UTF-8').'" readonly></div>';
 
                                             if($resaspirante[0]['hvp_poblaciones_poblacion_soporte']!='') {
-                                                 $resultado_lista.='<div class="col-md-12 my-1">
-                                                    <fieldset class="border rounded-3 px-3 py-1">
-                                                        <legend class="float-none w-auto px-2 font-size-12 fw-bold">
-                                                            Certificado población especial
-                                                        </legend>
-                                                        <embed src="'.UPLOADS.$resaspirante[0]['hvp_poblaciones_poblacion_soporte'].'" type="application/pdf" width="100%" height="600px" />
-                                                    </fieldset>
-                                                </div>';
+                                $resultado_lista.='<div class="col-md-12 my-1"><fieldset class="border rounded-3 px-3 py-1"><legend class="float-none w-auto px-2 font-size-12 fw-bold">Certificado población especial</legend><embed src="'.UPLOADS.$resaspirante[0]['hvp_poblaciones_poblacion_soporte'].'" type="application/pdf" width="100%" height="600px"></fieldset></div>';
                                             }
 
-                                            $resultado_lista.='<div class="col-md-12">
-                                                <p class="alert alert-corp p-1 my-2"><span class="fas fa-people-arrows"></span> Relaciones Familiares</p>
-                                            </div>
-                                            <p class="appoinment-content-text mt-0 mb-2">
-                                                '.$resregistro_parametro_cod_etica[0]['app_descripcion'].'
-                                            </p>
-                                            <div class="col-md-12 mb-3">
-                                                <label for="hvp_poblaciones_familiares_iq" class="form-label my-0 font-size-12">¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del  primer o segundo grado de consanguinidad, segundo de afinidad o único civil que actualmente trabaje en iQ?</label>
-                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_familiares_iq" id="hvp_poblaciones_familiares_iq" value="'.$resaspirante[0]['hvp_poblaciones_familiares_iq'].'" required readonly>
-                                            </div>';
+                            $resultado_lista.='<div class="col-md-12"><p class="alert alert-corp p-1 my-2"><span class="fas fa-people-arrows"></span> Relaciones Familiares</p></div>
+                                <p class="appoinment-content-text mt-0 mb-2">'.(isset($resregistro_parametro_cod_etica[0]['app_descripcion']) ? $resregistro_parametro_cod_etica[0]['app_descripcion'] : '').'</p>
+                                <div class="col-md-12 mb-3"><label class="form-label my-0 font-size-12">¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?</label><input type="text" class="form-control form-control-sm font-size-11" value="'.htmlspecialchars($resaspirante[0]['hvp_poblaciones_familiares_iq'], ENT_QUOTES, 'UTF-8').'" readonly></div>';
 
-                                            if ($resaspirante[0]['hvp_poblaciones_familiares_iq']=='Si') {
-                                                $resultado_lista.='<div class="col-md-3 mb-3" id="div_hvp_poblaciones_familiares_iq_identificacion">
-                                                                    <label for="hvp_poblaciones_familiares_iq_identificacion" class="form-label my-0 font-size-12">Documento de identidad de tu familiar</label>
-                                                                    <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_familiares_iq_identificacion" id="hvp_poblaciones_familiares_iq_identificacion" value="'.$resaspirante[0]['hvp_poblaciones_familiares_iq_identificacion'].'" required readonly>
-                                                                </div>
-                                                                <div class="col-md-4 mb-3" id="div_hvp_poblaciones_familiares_iq_nombres_apellidos">
-                                                                    <label for="hvp_poblaciones_familiares_iq_nombres_apellidos" class="form-label my-0 font-size-12">¿Cuál es el nombre de tu familiar?</label>
-                                                                    <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_familiares_iq_nombres_apellidos" id="hvp_poblaciones_familiares_iq_nombres_apellidos" value="'.$resaspirante[0]['hvp_poblaciones_familiares_iq_nombres_apellidos'].'" required readonly>
-                                                                </div>
-                                                                <div class="col-md-5 mb-3" id="div_hvp_poblaciones_familiares_iq_ingreso_marzo_2022">
-                                                                    <label for="hvp_poblaciones_familiares_iq_ingreso_marzo_2022" class="form-label my-0 font-size-12">Tu familiar ingresó a la compañía antes de marzo 2022?</label>
-                                                                    <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_familiares_iq_ingreso_marzo_2022" id="hvp_poblaciones_familiares_iq_ingreso_marzo_2022" value="'.$resaspirante[0]['hvp_poblaciones_familiares_iq_ingreso_marzo_2022'].'" required readonly>
-                                                                </div>';
+                            if (count($respersona_relacionada_detalle)>0) {
+                                $resultado_lista.='<div class="table-responsive"><table class="table table-bordered table-striped"><thead><tr><th>Nombre completo</th><th>Cargo</th><th>Campaña/Cliente</th><th>Relación contractual/comercial</th><th>Parentesco/Relación</th></tr></thead><tbody>';
+                                foreach ($respersona_relacionada_detalle as $persona) {
+                                    $resultado_lista.='<tr><td>'.htmlspecialchars($persona['hpr_nombre_completo'], ENT_QUOTES, 'UTF-8').'</td><td>'.htmlspecialchars($persona['hpr_cargo'], ENT_QUOTES, 'UTF-8').'</td><td>'.htmlspecialchars($persona['hpr_campana_cliente'], ENT_QUOTES, 'UTF-8').'</td><td>'.htmlspecialchars($persona['hpr_relacion_contractual'], ENT_QUOTES, 'UTF-8').'</td><td>'.htmlspecialchars($persona['hpr_parentesco'], ENT_QUOTES, 'UTF-8').'</td></tr>';
+                                }
+                                $resultado_lista.='</tbody></table></div>';
+                            } elseif ($resaspirante[0]['hvp_poblaciones_familiares_iq']=='Si' AND $resaspirante[0]['hvp_poblaciones_familiares_iq_nombres_apellidos']!='') {
+                                $resultado_lista.='<p class="alert alert-secondary p-2 font-size-11"><b>Información histórica:</b> '.htmlspecialchars($resaspirante[0]['hvp_poblaciones_familiares_iq_nombres_apellidos'], ENT_QUOTES, 'UTF-8').'</p>';
                                             }
 
-                                            
-                                            $resultado_lista.='<div class="appoinment-title mt-2">
-                                                <h4>Veracidad de la Información Proporcionada</h4>
-                                            </div>
-                                            <p class="appoinment-content-text mt-0 mb-2">
-                                                '.$resregistro_parametro_poblaciones[0]['app_descripcion'].'
-                                            </p>
-                                            <div class="col-md-12 my-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value="Si" name="hvp_veracidad" id="hvp_veracidad" '.(($resaspirante[0]['hvp_veracidad']=='Si') ? 'checked' : '').' required disabled>
-                                                    <label class="form-check-label font-size-12 fw-bold" for="hvp_veracidad">Si, acepto</label>
-                                                </div>
-                                            </div>';
+                            $resultado_lista.='<div class="appoinment-title mt-2"><h4>CONSIDERACIONES</h4></div><p class="appoinment-content-text mt-0 mb-2">'.(isset($resregistro_parametro_poblaciones[0]['app_descripcion']) ? $resregistro_parametro_poblaciones[0]['app_descripcion'] : '').'</p><div class="col-md-12 my-3"><label class="form-label font-size-12 fw-bold">Respuesta: '.htmlspecialchars($resaspirante[0]['hvp_veracidad'], ENT_QUOTES, 'UTF-8').'</label></div>';
                         }
                     } else {
                         $resultado_lista='';
@@ -4804,7 +4886,14 @@
                 }
 
                 // Valida Información en caso de autorizaciones
-                if ($resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales']!='' AND $resaspirante[0]['hvp_auxiliar_3']!='' AND $resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales_fecha']!='') {
+                if (isset($resaspirante[0])
+                    AND $resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales']=='Si'
+                    AND $resaspirante[0]['hvp_origen_fondos']=='Si'
+                    AND $resaspirante[0]['hvp_sagrilaft_texto_id']!=''
+                    AND $resaspirante[0]['hvp_sagrilaft_fecha']!=''
+                    AND $resaspirante[0]['hvp_autorizacion_texto_id']!=''
+                    AND $resaspirante[0]['hvp_consentimiento_tratamiento_datos_personales_fecha']!=''
+                    AND $resaspirante[0]['hvp_auxiliar_3']!='') {
                     $array_seccion['autorizaciones']=1;
                 }
 
@@ -4838,8 +4927,21 @@
                     $array_seccion['formacion']=1;
                 }
 
-                // Valida Información en caso de poblaciones
-                if ($resaspirante[0]['hvp_poblaciones_poblacion']!='' AND $resaspirante[0]['hvp_poblaciones_familiares_iq']!='' AND $resaspirante[0]['hvp_veracidad']!='') {
+                // Valida Información en caso de poblaciones y relaciones familiares
+                $personas_requeridas=true;
+                if (isset($resaspirante[0]) AND $resaspirante[0]['hvp_poblaciones_familiares_iq']=='Si') {
+                    $persona_relacionada = new hv_persona_relacionadaModel();
+                    $persona_relacionada->hpr_contexto='ciudadano_iq';
+                    $persona_relacionada->hpr_propietario_id=$resaspirante[0]['hvp_id'];
+                    $personas_requeridas=($persona_relacionada->countByOwner()>0);
+                }
+
+                if (isset($resaspirante[0])
+                    AND $resaspirante[0]['hvp_poblaciones_poblacion']!=''
+                    AND in_array($resaspirante[0]['hvp_poblaciones_familiares_iq'], ['Si','No'])
+                    AND in_array($resaspirante[0]['hvp_poblacion_vulnerable'], ['Si','No','Prefiero no decirlo'])
+                    AND in_array($resaspirante[0]['hvp_veracidad'], ['Si','No'])
+                    AND $personas_requeridas) {
                     $array_seccion['poblaciones']=1;
                 }
 

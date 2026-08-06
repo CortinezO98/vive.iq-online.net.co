@@ -86,37 +86,81 @@
                                                         <?php echo $data['resultado_registros_parametros_cod_etica'][0]->app_descripcion; ?>
                                                     </p>
                                                     <div class="col-md-12 mb-3">
-                                                        <label for="hvp_poblaciones_familiares_iq" class="form-label my-0 font-size-12">¿Tienes familiares, conyugue y/o compañero permanente, parientes dentro del  primer o segundo grado de consanguinidad, segundo de afinidad o único civil que actualmente trabaje en iQ?</label>
+                                                        <label for="hvp_poblaciones_familiares_iq" class="form-label my-0 font-size-12">¿Tiene usted familiares, cónyuge y/o compañero permanente, parientes dentro del cuarto grado de consanguinidad, tercero de afinidad o único civil que actualmente sea trabajador, practicante o aprendiz del GRUPO ASD S.A.S.?</label>
                                                         <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" name="hvp_poblaciones_familiares_iq" id="hvp_poblaciones_familiares_iq" data-container="body" title="Seleccione" onchange="valida_familiar();" required>
                                                             <option value="Si" <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq=='Si') ? 'selected' : ''; ?>>Si</option>
                                                             <option value="No" <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq=='No') ? 'selected' : ''; ?>>No</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-md-3 mb-3 d-none" id="div_hvp_poblaciones_familiares_iq_identificacion">
-                                                        <label for="hvp_poblaciones_familiares_iq_identificacion" class="form-label my-0 font-size-12">Documento de identidad de tu familiar</label>
-                                                        <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_familiares_iq_identificacion" id="hvp_poblaciones_familiares_iq_identificacion" value="<?php echo $data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq_identificacion; ?>" required disabled>
-                                                    </div>
-                                                    <div class="col-md-4 mb-3 d-none" id="div_hvp_poblaciones_familiares_iq_nombres_apellidos">
-                                                        <label for="hvp_poblaciones_familiares_iq_nombres_apellidos" class="form-label my-0 font-size-12">¿Cuál es el nombre de tu familiar?</label>
-                                                        <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" name="hvp_poblaciones_familiares_iq_nombres_apellidos" id="hvp_poblaciones_familiares_iq_nombres_apellidos" value="<?php echo $data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq_nombres_apellidos; ?>" required disabled>
-                                                    </div>
-                                                    <div class="col-md-5 mb-3 d-none" id="div_hvp_poblaciones_familiares_iq_ingreso_marzo_2022">
-                                                        <label for="hvp_poblaciones_familiares_iq_ingreso_marzo_2022" class="form-label my-0 font-size-12">Tu familiar ingresó a la compañía antes de marzo 2022?</label>
-                                                        <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" name="hvp_poblaciones_familiares_iq_ingreso_marzo_2022" id="hvp_poblaciones_familiares_iq_ingreso_marzo_2022" data-container="body" title="Seleccione" required disabled>
-                                                            <option value="Si" <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq_ingreso_marzo_2022=='Si') ? 'selected' : ''; ?>>Si</option>
-                                                            <option value="No" <?php echo ($data['resultado_registros_usuario'][0]->hvp_poblaciones_familiares_iq_ingreso_marzo_2022=='No') ? 'selected' : ''; ?>>No</option>
+                                                    <div class="col-md-12 mb-3 d-none" id="hpr_tabla_div">
+                                                        <p class="appoinment-content-text mt-0 mb-2">Por favor, proporcione el nombre completo, el cargo que ocupa y la campaña/cliente a la que pertenece su familiar.</p>
+                                                        <div class="row g-2 align-items-end">
+                                                            <div class="col-md-3">
+                                                                <label for="hpr_nombre_completo" class="form-label my-0 font-size-12">Nombre Completo</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_nombre_completo" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_cargo" class="form-label my-0 font-size-12">Cargo</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_cargo" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_campana_cliente" class="form-label my-0 font-size-12">Campaña/Cliente</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_campana_cliente" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_relacion_contractual" class="form-label my-0 font-size-12">Relación Contractual/Comercial</label>
+                                                                <select class="selectpicker form-control form-control-sm font-size-11 px-0 py-0" id="hpr_relacion_contractual" data-container="body" title="Seleccione">
+                                                                    <option value="Trabajador">Trabajador</option>
+                                                                    <option value="Practicante">Practicante</option>
+                                                                    <option value="Aprendiz">Aprendiz</option>
+                                                                    <option value="Contratista">Contratista</option>
+                                                                    <option value="Cliente">Cliente</option>
                                                         </select>
                                                     </div>
+                                                            <div class="col-md-2">
+                                                                <label for="hpr_parentesco" class="form-label my-0 font-size-12">Parentesco/Relación</label>
+                                                                <input type="text" class="form-control form-control-sm font-size-11 px-2 py-1" id="hpr_parentesco" autocomplete="off">
+                                                            </div>
+                                                            <div class="col-md-1">
+                                                                <a class="btn btn-warning login-btn btn-sm w-100" onclick="persona_relacionada_add();">Agregar</a>
+                                                            </div>
+                                                        </div>
+                                                        <hr>
+                                                        <p class="appoinment-content-text mt-0 mb-2">Personas Relacionadas Registradas</p>
+                                                        <div class="col-md-12 mb-2" id="lista_persona_relacionada"></div>
+                                                    </div>
+                                                    <div class="col-md-12">
+                                                        <p class="alert alert-corp p-1 my-2"><span class="fas fa-shield-alt"></span> Población Sujeto de Especial Protección</p>
+                                                    </div>
+                                                    <div class="col-md-12 mb-3">
+                                                        <label class="form-label my-0 font-size-12 d-block">¿Forma parte de alguna población sujeto de especial protección o vulnerabilidad?</label>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="hvp_poblacion_vulnerable" id="hvp_poblacion_vulnerable_si" value="Si" required <?php echo (isset($data['resultado_registros_usuario'][0]->hvp_poblacion_vulnerable) AND $data['resultado_registros_usuario'][0]->hvp_poblacion_vulnerable=='Si') ? 'checked' : ''; ?>>
+                                                            <label class="form-check-label font-size-12" for="hvp_poblacion_vulnerable_si">Sí</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="hvp_poblacion_vulnerable" id="hvp_poblacion_vulnerable_no" value="No" required <?php echo (isset($data['resultado_registros_usuario'][0]->hvp_poblacion_vulnerable) AND $data['resultado_registros_usuario'][0]->hvp_poblacion_vulnerable=='No') ? 'checked' : ''; ?>>
+                                                            <label class="form-check-label font-size-12" for="hvp_poblacion_vulnerable_no">No</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="hvp_poblacion_vulnerable" id="hvp_poblacion_vulnerable_np" value="Prefiero no decirlo" required <?php echo (isset($data['resultado_registros_usuario'][0]->hvp_poblacion_vulnerable) AND $data['resultado_registros_usuario'][0]->hvp_poblacion_vulnerable=='Prefiero no decirlo') ? 'checked' : ''; ?>>
+                                                            <label class="form-check-label font-size-12" for="hvp_poblacion_vulnerable_np">Prefiero no decirlo</label>
+                                                        </div>
+                                                    </div>
                                                     <div class="appoinment-title mt-2">
-                                                        <h4>Veracidad de la Información Proporcionada</h4>
+                                                        <h4>CONSIDERACIONES</h4>
                                                     </div>
                                                     <p class="appoinment-content-text mt-0 mb-2">
                                                         <?php echo $data['resultado_registros_parametros'][0]->app_descripcion; ?>
                                                     </p>
                                                     <div class="col-md-12 my-3">
-                                                        <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" value="Si" name="hvp_veracidad" id="hvp_veracidad" <?php echo ($data['resultado_registros_usuario'][0]->hvp_veracidad=='Si') ? 'checked' : ''; ?> required>
-                                                            <label class="form-check-label font-size-12 fw-bold" for="hvp_veracidad">Si, acepto</label>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" value="Si" name="hvp_veracidad" id="hvp_veracidad_si" <?php echo ($data['resultado_registros_usuario'][0]->hvp_veracidad=='Si') ? 'checked' : ''; ?> required>
+                                                            <label class="form-check-label font-size-12 fw-bold" for="hvp_veracidad_si">Sí</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" value="No" name="hvp_veracidad" id="hvp_veracidad_no" <?php echo ($data['resultado_registros_usuario'][0]->hvp_veracidad=='No') ? 'checked' : ''; ?> required>
+                                                            <label class="form-check-label font-size-12 fw-bold" for="hvp_veracidad_no">No</label>
                                                         </div>
                                                     </div>
                                                     
@@ -242,33 +286,135 @@
     }
 
     function valida_familiar() {
-        $("#div_hvp_poblaciones_familiares_iq_identificacion").removeClass('d-block').addClass('d-none');
-        $("#div_hvp_poblaciones_familiares_iq_nombres_apellidos").removeClass('d-block').addClass('d-none');
-        $("#div_hvp_poblaciones_familiares_iq_ingreso_marzo_2022").removeClass('d-block').addClass('d-none');
+        $("#hpr_tabla_div").removeClass('d-block').addClass('d-none');
+        var respuesta=document.getElementById("hvp_poblaciones_familiares_iq").value;
+        if (respuesta==="Si") {
+            $("#hpr_tabla_div").removeClass('d-none').addClass('d-block');
+            persona_relacionada_list();
+        }
+    }
+    // ===== RF-02: Personas relacionadas con GRUPO ASD S.A.S. =====
+    function persona_relacionada_add() {
+        var hpr_nombre_completo = document.getElementById("hpr_nombre_completo").value;
+        var hpr_cargo = document.getElementById("hpr_cargo").value;
+        var hpr_campana_cliente = document.getElementById("hpr_campana_cliente").value;
+        var hpr_relacion_contractual = document.getElementById("hpr_relacion_contractual").value;
+        var hpr_parentesco = document.getElementById("hpr_parentesco").value;
 
-        document.getElementById('hvp_poblaciones_familiares_iq_identificacion').disabled=true;
-        document.getElementById('hvp_poblaciones_familiares_iq_nombres_apellidos').disabled=true;
-        document.getElementById('hvp_poblaciones_familiares_iq_ingreso_marzo_2022').disabled=true;
+        var formData = new FormData();
+        formData.append("hpr_nombre_completo", hpr_nombre_completo);
+        formData.append("hpr_cargo", hpr_cargo);
+        formData.append("hpr_campana_cliente", hpr_campana_cliente);
+        formData.append("hpr_relacion_contractual", hpr_relacion_contractual);
+        formData.append("hpr_parentesco", hpr_parentesco);
 
-        var hvp_poblaciones_familiares_iq = document.getElementById("hvp_poblaciones_familiares_iq").value;
+        if (hpr_nombre_completo!="" && hpr_cargo!="" && hpr_campana_cliente!="" && hpr_relacion_contractual!="" && hpr_parentesco!="") {
+            $.ajax({
+                type: 'POST',
+                url: '<?php echo URL; ?>hoja-vida/formulario-persona-relacionada-registro',
+                data: formData,
+                cache: false,
+                contentType: false,
+                processData: false,
+                beforeSend: function(){
+                    document.getElementById("hpr_nombre_completo").disabled=true;
+                    document.getElementById("hpr_cargo").disabled=true;
+                    document.getElementById("hpr_campana_cliente").disabled=true;
+                    document.getElementById("hpr_parentesco").disabled=true;
+                },
+                complete:function(data){
+                    document.getElementById("hpr_nombre_completo").disabled=false;
+                    document.getElementById("hpr_cargo").disabled=false;
+                    document.getElementById("hpr_campana_cliente").disabled=false;
+                    document.getElementById("hpr_parentesco").disabled=false;
+                },
+                success: function(data){
+                    var resp = $.parseJSON(data);
 
-        if (hvp_poblaciones_familiares_iq!="" && (hvp_poblaciones_familiares_iq=="Si")) {
-            $("#div_hvp_poblaciones_familiares_iq_identificacion").removeClass('d-none').addClass('d-block');
-            $("#div_hvp_poblaciones_familiares_iq_nombres_apellidos").removeClass('d-none').addClass('d-block');
-            $("#div_hvp_poblaciones_familiares_iq_ingreso_marzo_2022").removeClass('d-none').addClass('d-block');
-            document.getElementById('hvp_poblaciones_familiares_iq_identificacion').disabled=false;
-            document.getElementById('hvp_poblaciones_familiares_iq_nombres_apellidos').disabled=false;
-            document.getElementById('hvp_poblaciones_familiares_iq_ingreso_marzo_2022').disabled=false;
-            $('#hvp_poblaciones_familiares_iq_ingreso_marzo_2022').selectpicker('destroy');
-            $('#hvp_poblaciones_familiares_iq_ingreso_marzo_2022').selectpicker();
+                    if (resp.resultado_valor) {
+                        document.getElementById("hpr_nombre_completo").value='';
+                        document.getElementById("hpr_cargo").value='';
+                        document.getElementById("hpr_campana_cliente").value='';
+                        $('#hpr_relacion_contractual').selectpicker('val', '');
+                        document.getElementById("hpr_parentesco").value='';
+                    } else {
+                        alert("¡No se pudo agregar el registro, verifique que la relación contractual sea válida e intente nuevamente!");
+                    }
+                    persona_relacionada_list();
+                },
+                error: function(data){
+                    alert("Problemas al tratar de crear el registro, por favor verifique e intente nuevamente");
+                }
+            });
+        } else {
+            alert("¡Todos los campos son obligatorios, por favor verifique e intente nuevamente!");
         }
     }
 
-    <?php if($data['resultado_registros_usuario'][0]->hvp_poblaciones_poblacion!=''): ?>
+    function persona_relacionada_list() {
+        var formData = new FormData();
+
+        $.ajax({
+            type: 'POST',
+            url: '<?php echo URL; ?>hoja-vida/formulario-persona-relacionada-listar',
+            data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+            beforeSend: function(){
+
+            },
+            complete:function(data){
+
+            },
+            success: function(data){
+                var resp = $.parseJSON(data);
+
+                if (resp.resultado_valor) {
+                    $('#lista_persona_relacionada').html(resp.resultado_lista);
+                    progreso();
+                } else {
+                    $('#lista_persona_relacionada').html('<p class="alert alert-warning p-1 font-size-11">¡No se encontró información de personas relacionadas registrada!</p>');
+                }
+            },
+            error: function(data){
+                alert("Problemas al tratar de obtener el registro, por favor verifique e intente nuevamente");
+            }
+        });
+    }
+
+    function persona_relacionada_del(id_registro) {
+        if (!confirm("¿Está seguro de eliminar esta persona relacionada?")) {
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append("id_registro", id_registro);
+
+        $.ajax({
+            type: 'POST',
+            url: '<?php echo URL; ?>hoja-vida/formulario-persona-relacionada-eliminar',
+            data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+            beforeSend: function(){
+
+            },
+            complete:function(data){
+
+            },
+            success: function(data){
+                persona_relacionada_list();
+            },
+            error: function(data){
+                alert("Problemas al tratar de eliminar el registro, por favor verifique e intente nuevamente");
+            }
+        });
+    }
+
         valida_poblacion();
-        // valida_poblacion_soporte();
         valida_familiar();
-    <?php endif; ?>
 </script>
 
 <script type="text/javascript">

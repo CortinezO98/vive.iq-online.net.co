@@ -41,37 +41,46 @@
                                                             
                                                         </div>
                                                     </div>
-                                                    <div class="col-md-12">
-                                                        <p class="alert alert-corp p-1 my-0"><span class="fas fa-file-signature"></span> Autorización para el Tratamiento de Datos Personales</p>
-                                                    </div>
                                                     <?php if($data['resultado_registros_usuario_count']>0): ?>
-                                                        <div class="col-md-12">
+                                                        <div class="col-md-12 mb-4">
+                                                            <p class="alert alert-corp p-1 my-0"><span class="fas fa-balance-scale"></span> Declaración de Origen de Fondos y Prevención de Lavado de Activos, Financiación del Terrorismo, Financiamiento de la Proliferación de Armas de Destrucción Masiva, Corrupción y Soborno - SAGRILAFT - PTEE</p>
                                                             <div class="bg-light p-3 overflow-y-scroll" style="min-height: 100px !important; max-height: 300px !important;">
+                                                                <?php echo $data['resultado_registros_parametros_sagrilaft'][0]->app_descripcion; ?>
+                                                            </div>
+                                                            <div class="form-check mt-2">
+                                                                <input class="form-check-input" type="checkbox" value="Si" name="hvp_origen_fondos" id="hvp_origen_fondos" <?php echo ($data['resultado_registros_usuario'][0]->hvp_origen_fondos=='Si') ? 'checked' : ''; ?> required>
+                                                                <label class="form-check-label font-size-12 fw-bold" for="hvp_origen_fondos">Sí, declaro y acepto lo anterior</label>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="col-md-12 mb-4">
+                                                            <p class="alert alert-corp p-1 my-0"><span class="fas fa-file-signature"></span> Autorización para el Tratamiento de Datos Personales</p>
+                                                            <div class="bg-light p-3 overflow-y-scroll" style="min-height:100px !important; max-height:300px !important;">
                                                                 <?php echo $data['resultado_registros_parametros'][0]->app_descripcion; ?>
                                                             </div>
-                                                        </div>
-                                                        <div class="col-md-12 my-5">
-                                                            <div class="form-check">
+                                                            <div class="form-check mt-2">
                                                                 <input class="form-check-input" type="checkbox" value="Si" name="hvp_consentimiento_tratamiento_datos_personales" id="hvp_consentimiento_tratamiento_datos_personales" <?php echo ($data['resultado_registros_usuario'][0]->hvp_consentimiento_tratamiento_datos_personales=='Si') ? 'checked' : ''; ?> required>
-                                                                <label class="form-check-label font-size-12 fw-bold" for="hvp_consentimiento_tratamiento_datos_personales">Si, autorizo el tratamiento de datos personales</label>
+                                                                <label class="form-check-label font-size-12 fw-bold" for="hvp_consentimiento_tratamiento_datos_personales">Sí, autorizo el tratamiento de datos personales</label>
                                                             </div>
                                                         </div>
+
                                                         <div class="col-md-12 mb-3">
                                                             <?php if($data['resultado_registros_usuario'][0]->hvp_auxiliar_3==''): ?>
-                                                                <p class="alert alert-warning p-1 font-size-11 mt-0 mb-2">Para autorizar el Tratamiento de Datos Personales, por favor cargue la firma en formato de imagen.</p>
+                                                                <p class="alert alert-warning p-1 font-size-11 mt-0 mb-2">Para autorizar el Tratamiento de Datos Personales, cargue la firma en formato de imagen.</p>
                                                             <?php else: ?>
                                                                 <img src="<?php echo UPLOADS.$data['resultado_registros_usuario'][0]->hvp_auxiliar_3; ?>" class="img-fluid mb-2" style="width: 100px;">
-                                                                <p class="alert alert-warning p-1 font-size-11 mt-0 mb-2">Para actualizar la firma de la política de Tratamiento de Datos Personales, por favor cargue nuevamente la firma en formato de imagen.</p>
+                                                                <p class="alert alert-warning p-1 font-size-11 mt-0 mb-2">Para actualizar la firma, cargue una imagen nueva.</p>
                                                             <?php endif; ?>
-                                                            <label for="documento_soporte" class="form-label my-0 font-size-11">Firma</label>
-                                                            <small class="fst-italic text-danger font-size-11">Adjunte la firma en formato PNG, JPG o JPEG (Máx. 5Mb)</small>
-                                                            <input type="file" class="form-control form-control-sm" name="documento_soporte" id="documento_soporte" accept=".png, .PNG, .jpg, .JPG, .jpeg, .JPEG" <?php echo ($data['resultado_registros_usuario'][0]->hvp_auxiliar_3=='') ? 'required' : ''; ?>>
+                                                            <label for="hvp_firma" class="form-label my-0 font-size-11">Firma</label>
+                                                            <small class="fst-italic text-danger font-size-11">PNG, JPG o JPEG (máximo 5 MB)</small>
+                                                            <input type="file" class="form-control form-control-sm" name="hvp_firma" id="hvp_firma" accept=".png,.PNG,.jpg,.JPG,.jpeg,.JPEG" <?php echo ($data['resultado_registros_usuario'][0]->hvp_auxiliar_3=='') ? 'required' : ''; ?>>
                                                         </div>
                                                     <?php else: ?>
                                                         <div class="col-md-12">
                                                             <p class="alert alert-warning p-1 font-size-11">¡No encontramos secciones habilitadas para la Hoja de Vida, por favor verifique!</p>
                                                         </div>
                                                     <?php endif; ?>
+
                                                 </div>
                                             </div>
                                             <?php echo Flasher::flash(); ?>
