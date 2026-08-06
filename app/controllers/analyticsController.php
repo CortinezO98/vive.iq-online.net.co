@@ -315,10 +315,46 @@ class analyticsController extends Controller
             exit;
         }
 
-        $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION . 'usu_perfil'] ?? '')));
-        $allow = ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'];
+        $modulos = $_SESSION[APP_SESSION . 'usu_modulos'] ?? [];
+        $perfilModulo = '';
 
-        if (!in_array($perfil, $allow, true)) {
+        if (is_array($modulos)) {
+            $perfilModulo = strtoupper(
+                trim((string)($modulos['Comunicaciones'] ?? ''))
+            );
+        }
+
+        /*
+         * Cuando existe una asignación modular, Analytics se autoriza
+         * únicamente al administrador del módulo.
+         */
+        if ($perfilModulo !== '') {
+            $autorizado = in_array(
+                $perfilModulo,
+                ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'],
+                true
+            );
+        } else {
+            /*
+             * Compatibilidad: mientras el usuario no tenga asignado el
+             * módulo, se conserva la regla global anterior.
+             */
+            $perfilGlobal = strtoupper(
+                trim(
+                    (string)(
+                        $_SESSION[APP_SESSION . 'usu_perfil'] ?? ''
+                    )
+                )
+            );
+
+            $autorizado = in_array(
+                $perfilGlobal,
+                ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'],
+                true
+            );
+        }
+
+        if (!$autorizado) {
             Redirect::to('error');
             exit;
         }

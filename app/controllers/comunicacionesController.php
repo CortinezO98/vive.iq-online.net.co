@@ -7,19 +7,105 @@ class comunicacionesController extends Controller {
     public function __construct() {
         $this->model = new comunicacionesModel();
     }
+    /**
+     * Obtiene el perfil asignado específicamente al módulo Comunicaciones.
+     * Una cadena vacía indica que el usuario todavía no ha sido migrado
+     * al esquema modular y debe conservarse la compatibilidad anterior.
+     */
+    private function perfilModuloComunicaciones(): string {
+        $modulos = $_SESSION[APP_SESSION . 'usu_modulos'] ?? [];
+
+        if (!is_array($modulos)) {
+            return '';
+        }
+
+        return strtoupper(
+            trim((string)($modulos['Comunicaciones'] ?? ''))
+        );
+    }
+
+    /**
+     * Control de acceso general.
+     *
+     * Sin asignación modular conserva el comportamiento original:
+     * cualquier usuario autenticado puede consultar Comunicaciones.
+     */
+    private function puedeAccederComunicaciones(): bool {
+        if (!isset($_SESSION[APP_SESSION . 'usu_id'])) {
+            return false;
+        }
+
+        $perfilModulo = $this->perfilModuloComunicaciones();
+
+        if ($perfilModulo === '') {
+            return true;
+        }
+
+        return in_array(
+            $perfilModulo,
+            [
+                'VISITANTE',
+                'USUARIO',
+                'GESTOR',
+                'ADMIN',
+                'ADMINISTRADOR',
+                'SUPERADMIN',
+            ],
+            true
+        );
+    }
+
+    /**
+     * Control de administración editorial y de eventos.
+     *
+     * Con asignación modular: Gestor o Administrador.
+     * Sin asignación modular: conserva el control global anterior.
+     */
+    private function puedeGestionarComunicaciones(): bool {
+        $perfilModulo = $this->perfilModuloComunicaciones();
+
+        if ($perfilModulo !== '') {
+            return in_array(
+                $perfilModulo,
+                [
+                    'GESTOR',
+                    'ADMIN',
+                    'ADMINISTRADOR',
+                    'SUPERADMIN',
+                ],
+                true
+            );
+        }
+
+        $perfilGlobal = strtoupper(
+            trim(
+                (string)(
+                    $_SESSION[APP_SESSION . 'usu_perfil'] ?? ''
+                )
+            )
+        );
+
+        return in_array(
+            $perfilGlobal,
+            ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'],
+            true
+        );
+    }
 
     private function requireLogin(): void {
         if (!isset($_SESSION[APP_SESSION . 'usu_id'])) {
             Redirect::to('?uri=login');
             exit;
         }
+
+        if (!$this->puedeAccederComunicaciones()) {
+            Redirect::to('?uri=error');
+            exit;
+        }
     }
 
     private function requireAdminComunicaciones(): void {
-        $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION . 'usu_perfil'] ?? '')));
-        $allow = ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'];
-
-        if (!in_array($perfil, $allow, true)) {
+        if (!$this->puedeGestionarComunicaciones()) {
             Redirect::to('?uri=error');
             exit;
         }
@@ -478,8 +564,7 @@ class comunicacionesController extends Controller {
 
         [$eventos, $eventosPorDia] = $this->loadEventosMes($year, $month);
 
-        $perfil = strtoupper(trim((string)($_SESSION[APP_SESSION . 'usu_perfil'] ?? '')));
-        $puedeEditar = in_array($perfil, ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'], true);
+        $puedeEditar = $this->puedeGestionarComunicaciones();
 
         header('Content-Type: text/html; charset=UTF-8');
 
